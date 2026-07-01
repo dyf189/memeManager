@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.mememanager.data.local.AppDatabase
 import com.mememanager.data.local.dao.MediaDao
+import com.mememanager.data.local.dao.MediaTagRefDao
 import com.mememanager.data.local.dao.TagDao
 import dagger.Module
 import dagger.Provides
@@ -23,7 +24,9 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "meme_manager.db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides
@@ -34,5 +37,10 @@ object DatabaseModule {
     @Provides
     fun provideTagDao(database: AppDatabase): TagDao {
         return database.tagDao()
+    }
+
+    @Provides
+    fun provideMediaTagRefDao(database: AppDatabase): MediaTagRefDao {
+        return database.mediaTagRefDao()
     }
 }

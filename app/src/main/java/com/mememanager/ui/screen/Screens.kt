@@ -8,18 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
-@Composable
-fun AlbumScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "相册",
-            style = MaterialTheme.typography.headlineMedium
-        )
-    }
-}
+// ── 导出 AlbumScreen 供 MainActivity 使用 ──
+// AlbumScreen 已在 ui/screen/album/ 包下实现
+// 这个文件保留 TagsScreen 和 SettingsScreen 占位
 
 @Composable
 fun TagsScreen() {

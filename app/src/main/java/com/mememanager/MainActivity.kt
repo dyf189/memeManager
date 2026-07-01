@@ -25,7 +25,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.mememanager.ui.screen.AlbumScreen
+import com.mememanager.ui.screen.album.AlbumScreen
 import com.mememanager.ui.screen.SettingsScreen
 import com.mememanager.ui.screen.TagsScreen
 import com.mememanager.ui.theme.MemeManagerTheme
@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MemeManagerTheme {
-                MemeManagerApp()
+                AppContent()
             }
         }
     }
@@ -51,7 +51,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 }
 
 @Composable
-fun MemeManagerApp() {
+fun AppContent() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
