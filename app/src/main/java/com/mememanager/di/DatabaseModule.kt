@@ -25,7 +25,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "meme_manager.db"
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
 

@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,24 +22,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
+import java.io.File
 
 /**
  * 相册网格缩略图
  *
- * 布局：
- * ┌──────────────┐
- * │  缩略图       │
- * │  (占位色块)   │
- * │    ●●  +1    │  ← 右下角标签圆点（最多4个，超出显示 +N）
- * └──────────────┘
+ * 使用 Coil 加载图片/GIF/视频帧，加载中显示类型色块占位，加载失败显示错误图标。
+ * 右下角最多显示 4 个标签圆点，超出显示灰色 "+N"。
  */
+
 @Composable
 fun AlbumGridItem(
     mediaWithTags: MediaWithTags,
@@ -51,6 +52,18 @@ fun AlbumGridItem(
 ) {
     val media = mediaWithTags.media
     val tags = mediaWithTags.tags
+
+    val placeholderColor = when (media.type) {
+        MediaType.IMAGE -> Color(0xFFE3F2FD)
+        MediaType.GIF -> Color(0xFFE8F5E9)
+        MediaType.VIDEO -> Color(0xFFFCE4EC)
+    }
+
+    val typeEmoji = when (media.type) {
+        MediaType.IMAGE -> "📷"
+        MediaType.GIF -> "🎞️"
+        MediaType.VIDEO -> "🎬"
+    }
 
     Card(
         modifier = modifier
@@ -65,31 +78,26 @@ fun AlbumGridItem(
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // ── 占位色块（假数据无真实图片时用） ──
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        when (media.type) {
-                            MediaType.IMAGE -> Color(0xFFE3F2FD)
-                            MediaType.GIF -> Color(0xFFE8F5E9)
-                            MediaType.VIDEO -> Color(0xFFFCE4EC)
-                        }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = when (media.type) {
-                        MediaType.IMAGE -> "📷"
-                        MediaType.GIF -> "🎞️"
-                        MediaType.VIDEO -> "🎬"
-                    },
-                    fontSize = 24.sp
-                )
-            }
+        Box(modifier = Modifier.fillMaxSize()) {
+
+            // ── 图片加载 ──
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(File(media.filePath))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = media.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                loading = {
+                    // 加载中：类型色块 + emoji 占位
+                    PlaceholderBox(color = placeholderColor, emoji = typeEmoji)
+                },
+                error = {
+                    // 加载失败：灰色 + 类型 emoji
+                    PlaceholderBox(color = Color(0xFFE0E0E0), emoji = typeEmoji)
+                }
+            )
 
             // ── 选中蒙层 ──
             if (isSelected) {
@@ -139,6 +147,25 @@ fun AlbumGridItem(
                 }
             }
         }
+    }
+}
+
+/**
+ * 加载中/加载失败时的占位色块
+ */
+@Composable
+private fun PlaceholderBox(
+    color: Color,
+    emoji: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(color),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = emoji, fontSize = 24.sp)
     }
 }
 
