@@ -34,6 +34,9 @@ import coil.request.ImageRequest
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
+import com.mememanager.data.local.entity.TagEntity
+import com.mememanager.data.local.entity.MediaEntity
+import com.mememanager.ui.theme.MemeManagerTheme
 import java.io.File
 
 /**
@@ -192,5 +195,50 @@ private fun TagDots(
                 modifier = Modifier.padding(start = 1.dp)
             )
         }
+    }
+}
+
+// ── Preview ──
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewAlbumGridItem() {
+    MemeManagerTheme {
+        val sampleMedia = MediaEntity(
+            id = 1, name = "test.jpg", filePath = "/fake/test.jpg",
+            type = MediaType.IMAGE, size = 12345,
+            storageType = StorageType.PRIVATE
+        )
+        AlbumGridItem(
+            mediaWithTags = MediaWithTags(
+                media = sampleMedia,
+                tags = listOf(
+                    TagEntity(id = 1, name = "猫猫", bgColor = 0xFF2196F3.toInt()),
+                    TagEntity(id = 2, name = "可爱", bgColor = 0xFFE91E63.toInt()),
+                    TagEntity(id = 3, name = "爆笑", bgColor = 0xFFF44336.toInt()),
+                    TagEntity(id = 4, name = "沙雕", bgColor = 0xFF4CAF50.toInt()),
+                    TagEntity(id = 5, name = "狗狗", bgColor = 0xFF9C27B0.toInt()),
+                )
+            )
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewAlbumGridItemGif() {
+    MemeManagerTheme {
+        val sampleMedia = MediaEntity(
+            id = 2, name = "selected.gif", filePath = "/fake/selected.gif",
+            type = MediaType.GIF, size = 99999,
+            storageType = StorageType.EXTERNAL
+        )
+        AlbumGridItem(
+            mediaWithTags = MediaWithTags(
+                media = sampleMedia,
+                tags = listOf(TagEntity(id = 1, name = "表情", bgColor = 0xFFFF9800.toInt())),
+            ),
+            isSelected = true
+        )
     }
 }

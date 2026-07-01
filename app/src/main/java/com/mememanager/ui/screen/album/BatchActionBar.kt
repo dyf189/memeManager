@@ -1,5 +1,7 @@
 package com.mememanager.ui.screen.album
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -14,7 +16,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
+import com.mememanager.ui.theme.MemeManagerTheme
+import androidx.compose.material3.Scaffold
 
 /**
  * 批量操作栏（多选模式顶部栏）
@@ -63,4 +68,20 @@ fun BatchActionBar(
         ),
         modifier = modifier
     )
+}
+
+// ── Preview ──
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewBatchActionBar() {
+    MemeManagerTheme {
+        Scaffold(
+            topBar = {
+                BatchActionBar(selectedCount = 3, onCancel = {})
+            }
+        ) { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding))
+        }
+    }
 }

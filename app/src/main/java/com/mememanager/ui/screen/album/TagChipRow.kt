@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mememanager.data.local.entity.TagEntity
+import com.mememanager.ui.theme.MemeManagerTheme
+import androidx.compose.ui.tooling.preview.Preview
 
 /**
  * 标签胶囊筛选栏
@@ -95,6 +97,26 @@ private fun TagChip(
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             color = textColor
+        )
+    }
+}
+
+// ── Preview ──
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewTagChipRow() {
+    MemeManagerTheme {
+        TagChipRow(
+            tags = listOf(
+                TagEntity(id = 1, name = "开心", bgColor = 0xFFFF9800.toInt()),
+                TagEntity(id = 2, name = "爆笑", bgColor = 0xFFF44336.toInt()),
+                TagEntity(id = 3, name = "可爱", bgColor = 0xFFE91E63.toInt()),
+                TagEntity(id = 4, name = "沙雕", bgColor = 0xFF4CAF50.toInt()),
+                TagEntity(id = 5, name = "猫猫", bgColor = 0xFF2196F3.toInt()),
+            ),
+            selectedTagId = null,
+            onTagSelected = {}
         )
     }
 }

@@ -12,6 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mememanager.ui.util.TimeGroup
+import com.mememanager.ui.theme.MemeManagerTheme
+import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun TimeGroupHeader(
@@ -30,5 +32,15 @@ fun TimeGroupHeader(
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+// ── Preview ──
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewTimeGroupHeader() {
+    MemeManagerTheme {
+        TimeGroupHeader(TimeGroup("昨天", 0))
     }
 }

@@ -36,6 +36,8 @@ import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
 import com.mememanager.data.local.entity.TagEntity
 import com.mememanager.ui.util.TimeGroupUtil
+import com.mememanager.ui.theme.MemeManagerTheme
+import androidx.compose.ui.tooling.preview.Preview
 
 /**
  * 主相册页面
@@ -285,4 +287,14 @@ private fun makeMedia(
         createdAt = time,
         updatedAt = time
     )
+}
+
+// ── Preview ──
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewAlbumScreen() {
+    MemeManagerTheme {
+        AlbumScreen(columns = 3)
+    }
 }

@@ -16,11 +16,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mememanager.data.local.entity.MediaType
+import com.mememanager.ui.theme.MemeManagerTheme
 
 /**
  * 筛选面板 — 覆盖在内容上方
@@ -88,5 +94,21 @@ fun FilterPanel(
                 }
             }
         }
+    }
+}
+
+// ── Preview ──
+
+@Preview(showBackground = true)
+@Composable
+private fun PreviewFilterPanel() {
+    MemeManagerTheme {
+        var selectedType by remember { mutableStateOf<MediaType?>(MediaType.GIF) }
+        FilterPanel(
+            visible = true,
+            onDismiss = {},
+            selectedType = selectedType,
+            onTypeSelected = { selectedType = it }
+        )
     }
 }
