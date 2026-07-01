@@ -99,9 +99,9 @@ fun AlbumGridItem(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(3.dp)
-                        .background(Color(0xCC000000), RoundedCornerShape(3.dp))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                        .padding(start = 3.dp, end = 3.dp)
+                        .background(Color(0x99000000), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 4.dp, vertical = 0.dp)
                 ) {
                     Text(
                         text = when (media.type) {
@@ -155,8 +155,8 @@ fun AlbumGridItem(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(3.dp)
-                        .background(Color(0xCC000000), RoundedCornerShape(3.dp))
+                        .padding(end = 30.dp)
+                        .background(Color(0x99000000), RoundedCornerShape(3.dp))
                         .padding(horizontal = 3.dp, vertical = 1.dp)
                 ) {
                     Text("🔗", fontSize = 9.sp)
