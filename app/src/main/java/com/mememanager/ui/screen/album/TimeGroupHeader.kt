@@ -22,7 +22,7 @@ fun TimeGroupHeader(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 3.dp)
     ) {
         Text(
             text = group.label,

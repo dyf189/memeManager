@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -53,30 +54,18 @@ fun AlbumGridItem(
     val media = mediaWithTags.media
     val tags = mediaWithTags.tags
 
-    val placeholderColor = when (media.type) {
-        MediaType.IMAGE -> Color(0xFFE3F2FD)
-        MediaType.GIF -> Color(0xFFE8F5E9)
-        MediaType.VIDEO -> Color(0xFFFCE4EC)
-    }
-
-    val typeEmoji = when (media.type) {
-        MediaType.IMAGE -> "📷"
-        MediaType.GIF -> "🎞️"
-        MediaType.VIDEO -> "🎬"
-    }
-
     Card(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .then(
                 if (isSelected) Modifier.border(
-                    2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)
+                    2.dp, MaterialTheme.colorScheme.primary, RectangleShape
                 ) else Modifier
             )
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RectangleShape,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
 
@@ -90,14 +79,38 @@ fun AlbumGridItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
                 loading = {
-                    // 加载中：类型色块 + emoji 占位
-                    PlaceholderBox(color = placeholderColor, emoji = typeEmoji)
+                    // 加载中：浅灰占位
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color(0xFFEEEEEE))
+                    )
                 },
                 error = {
-                    // 加载失败：灰色 + 类型 emoji
-                    PlaceholderBox(color = Color(0xFFE0E0E0), emoji = typeEmoji)
+                    // 加载失败：浅灰占位
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color(0xFFE0E0E0))
+                    )
                 }
             )
+            // ── 类型角标（左上角，GIF/视频） ──
+            if (media.type != MediaType.IMAGE) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(3.dp)
+                        .background(Color(0xCC000000), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = when (media.type) {
+                            MediaType.GIF -> "GIF"
+                            MediaType.VIDEO -> "VIDEO"
+                            else -> ""
+                        },
+                        fontSize = 9.sp,
+                        color = Color.White
+                    )
+                }
+            }
 
             // ── 选中蒙层 ──
             if (isSelected) {
@@ -138,34 +151,15 @@ fun AlbumGridItem(
             if (media.storageType == StorageType.EXTERNAL) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(4.dp)
-                        .background(Color(0x80000000), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .align(Alignment.TopEnd)
+                        .padding(3.dp)
+                        .background(Color(0xCC000000), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 3.dp, vertical = 1.dp)
                 ) {
-                    Text("🔗", fontSize = 10.sp)
+                    Text("🔗", fontSize = 9.sp)
                 }
             }
         }
-    }
-}
-
-/**
- * 加载中/加载失败时的占位色块
- */
-@Composable
-private fun PlaceholderBox(
-    color: Color,
-    emoji: String,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(color),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = emoji, fontSize = 24.sp)
     }
 }
 

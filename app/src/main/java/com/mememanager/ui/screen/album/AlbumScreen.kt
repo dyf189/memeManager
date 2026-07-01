@@ -2,22 +2,34 @@ package com.mememanager.ui.screen.album
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
@@ -44,6 +56,7 @@ import com.mememanager.ui.util.TimeGroupUtil
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumScreen(
+    columns: Int = 3,
     modifier: Modifier = Modifier
 ) {
     // ── 样本数据（后续 2.1 替换为 ViewModel 数据源） ──
@@ -103,7 +116,8 @@ fun AlbumScreen(
     }
 
     // ── UI 状态 ──
-    var isFilterExpanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var isFilterPanelVisible by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf<MediaType?>(null) }
     var selectedTagId by remember { mutableStateOf<Long?>(null) }
     var isMultiSelectMode by remember { mutableStateOf(false) }
@@ -128,37 +142,65 @@ fun AlbumScreen(
         },
         modifier = modifier
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+        ) {
+            // ── 搜索栏 + 筛选按钮 ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // ── 标签胶囊栏 + 筛选面板（跨列） ──
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    TagChipRow(
-                        tags = sampleTags,
-                        selectedTagId = selectedTagId,
-                        onTagSelected = { selectedTagId = it }
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("搜索表情…", fontSize = 14.sp) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "搜索",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { isFilterPanelVisible = !isFilterPanelVisible }) {
+                    Text(
+                        text = "筛选",
+                        fontSize = 14.sp,
+                        color = if (isFilterPanelVisible)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
 
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    FilterPanel(
-                        expanded = isFilterExpanded,
-                        onToggle = { isFilterExpanded = !isFilterExpanded },
-                        selectedType = selectedType,
-                        onTypeSelected = { selectedType = it },
-                        onApply = { isFilterExpanded = false },
-                        onClear = {
-                            selectedType = null
-                            selectedTagId = null
-                        }
-                    )
-                }
+            // ── 标签胶囊栏 ──
+            TagChipRow(
+                tags = sampleTags,
+                selectedTagId = selectedTagId,
+                onTagSelected = { selectedTagId = it }
+            )
 
+            // ── 网格 + 筛选覆盖层 ──
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    contentPadding = PaddingValues(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxSize()
+            ) {
                 // ── 时间分组头（粘性） + 媒体网格 ──
                 albumItems.forEach { item ->
                     when (item) {
@@ -187,6 +229,15 @@ fun AlbumScreen(
                     }
                 }
             }
+
+            // ── 筛选面板覆盖层 ──
+            FilterPanel(
+                visible = isFilterPanelVisible,
+                onDismiss = { isFilterPanelVisible = false },
+                selectedType = selectedType,
+                onTypeSelected = { selectedType = it },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }
