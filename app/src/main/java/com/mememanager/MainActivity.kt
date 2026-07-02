@@ -28,8 +28,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mememanager.ui.screen.album.AlbumScreen
-import com.mememanager.ui.screen.SettingsScreen
-import com.mememanager.ui.screen.TagsScreen
+import com.mememanager.ui.screen.settings.SettingsScreen
+import com.mememanager.ui.screen.tags.TagsScreen
 import com.mememanager.ui.theme.MemeManagerTheme
 import dagger.hilt.android.AndroidEntryPoint
 
