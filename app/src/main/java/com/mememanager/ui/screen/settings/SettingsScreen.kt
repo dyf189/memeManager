@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -17,6 +20,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -30,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,7 +94,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         value = shardSizeMB.toFloat(),
                         onValueChange = { shardSizeMB = it.toInt() },
                         valueRange = 10f..500f,
-                        valueText = "${shardSizeMB} MB"
+                        unit = "MB"
                     )
                 }
             }
@@ -108,7 +115,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         onValueChange = { gridColumns = it.toInt() },
                         valueRange = 3f..5f,
                         steps = 1,
-                        valueText = "${gridColumns} 列"
+                        unit = "列"
                     )
                 }
             }
@@ -121,7 +128,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         value = trashDays.toFloat(),
                         onValueChange = { trashDays = it.toInt() },
                         valueRange = 0f..90f,
-                        valueText = if (trashDays == 0) "直接删除" else "${trashDays} 天"
+                        unit = "天"
                     )
                     Divider()
                     Row(
@@ -244,8 +251,15 @@ private fun SliderRow(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int = 0,
-    valueText: String
+    unit: String
 ) {
+    var textValue by remember { mutableStateOf(value.toInt().toString()) }
+    // 同步 slider 变化到文本框
+    val intValue = value.toInt()
+    if (intValue.toString() != textValue) {
+        textValue = intValue.toString()
+    }
+
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -253,16 +267,34 @@ private fun SliderRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = textValue,
+                    onValueChange = { raw ->
+                        val filtered = raw.filter { it.isDigit() }
+                        textValue = filtered
+                        val num = filtered.toIntOrNull()
+                        if (num != null) {
+                            onValueChange(num.toFloat().coerceIn(valueRange))
+                        }
+                    },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodySmall.copy(
+                        textAlign = TextAlign.Center,
+                        fontSize = 13.sp
+                    ),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    ),
+                    modifier = Modifier.width(58.dp)
+                )
+                Spacer(Modifier.width(6.dp))
                 Text(
-                    text = valueText,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    text = unit,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
