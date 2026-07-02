@@ -2,27 +2,27 @@ package com.mememanager.ui.screen.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,7 +38,7 @@ import com.mememanager.ui.theme.MemeManagerTheme
 /**
  * 设置页面
  *
- * 所有状态均为本地 remember，暂不持久化到 DataStore。
+ * 布局：标题 + LazyColumn（每节一个 Card）
  *
  * 分组：
  * 1. 存储 — 默认存储类型、分片大小
@@ -47,7 +47,6 @@ import com.mememanager.ui.theme.MemeManagerTheme
  * 4. 数据 — JSON 同步开关
  * 5. 关于 — 版本信息
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(modifier: Modifier = Modifier) {
     // ── 本地状态 ──
@@ -58,131 +57,122 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
     var gridColumns by remember { mutableIntStateOf(3) }
 
     var trashDays by remember { mutableIntStateOf(30) }
-
     var jsonSyncEnabled by remember { mutableStateOf(false) }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(title = { Text("设置") })
-        }
-    ) { innerPadding ->
+    Column(modifier = modifier.fillMaxWidth()) {
+        // ── 标题 ──
+        Text(
+            text = "设置",
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
+        )
+
         LazyColumn(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // ── 存储 ──
-            item { SectionHeader("存储") }
-
             item {
-                SettingRow(label = "默认存储类型") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("私有内部", "公共目录", "外部索引").forEach { opt ->
-                            FilterChip(
-                                selected = storageType == opt,
-                                onClick = { storageType = opt },
-                                label = { Text(opt, fontSize = 13.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                        }
-                    }
+                SettingsCard(title = "存储") {
+                    FilterRow(
+                        label = "默认存储类型",
+                        options = listOf("私有内部", "公共目录", "外部索引"),
+                        selected = storageType,
+                        onSelected = { storageType = it }
+                    )
+                    Divider()
+                    SliderRow(
+                        label = "分片大小",
+                        value = shardSizeMB.toFloat(),
+                        onValueChange = { shardSizeMB = it.toInt() },
+                        valueRange = 10f..500f,
+                        valueText = "${shardSizeMB} MB"
+                    )
                 }
-            }
-
-            item {
-                SliderRow(
-                    label = "分片大小",
-                    value = shardSizeMB.toFloat(),
-                    onValueChange = { shardSizeMB = it.toInt() },
-                    valueRange = 10f..500f,
-                    valueText = "${shardSizeMB} MB"
-                )
             }
 
             // ── 显示 ──
-            item { SectionHeader("显示") }
-
             item {
-                SettingRow(label = "主题模式") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("浅色", "深色", "跟随系统").forEach { opt ->
-                            FilterChip(
-                                selected = themeMode == opt,
-                                onClick = { themeMode = opt },
-                                label = { Text(opt, fontSize = 13.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
-                                )
-                            )
-                        }
-                    }
+                SettingsCard(title = "显示") {
+                    FilterRow(
+                        label = "主题模式",
+                        options = listOf("浅色", "深色", "跟随系统"),
+                        selected = themeMode,
+                        onSelected = { themeMode = it }
+                    )
+                    Divider()
+                    SliderRow(
+                        label = "每行列数",
+                        value = gridColumns.toFloat(),
+                        onValueChange = { gridColumns = it.toInt() },
+                        valueRange = 3f..5f,
+                        steps = 1,
+                        valueText = "${gridColumns} 列"
+                    )
                 }
             }
 
-            item {
-                SliderRow(
-                    label = "每行列数",
-                    value = gridColumns.toFloat(),
-                    onValueChange = { gridColumns = it.toInt() },
-                    valueRange = 3f..5f,
-                    steps = 1,
-                    valueText = "${gridColumns} 列"
-                )
-            }
-
             // ── 回收站 ──
-            item { SectionHeader("回收站") }
-
             item {
-                SliderRow(
-                    label = "保留天数",
-                    value = trashDays.toFloat(),
-                    onValueChange = { trashDays = it.toInt() },
-                    valueRange = 0f..90f,
-                    valueText = if (trashDays == 0) "直接删除" else "${trashDays} 天"
-                )
-            }
-
-            item {
-                SettingRow(label = "清空回收站") {
-                    Button(
-                        onClick = { /* TODO */ },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
+                SettingsCard(title = "回收站") {
+                    SliderRow(
+                        label = "保留天数",
+                        value = trashDays.toFloat(),
+                        onValueChange = { trashDays = it.toInt() },
+                        valueRange = 0f..90f,
+                        valueText = if (trashDays == 0) "直接删除" else "${trashDays} 天"
+                    )
+                    Divider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("立即清空")
+                        Text("清空回收站", fontSize = 15.sp)
+                        Button(
+                            onClick = { /* TODO */ },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("立即清空")
+                        }
                     }
                 }
             }
 
             // ── 数据 ──
-            item { SectionHeader("数据") }
-
             item {
-                SwitchRow(
-                    label = "同步维护 JSON 数据文件",
-                    description = "在公共目录生成 JSON，便于手动备份",
-                    checked = jsonSyncEnabled,
-                    onCheckedChange = { jsonSyncEnabled = it }
-                )
+                SettingsCard(title = "数据") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("同步维护 JSON 数据文件", fontSize = 15.sp)
+                            Text(
+                                "在公共目录生成 JSON，便于手动备份",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = jsonSyncEnabled, onCheckedChange = { jsonSyncEnabled = it })
+                    }
+                }
             }
 
             // ── 关于 ──
-            item { SectionHeader("关于") }
-
             item {
-                InfoRow(label = "版本", value = "1.0.0")
-            }
-            item {
-                InfoRow(
-                    label = "开源许可",
-                    value = "Apache 2.0"
-                )
+                SettingsCard(title = "关于") {
+                    InfoRow("版本", "1.0.0")
+                    Divider()
+                    InfoRow("开源许可", "Apache 2.0")
+                }
             }
         }
     }
@@ -191,32 +181,59 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
 // ── 子组件 ──
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 20.dp, bottom = 4.dp)
+private fun SettingsCard(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.size(12.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun Divider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 4.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     )
 }
 
 @Composable
-private fun SettingRow(
+private fun FilterRow(
     label: String,
-    content: @Composable () -> Unit
+    options: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = label,
-            fontSize = 15.sp,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        content()
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.size(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { opt ->
+                FilterChip(
+                    selected = selected == opt,
+                    onClick = { onSelected(opt) },
+                    label = { Text(opt, fontSize = 13.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            }
+        }
     }
 }
 
@@ -229,50 +246,32 @@ private fun SliderRow(
     steps: Int = 0,
     valueText: String
 ) {
-    SettingRow(label = label) {
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = valueRange,
-                steps = steps,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = valueText,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            ) {
+                Text(
+                    text = valueText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    label: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label, fontSize = 15.sp)
-            Text(
-                description,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            steps = steps
+        )
     }
 }
 
@@ -281,7 +280,7 @@ private fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, fontSize = 15.sp)
