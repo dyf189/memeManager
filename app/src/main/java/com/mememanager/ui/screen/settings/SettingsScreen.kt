@@ -216,6 +216,7 @@ private fun Divider() {
         modifier = Modifier.padding(vertical = 4.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     )
+    Spacer(modifier = Modifier.height(5.dp))
 }
 
 @Composable
