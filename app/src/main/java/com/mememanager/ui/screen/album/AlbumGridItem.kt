@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -99,6 +100,8 @@ fun AlbumGridItem(
                         .padding(start = 3.dp, end = 3.dp)
                         .background(Color(0x99000000), RoundedCornerShape(3.dp))
                         .padding(horizontal = 4.dp, vertical = 0.dp)
+                        .height(17.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = when (media.type) {
@@ -107,7 +110,8 @@ fun AlbumGridItem(
                             else -> ""
                         },
                         fontSize = 9.sp,
-                        color = Color.White
+                        color = Color.White,
+                        lineHeight = 9.sp
                     )
                 }
             }
@@ -155,8 +159,10 @@ fun AlbumGridItem(
                         .padding(end = 30.dp)
                         .background(Color(0x99000000), RoundedCornerShape(3.dp))
                         .padding(horizontal = 3.dp, vertical = 1.dp)
+                        .height(17.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("🔗", fontSize = 9.sp)
+                    Text("🔗", fontSize = 9.sp, lineHeight = 9.sp)
                 }
             }
         }
