@@ -21,7 +21,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,9 +44,8 @@ fun FilterPanel(
 ) {
     AnimatedVisibility(visible = visible) {
         Surface(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
             shadowElevation = 8.dp,
             color = MaterialTheme.colorScheme.surface
         ) {
