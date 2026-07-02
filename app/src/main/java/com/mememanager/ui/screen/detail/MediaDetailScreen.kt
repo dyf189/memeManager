@@ -233,12 +233,13 @@ private fun InfoSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = !expanded) { onToggle() }
-                .padding(16.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
         ) {
             // ── 收起的概要行（始终显示） ──
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth()
+                    .padding(top = 20.dp)
+                    .clickable/*(enabled = !expanded)*/ { onToggle() },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -393,7 +394,7 @@ private fun formatDate(timestamp: Long): String {
 
 @Preview(showBackground = true)
 @Composable
-private fun PreviewMediaDetailScreen() {
+fun PreviewMediaDetailScreen() {
     val now = System.currentTimeMillis()
     val sampleTags = listOf(
         TagEntity(id = 1, name = "开心", bgColor = 0xFFFF9800.toInt(), sortOrder = 0),

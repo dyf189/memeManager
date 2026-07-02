@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -28,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mememanager.ui.screen.album.AlbumScreen
+import com.mememanager.ui.screen.detail.PreviewMediaDetailScreen
 import com.mememanager.ui.screen.settings.SettingsScreen
 import com.mememanager.ui.screen.tags.TagsScreen
 import com.mememanager.ui.theme.MemeManagerTheme
@@ -50,6 +52,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Album : Screen("album", "相册", Icons.Filled.Home)
     data object Tags : Screen("tags", "标签", Icons.Filled.Star)
     data object Settings : Screen("settings", "设置", Icons.Filled.Settings)
+    data object Tests : Screen("tests", "测试", Icons.Filled.Build)
 }
 
 @Composable
@@ -58,7 +61,7 @@ fun AppContent() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val screens = listOf(Screen.Album, Screen.Tags, Screen.Settings)
+    val screens = listOf(Screen.Album, Screen.Tags, Screen.Settings, Screen.Tests)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -93,6 +96,7 @@ fun AppContent() {
             composable(Screen.Album.route) { AlbumScreen() }
             composable(Screen.Tags.route) { TagsScreen() }
             composable(Screen.Settings.route) { SettingsScreen() }
+            composable(Screen.Tests.route) { PreviewMediaDetailScreen() }
         }
     }
 }
