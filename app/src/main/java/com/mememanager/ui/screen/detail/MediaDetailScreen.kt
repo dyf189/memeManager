@@ -4,29 +4,35 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,9 +40,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,21 +71,30 @@ import com.mememanager.ui.theme.MemeManagerTheme
  * 媒体详情页
  *
  * 布局：全屏大图 + 底部可展开信息浮层。
+ * 描述和标签均可编辑——描述通过弹窗编辑，标签通过 +/- 按钮添加/删除。
  *
  * @param mediaItems 媒体列表（支持 HorizontalPager 左右滑动）
+ * @param availableTags 可选标签列表（用于添加标签弹窗）
  * @param initialIndex 初始显示的媒体索引
  * @param onBack 返回回调
  * @param onEdit 编辑回调
  * @param onShare 分享回调
+ * @param onUpdateDescription 描述更新回调
+ * @param onAddTag 添加标签回调
+ * @param onRemoveTag 删除标签回调
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaDetailScreen(
     mediaItems: List<MediaWithTags> = emptyList(),
+    availableTags: List<TagEntity> = emptyList(),
     initialIndex: Int = 0,
     onBack: () -> Unit = {},
     onEdit: (MediaWithTags) -> Unit = {},
     onShare: (MediaWithTags) -> Unit = {},
+    onUpdateDescription: (MediaWithTags, String) -> Unit = { _, _ -> },
+    onAddTag: (MediaWithTags, TagEntity) -> Unit = { _, _ -> },
+    onRemoveTag: (MediaWithTags, TagEntity) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     if (mediaItems.isEmpty()) {
@@ -91,8 +109,14 @@ fun MediaDetailScreen(
         pageCount = { mediaItems.size }
     )
     val currentMedia = mediaItems[pagerState.currentPage]
+
+    // ── 本地编辑状态 ──
     var isInfoExpanded by remember { mutableStateOf(true) }
     var isMenuExpanded by remember { mutableStateOf(false) }
+    var isTagDeleteMode by remember { mutableStateOf(false) }
+    var showDescriptionDialog by remember { mutableStateOf(false) }
+    var showTagPicker by remember { mutableStateOf(false) }
+    var editingDescription by remember(currentMedia) { mutableStateOf(currentMedia.media.description ?: "") }
 
     Scaffold(
         modifier = modifier,
@@ -145,7 +169,6 @@ fun MediaDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // ── 全屏大图（HorizontalPager） ──
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
@@ -154,7 +177,6 @@ fun MediaDetailScreen(
                 MediaDisplay(media = media)
             }
 
-            // ── 页面指示器 ──
             if (mediaItems.size > 1) {
                 Text(
                     text = "${pagerState.currentPage + 1} / ${mediaItems.size}",
@@ -168,14 +190,87 @@ fun MediaDetailScreen(
                 )
             }
 
-            // ── 底部信息浮层 ──
             InfoSheet(
                 media = currentMedia,
                 expanded = isInfoExpanded,
                 onToggle = { isInfoExpanded = !isInfoExpanded },
+                isTagDeleteMode = isTagDeleteMode,
+                onEnterTagDeleteMode = { isTagDeleteMode = true },
+                onExitTagDeleteMode = { isTagDeleteMode = false },
+                onEditDescription = { showDescriptionDialog = true },
+                onAddTagClick = { showTagPicker = true },
+                onRemoveTag = { tag -> onRemoveTag(currentMedia, tag) },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
+    }
+
+    // ── 描述编辑弹窗 ──
+    if (showDescriptionDialog) {
+        AlertDialog(
+            onDismissRequest = { showDescriptionDialog = false },
+            title = { Text("编辑描述") },
+            text = {
+                OutlinedTextField(
+                    value = editingDescription,
+                    onValueChange = { editingDescription = it },
+                    placeholder = { Text("输入描述…") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onUpdateDescription(currentMedia, editingDescription)
+                    showDescriptionDialog = false
+                }) { Text("确定") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDescriptionDialog = false }) { Text("取消") }
+            }
+        )
+    }
+
+    // ── 标签选择弹窗 ──
+    if (showTagPicker) {
+        val currentTagIds = currentMedia.tags.map { it.id }.toSet()
+        AlertDialog(
+            onDismissRequest = { showTagPicker = false },
+            title = { Text("选择标签") },
+            text = {
+                val filtered = availableTags.filter { it.id !in currentTagIds }
+                if (filtered.isEmpty()) {
+                    Text("没有可添加的标签", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Column {
+                        filtered.forEach { tag ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onAddTag(currentMedia, tag)
+                                        showTagPicker = false
+                                    }
+                                    .padding(vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(tag.bgColor))
+                                )
+                                Spacer(Modifier.width(10.dp))
+                                Text(tag.name, fontSize = 15.sp)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showTagPicker = false }) { Text("关闭") }
+            }
+        )
     }
 }
 
@@ -189,7 +284,6 @@ private fun MediaDisplay(media: MediaWithTags) {
             .background(Color(0xFF1A1A1A)),
         contentAlignment = Alignment.Center
     ) {
-        // 占位：类型色块 + 图标
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = when (media.media.type) {
@@ -221,6 +315,12 @@ private fun InfoSheet(
     media: MediaWithTags,
     expanded: Boolean,
     onToggle: () -> Unit,
+    isTagDeleteMode: Boolean,
+    onEnterTagDeleteMode: () -> Unit,
+    onExitTagDeleteMode: () -> Unit,
+    onEditDescription: () -> Unit,
+    onAddTagClick: () -> Unit,
+    onRemoveTag: (TagEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -229,17 +329,15 @@ private fun InfoSheet(
         shadowElevation = 12.dp,
         color = MaterialTheme.colorScheme.surface
     ) {
-        // 点击整条 bar 切换展开/收起
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+                .clickable(enabled = !expanded) { onToggle() }
+                .padding(16.dp)
         ) {
-            // ── 收起的概要行（始终显示） ──
+            // ── 收起的概要行 ──
             Row(
-                modifier = Modifier.fillMaxWidth()
-                    .padding(top = 20.dp)
-                    .clickable/*(enabled = !expanded)*/ { onToggle() },
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -276,54 +374,114 @@ private fun InfoSheet(
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
 
-                    // 描述
-                    Text(
-                        text = "描述",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = media.media.description ?: "暂无描述",
-                        fontSize = 14.sp,
-                        color = if (media.media.description != null)
-                            MaterialTheme.colorScheme.onSurface
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
+                    // ── 描述 ──
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("描述", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = media.media.description ?: "暂无描述",
+                                fontSize = 14.sp,
+                                color = if (media.media.description != null)
+                                    MaterialTheme.colorScheme.onSurface
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                        TextButton(onClick = onEditDescription) {
+                            Text("编辑", fontSize = 13.sp)
+                        }
+                    }
 
                     Spacer(Modifier.height(12.dp))
 
-                    // 标签
-                    if (media.tags.isNotEmpty()) {
+                    // ── 标签 ──
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "标签",
+                            "标签",
                             fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        // + 按钮
+                        TagActionButton(
+                            icon = { Icon(Icons.Default.Add, contentDescription = "添加标签", modifier = Modifier.size(14.sp), tint = Color.White) },
+                            color = MaterialTheme.colorScheme.primary,
+                            onClick = onAddTagClick
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        // - 按钮
+                        TagActionButton(
+                            icon = { Icon(Icons.Default.Remove, contentDescription = "删除模式", modifier = Modifier.size(14.sp), tint = Color.White) },
+                            color = if (isTagDeleteMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            onClick = {
+                                if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode()
+                            }
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    if (media.tags.isEmpty()) {
+                        Text(
+                            "暂无标签",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             media.tags.forEach { tag ->
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = Color(tag.bgColor).copy(alpha = 0.2f)
-                                ) {
-                                    Text(
-                                        text = tag.name,
-                                        fontSize = 13.sp,
-                                        color = Color(tag.bgColor),
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                    )
+                                Box {
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = Color(tag.bgColor).copy(alpha = 0.2f)
+                                    ) {
+                                        Text(
+                                            text = tag.name,
+                                            fontSize = 13.sp,
+                                            color = Color(tag.bgColor),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    // 删除模式：右上角红点叉号
+                                    if (isTagDeleteMode) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .offset(x = 2.dp, y = (-2).dp)
+                                                .size(16.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Red)
+                                                .clickable { onRemoveTag(tag) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = "删除",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(10.dp)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
-                        Spacer(Modifier.height(12.dp))
                     }
 
+                    Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
 
-                    // 文件信息网格
+                    // ── 文件信息 ──
                     InfoGrid(
                         items = listOf(
                             "来源" to (media.media.source ?: "未知"),
@@ -351,6 +509,26 @@ private fun InfoSheet(
     }
 }
 
+// ── 标签操作圆形按钮 ──
+
+@Composable
+private fun TagActionButton(
+    icon: @Composable () -> Unit,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .background(color)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        icon()
+    }
+}
+
 // ── 信息网格 ──
 
 @Composable
@@ -364,10 +542,7 @@ private fun InfoGrid(items: List<Pair<String, String>>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.width(56.dp)
                 )
-                Text(
-                    text = value,
-                    fontSize = 13.sp
-                )
+                Text(text = value, fontSize = 13.sp)
             }
         }
     }
@@ -394,45 +569,81 @@ private fun formatDate(timestamp: Long): String {
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewMediaDetailScreen() {
+private fun PreviewMediaDetailScreen() {
     val now = System.currentTimeMillis()
-    val sampleTags = listOf(
+    val allTags = listOf(
         TagEntity(id = 1, name = "开心", bgColor = 0xFFFF9800.toInt(), sortOrder = 0),
         TagEntity(id = 2, name = "爆笑", bgColor = 0xFFF44336.toInt(), sortOrder = 1),
+        TagEntity(id = 3, name = "可爱", bgColor = 0xFFE91E63.toInt(), sortOrder = 2),
+        TagEntity(id = 4, name = "沙雕", bgColor = 0xFF4CAF50.toInt(), sortOrder = 3),
     )
-    val sampleMedia = listOf(
-        MediaEntity(
-            id = 1, name = "搞笑猫咪.gif", filePath = "/fake/cat.gif",
-            type = MediaType.GIF, size = 2_345_678,
-            width = 720, height = 1280,
-            storageType = StorageType.PRIVATE,
-            source = "微信", description = "一只超级搞笑的橘猫表情包",
-            createdAt = now - 3 * 3600_000, takenTime = now - 3 * 3600_000, updatedAt = now
-        ),
-        MediaEntity(
-            id = 2, name = "沙雕狗子.mp4", filePath = "/fake/dog.mp4",
-            type = MediaType.VIDEO, size = 15_678_900,
-            width = 1080, height = 1920,
-            storageType = StorageType.PUBLIC,
-            source = "QQ", description = null,
-            createdAt = now - 5 * 3600_000, takenTime = now - 5 * 3600_000, updatedAt = now
-        ),
-        MediaEntity(
-            id = 3, name = "熊猫头.jpg", filePath = "/fake/panda.jpg",
-            type = MediaType.IMAGE, size = 512_000,
-            width = 480, height = 480,
-            storageType = StorageType.EXTERNAL,
-            source = null, description = "经典熊猫头，懂的都懂",
-            createdAt = now - 86400_000, takenTime = now - 86400_000, updatedAt = now
-        ),
-    )
-    val mediaItems = sampleMedia.mapIndexed { index, m ->
-        MediaWithTags(media = m, tags = sampleTags.take(index + 1))
+
+    var mediaItems by remember {
+        mutableStateOf(
+            listOf(
+                MediaWithTags(
+                    media = MediaEntity(
+                        id = 1, name = "搞笑猫咪.gif", filePath = "/fake/cat.gif",
+                        type = MediaType.GIF, size = 2_345_678,
+                        width = 720, height = 1280,
+                        storageType = StorageType.PRIVATE,
+                        source = "微信", description = "一只超级搞笑的橘猫表情包",
+                        createdAt = now - 3 * 3600_000, takenTime = now - 3 * 3600_000, updatedAt = now
+                    ),
+                    tags = listOf(allTags[0], allTags[1])
+                ),
+                MediaWithTags(
+                    media = MediaEntity(
+                        id = 2, name = "沙雕狗子.mp4", filePath = "/fake/dog.mp4",
+                        type = MediaType.VIDEO, size = 15_678_900,
+                        width = 1080, height = 1920,
+                        storageType = StorageType.PUBLIC,
+                        source = "QQ", description = null,
+                        createdAt = now - 5 * 3600_000, takenTime = now - 5 * 3600_000, updatedAt = now
+                    ),
+                    tags = emptyList()
+                ),
+                MediaWithTags(
+                    media = MediaEntity(
+                        id = 3, name = "熊猫头.jpg", filePath = "/fake/panda.jpg",
+                        type = MediaType.IMAGE, size = 512_000,
+                        width = 480, height = 480,
+                        storageType = StorageType.EXTERNAL,
+                        source = null, description = "经典熊猫头，懂的都懂",
+                        createdAt = now - 86400_000, takenTime = now - 86400_000, updatedAt = now
+                    ),
+                    tags = listOf(allTags[2])
+                ),
+            )
+        )
     }
+
     MemeManagerTheme {
         MediaDetailScreen(
             mediaItems = mediaItems,
-            initialIndex = 1
+            availableTags = allTags,
+            initialIndex = 1,
+            onUpdateDescription = { media, newDesc ->
+                mediaItems = mediaItems.map { item ->
+                    if (item.media.id == media.media.id) {
+                        item.copy(media = item.media.copy(description = newDesc.ifEmpty { null }))
+                    } else item
+                }
+            },
+            onAddTag = { media, tag ->
+                mediaItems = mediaItems.map { item ->
+                    if (item.media.id == media.media.id && tag !in item.tags) {
+                        item.copy(tags = item.tags + tag)
+                    } else item
+                }
+            },
+            onRemoveTag = { media, tag ->
+                mediaItems = mediaItems.map { item ->
+                    if (item.media.id == media.media.id) {
+                        item.copy(tags = item.tags.filter { it.id != tag.id })
+                    } else item
+                }
+            }
         )
     }
 }
