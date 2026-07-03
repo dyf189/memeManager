@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -64,19 +63,6 @@ import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
 import com.mememanager.data.local.entity.TagEntity
 
-/**
- * 媒体详情页
- *
- * @param mediaItems 媒体列表（支持 HorizontalPager 左右滑动）
- * @param availableTags 可选标签列表
- * @param initialIndex 初始显示的媒体索引
- * @param onBack 返回回调
- * @param onEdit 编辑回调
- * @param onShare 分享回调
- * @param onUpdateDescription 描述更新回调
- * @param onAddTag 添加标签回调
- * @param onRemoveTag 删除标签回调
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaDetailScreen(
@@ -116,12 +102,7 @@ fun MediaDetailScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = currentMedia.media.name,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 16.sp
-                    )
+                    Text(currentMedia.media.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 16.sp)
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -139,44 +120,25 @@ fun MediaDetailScreen(
                         IconButton(onClick = { isMenuExpanded = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "更多")
                         }
-                        DropdownMenu(
-                            expanded = isMenuExpanded,
-                            onDismissRequest = { isMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("保存到相册") },
-                                onClick = { isMenuExpanded = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("查看原始信息") },
-                                onClick = { isMenuExpanded = false }
-                            )
+                        DropdownMenu(expanded = isMenuExpanded, onDismissRequest = { isMenuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("保存到相册") }, onClick = { isMenuExpanded = false })
+                            DropdownMenuItem(text = { Text("查看原始信息") }, onClick = { isMenuExpanded = false })
                         }
                     }
                 }
             )
         }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                 MediaDisplay(media = mediaItems[page])
             }
 
             if (mediaItems.size > 1) {
                 Text(
                     text = "${pagerState.currentPage + 1} / ${mediaItems.size}",
-                    fontSize = 12.sp,
-                    color = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp)
+                    fontSize = 12.sp, color = Color.White,
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp)
                         .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 )
@@ -202,12 +164,8 @@ fun MediaDetailScreen(
             onDismissRequest = { showDescriptionDialog = false },
             title = { Text("编辑描述") },
             text = {
-                OutlinedTextField(
-                    value = editingDescription,
-                    onValueChange = { editingDescription = it },
-                    placeholder = { Text("输入描述…") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                OutlinedTextField(value = editingDescription, onValueChange = { editingDescription = it },
+                    placeholder = { Text("输入描述…") }, modifier = Modifier.fillMaxWidth())
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -215,9 +173,7 @@ fun MediaDetailScreen(
                     showDescriptionDialog = false
                 }) { Text("确定") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDescriptionDialog = false }) { Text("取消") }
-            }
+            dismissButton = { TextButton(onClick = { showDescriptionDialog = false }) { Text("取消") } }
         )
     }
 
@@ -234,21 +190,12 @@ fun MediaDetailScreen(
                     Column {
                         filtered.forEach { tag ->
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onAddTag(currentMedia, tag)
-                                        showTagPicker = false
-                                    }
-                                    .padding(vertical = 10.dp),
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    onAddTag(currentMedia, tag); showTagPicker = false
+                                }.padding(vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(tag.bgColor))
-                                )
+                                Box(modifier = Modifier.size(20.dp).clip(CircleShape).background(Color(tag.bgColor)))
                                 Spacer(Modifier.width(10.dp))
                                 Text(tag.name, fontSize = 15.sp)
                             }
@@ -257,29 +204,19 @@ fun MediaDetailScreen(
                 }
             },
             confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showTagPicker = false }) { Text("关闭") }
-            }
+            dismissButton = { TextButton(onClick = { showTagPicker = false }) { Text("关闭") } }
         )
     }
 }
 
 @Composable
 private fun MediaDisplay(media: MediaWithTags) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1A1A1A)),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A1A)), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = when (media.media.type) {
-                    MediaType.IMAGE -> "🖼️"
-                    MediaType.GIF -> "🎞️"
-                    MediaType.VIDEO -> "🎬"
-                },
-                fontSize = 64.sp
+                    MediaType.IMAGE -> "🖼️"; MediaType.GIF -> "🎞️"; MediaType.VIDEO -> "🎬"
+                }, fontSize = 64.sp
             )
             Spacer(Modifier.height(12.dp))
             Text(media.media.name, fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f))
@@ -290,81 +227,44 @@ private fun MediaDisplay(media: MediaWithTags) {
 
 @Composable
 private fun InfoSheet(
-    media: MediaWithTags,
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    isTagDeleteMode: Boolean,
-    onEnterTagDeleteMode: () -> Unit,
-    onExitTagDeleteMode: () -> Unit,
-    onEditDescription: () -> Unit,
-    onAddTagClick: () -> Unit,
-    onRemoveTag: (TagEntity) -> Unit,
+    media: MediaWithTags, expanded: Boolean, onToggle: () -> Unit,
+    isTagDeleteMode: Boolean, onEnterTagDeleteMode: () -> Unit, onExitTagDeleteMode: () -> Unit,
+    onEditDescription: () -> Unit, onAddTagClick: () -> Unit, onRemoveTag: (TagEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        shadowElevation = 12.dp,
-        color = MaterialTheme.colorScheme.surface
+        shadowElevation = 12.dp, color = MaterialTheme.colorScheme.surface
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = !expanded) { onToggle() }
-                .padding(16.dp)
+            modifier = Modifier.fillMaxWidth().clickable(enabled = !expanded) { onToggle() }.padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = media.media.name,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(media.media.name, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "${media.tags.size} 个标签",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Text("${media.tags.size} 个标签", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.width(4.dp))
                 Icon(
                     if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
                     contentDescription = if (expanded) "收起" else "展开",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)
                 )
             }
 
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
-            ) {
+            AnimatedVisibility(visible = expanded, enter = expandVertically(), exit = shrinkVertically()) {
                 Column {
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(12.dp)); HorizontalDivider(); Spacer(Modifier.height(12.dp))
 
-                    // 描述
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("描述", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                text = media.media.description ?: "暂无描述",
-                                fontSize = 14.sp,
-                                color = if (media.media.description != null)
-                                    MaterialTheme.colorScheme.onSurface
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                text = media.media.description ?: "暂无描述", fontSize = 14.sp,
+                                color = if (media.media.description != null) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                             )
                         }
                         TextButton(onClick = onEditDescription) { Text("编辑", fontSize = 13.sp) }
@@ -372,77 +272,41 @@ private fun InfoSheet(
 
                     Spacer(Modifier.height(12.dp))
 
-                    // 标签 + 操作按钮
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "标签", fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
-                        )
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("标签", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
                         TagActionButton(
-                            icon = {
-                                Icon(Icons.Default.Add, contentDescription = "添加标签",
-                                    modifier = Modifier.size(14.sp), tint = Color.White)
-                            },
-                            color = MaterialTheme.colorScheme.primary,
-                            onClick = onAddTagClick
+                            icon = { Icon(Icons.Default.Add, contentDescription = "添加标签", modifier = Modifier.size(14.dp), tint = Color.White) },
+                            color = MaterialTheme.colorScheme.primary, onClick = onAddTagClick
                         )
                         Spacer(Modifier.width(6.dp))
                         TagActionButton(
-                            icon = {
-                                Icon(Icons.Default.Remove, contentDescription = "删除模式",
-                                    modifier = Modifier.size(14.sp), tint = Color.White)
-                            },
+                            icon = { Text("−", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold) },
                             color = if (isTagDeleteMode) MaterialTheme.colorScheme.error
                                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            onClick = {
-                                if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode()
-                            }
+                            onClick = { if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode() }
                         )
                     }
 
                     Spacer(Modifier.height(8.dp))
 
                     if (media.tags.isEmpty()) {
-                        Text(
-                            "暂无标签", fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
+                        Text("暂无标签", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                     } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                             media.tags.forEach { tag ->
                                 Box {
-                                    Surface(
-                                        shape = RoundedCornerShape(14.dp),
-                                        color = Color(tag.bgColor).copy(alpha = 0.2f)
-                                    ) {
-                                        Text(
-                                            text = tag.name, fontSize = 13.sp,
-                                            color = Color(tag.bgColor),
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
+                                    Surface(shape = RoundedCornerShape(14.dp), color = Color(tag.bgColor).copy(alpha = 0.2f)) {
+                                        Text(tag.name, fontSize = 13.sp, color = Color(tag.bgColor),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                                     }
                                     if (isTagDeleteMode) {
                                         Box(
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .offset(x = 2.dp, y = (-2).dp)
-                                                .size(16.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.Red)
+                                            modifier = Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp)
+                                                .size(16.dp).clip(CircleShape).background(Color.Red)
                                                 .clickable { onRemoveTag(tag) },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Icon(
-                                                Icons.Default.Close, contentDescription = "删除",
-                                                tint = Color.White, modifier = Modifier.size(10.dp)
-                                            )
+                                            Icon(Icons.Default.Close, contentDescription = "删除", tint = Color.White, modifier = Modifier.size(10.dp))
                                         }
                                     }
                                 }
@@ -450,28 +314,20 @@ private fun InfoSheet(
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(12.dp)); HorizontalDivider(); Spacer(Modifier.height(12.dp))
 
-                    InfoGrid(
-                        items = listOf(
-                            "来源" to (media.media.source ?: "未知"),
-                            "时间" to formatDate(media.media.createdAt),
-                            "大小" to formatSize(media.media.size),
-                            "存储" to when (media.media.storageType) {
-                                StorageType.PRIVATE -> "私有内部"
-                                StorageType.PUBLIC -> "公共目录"
-                                StorageType.EXTERNAL -> "外部索引"
-                            }
-                        )
-                    )
+                    InfoGrid(items = listOf(
+                        "来源" to (media.media.source ?: "未知"),
+                        "时间" to formatDate(media.media.createdAt),
+                        "大小" to formatSize(media.media.size),
+                        "存储" to when (media.media.storageType) {
+                            StorageType.PRIVATE -> "私有内部"; StorageType.PUBLIC -> "公共目录"; StorageType.EXTERNAL -> "外部索引"
+                        }
+                    ))
 
                     if (media.media.width != null && media.media.height != null) {
                         Spacer(Modifier.height(8.dp))
-                        InfoGrid(
-                            items = listOf("分辨率" to "${media.media.width}×${media.media.height}")
-                        )
+                        InfoGrid(items = listOf("分辨率" to "${media.media.width}×${media.media.height}"))
                     }
                 }
             }
@@ -481,14 +337,8 @@ private fun InfoSheet(
 
 @Composable
 private fun TagActionButton(icon: @Composable () -> Unit, color: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(color)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) { icon() }
+    Box(modifier = Modifier.size(28.dp).clip(CircleShape).background(color).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center) { icon() }
 }
 
 @Composable
@@ -496,20 +346,15 @@ private fun InfoGrid(items: List<Pair<String, String>>) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         items.forEach { (label, value) ->
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = label, fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(56.dp)
-                )
-                Text(text = value, fontSize = 13.sp)
+                Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(56.dp))
+                Text(value, fontSize = 13.sp)
             }
         }
     }
 }
 
 private fun formatSize(bytes: Long): String {
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
+    val kb = bytes / 1024.0; val mb = kb / 1024.0
     return when {
         mb >= 1.0 -> "%.1f MB".format(mb)
         kb >= 1.0 -> "%.0f KB".format(kb)
