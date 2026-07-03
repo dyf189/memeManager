@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,7 +29,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -411,14 +409,14 @@ private fun InfoSheet(
                         )
                         // + 按钮
                         TagActionButton(
-                            icon = { Icon(Icons.Default.Add, contentDescription = "添加标签", modifier = Modifier.size(14.sp), tint = Color.White) },
+                            icon = { Icon(Icons.Default.Add, contentDescription = "添加标签", modifier = Modifier.size(14.dp), tint = Color.White) },
                             color = MaterialTheme.colorScheme.primary,
                             onClick = onAddTagClick
                         )
                         Spacer(Modifier.width(6.dp))
                         // - 按钮
                         TagActionButton(
-                            icon = { Icon(Icons.Default.Remove, contentDescription = "删除模式", modifier = Modifier.size(14.sp), tint = Color.White) },
+                            icon = { Text("−", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold) },
                             color = if (isTagDeleteMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                             onClick = {
                                 if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode()
