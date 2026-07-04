@@ -5,9 +5,12 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,6 +61,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.ripple
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
@@ -325,7 +333,7 @@ private fun InfoSheet(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         shadowElevation = 12.dp,
-        color = MaterialTheme.colorScheme.surface
+        color = Color(0xffffffff)
     ) {
         Column(
             modifier = Modifier
@@ -370,115 +378,130 @@ private fun InfoSheet(
                 Column {
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(4.dp))
 
                     // ── 描述 ──
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("描述", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = media.media.description ?: "暂无描述",
-                                fontSize = 14.sp,
-                                color = if (media.media.description != null)
-                                    MaterialTheme.colorScheme.onSurface
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                        }
-                        TextButton(onClick = onEditDescription) {
-                            Text("编辑", fontSize = 13.sp)
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    // ── 标签 ──
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "标签",
+                            text = "描述",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f)
                         )
-                        // + 按钮
-                        TagActionButton(
-                            icon = { Icon(Icons.Default.Add, contentDescription = "添加标签", modifier = Modifier.size(14.dp), tint = Color.White) },
+                        Text(
+                            text = "编辑",
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = ripple(),                         // 新版涟漪
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    onClick = onEditDescription
+                                )
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
+                    Text(
+                        text = media.media.description ?: "暂无描述",
+                        fontSize = 14.sp,
+                        color = if (media.media.description != null)
+                            MaterialTheme.colorScheme.onSurface
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // ── 标签 ──
+                    Text(
+                        "标签",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (media.tags.isEmpty() && !isTagDeleteMode) {
+                            Text(
+                                "暂无标签",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.align(Alignment.CenterVertically)
+                            )
+                        }
+                        // 标签 chip
+                        media.tags.forEach { tag ->
+                            Box {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color(tag.bgColor).copy(alpha = 0.2f)
+                                ) {
+                                    Text(
+                                        text = tag.name,
+                                        fontSize = 13.sp,
+                                        color = Color(tag.bgColor),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                                if (isTagDeleteMode) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .offset(x = 2.dp, y = (-2).dp)
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Red)
+                                            .clickable { onRemoveTag(tag) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "删除",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // [+] 按钮
+                        TagActionButton(
+                            icon = {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = "添加标签",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = Color.White
+                                )
+                            },
+                            color = Color(0xDD4CAF50),
                             onClick = onAddTagClick
                         )
-                        Spacer(Modifier.width(6.dp))
-                        // - 按钮
+
+                        // [−] 按钮
                         TagActionButton(
-                            icon = { Text("−", fontSize = 14.sp, color = Color.White, fontWeight = FontWeight.Bold) },
-                            color = if (isTagDeleteMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            icon = {
+                                Text(
+                                    "−",
+                                    fontSize = 20.sp,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            color = Color(0xDDE53935),
                             onClick = {
                                 if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode()
                             }
                         )
                     }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    if (media.tags.isEmpty()) {
-                        Text(
-                            "暂无标签",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        )
-                    } else {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            media.tags.forEach { tag ->
-                                Box {
-                                    Surface(
-                                        shape = RoundedCornerShape(14.dp),
-                                        color = Color(tag.bgColor).copy(alpha = 0.2f)
-                                    ) {
-                                        Text(
-                                            text = tag.name,
-                                            fontSize = 13.sp,
-                                            color = Color(tag.bgColor),
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                    // 删除模式：右上角红点叉号
-                                    if (isTagDeleteMode) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .offset(x = 2.dp, y = (-2).dp)
-                                                .size(16.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.Red)
-                                                .clickable { onRemoveTag(tag) },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Close,
-                                                contentDescription = "删除",
-                                                tint = Color.White,
-                                                modifier = Modifier.size(10.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
-
+                    Spacer(modifier = Modifier.height(4.dp))
                     // ── 文件信息 ──
                     InfoGrid(
                         items = listOf(
@@ -567,7 +590,7 @@ private fun formatDate(timestamp: Long): String {
 
 @Preview(showBackground = true)
 @Composable
-private fun PreviewMediaDetailScreen() {
+fun PreviewMediaDetailScreen() {
     val now = System.currentTimeMillis()
     val allTags = listOf(
         TagEntity(id = 1, name = "开心", bgColor = 0xFFFF9800.toInt(), sortOrder = 0),
