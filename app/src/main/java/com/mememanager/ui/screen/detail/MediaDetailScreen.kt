@@ -64,8 +64,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
@@ -117,13 +129,34 @@ fun MediaDetailScreen(
     val currentMedia = mediaItems[pagerState.currentPage]
 
     // ── 本地编辑状态 ──
-    var isInfoExpanded by remember { mutableStateOf(true) }
     var isMenuExpanded by remember { mutableStateOf(false) }
-    var isTagDeleteMode by remember { mutableStateOf(false) }
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showTagPicker by remember { mutableStateOf(false) }
     var editingDescription by remember(currentMedia) { mutableStateOf(currentMedia.media.description ?: "") }
 
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var isTagDeleteMode by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showAddTagDialog by remember { mutableStateOf(false) }
+
+    // 获取当前媒体数据（示例，根据你的实际 ViewModel 调整）
+    val currentMediaWithTags by viewModel.mediaWithTags.collectAsStateWithLifecycle()
+
+    // ── 标签操作回调 ──
+    val onEnterTagDeleteMode = { isTagDeleteMode = true }
+    val onExitTagDeleteMode = { isTagDeleteMode = false }
+
+    val onEditDescription = {
+        showEditDialog = true  // 打开编辑描述对话框
+    }
+
+    val onAddTagClick = {
+        showAddTagDialog = true  // 打开添加标签对话框
+    }
+
+    val onRemoveTag: (TagEntity) -> Unit = { tag ->
+        viewModel.removeTag(mediaId, tag.id)
+    }
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -196,18 +229,34 @@ fun MediaDetailScreen(
                 )
             }
 
-            InfoSheet(
-                media = currentMedia,
-                expanded = isInfoExpanded,
-                onToggle = { isInfoExpanded = !isInfoExpanded },
-                isTagDeleteMode = isTagDeleteMode,
-                onEnterTagDeleteMode = { isTagDeleteMode = true },
-                onExitTagDeleteMode = { isTagDeleteMode = false },
-                onEditDescription = { showDescriptionDialog = true },
-                onAddTagClick = { showTagPicker = true },
-                onRemoveTag = { tag -> onRemoveTag(currentMedia, tag) },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+            // 在 MediaDetailScreen 顶层
+            var showBottomSheet by remember { mutableStateOf(false) }
+
+// 点击底部缩略图或某个按钮时打开
+// 例如在图片下方的信息栏点击后：
+            Button(onClick = { showBottomSheet = true }) {
+                Text("查看详情")
+            }
+
+// 显示 ModalBottomSheet
+            if (showBottomSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showBottomSheet = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), // 直接全展开，跳过半展开
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    dragHandle = { BottomSheetDefaults.DragHandle() }  // 可拖拽手柄
+                ) {
+                    MediaBottomSheetContent(
+                        media = currentMediaWithTags,
+                        isTagDeleteMode = isTagDeleteMode,
+                        onEnterTagDeleteMode = onEnterTagDeleteMode,
+                        onExitTagDeleteMode = onExitTagDeleteMode,
+                        onEditDescription = { /* 打开编辑对话框 */ },
+                        onAddTagClick = { /* 打开添加标签 */ },
+                        onRemoveTag = { tag -> /* 删除标签 */ }
+                    )
+                }
+            }
         }
     }
 
@@ -314,258 +363,175 @@ private fun MediaDisplay(media: MediaWithTags) {
     }
 }
 
-// ── 底部信息浮层 ──
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun InfoSheet(
+fun MediaBottomSheetContent(
     media: MediaWithTags,
-    expanded: Boolean,
-    onToggle: () -> Unit,
     isTagDeleteMode: Boolean,
     onEnterTagDeleteMode: () -> Unit,
     onExitTagDeleteMode: () -> Unit,
     onEditDescription: () -> Unit,
     onAddTagClick: () -> Unit,
-    onRemoveTag: (TagEntity) -> Unit,
-    modifier: Modifier = Modifier
+    onRemoveTag: (TagEntity) -> Unit
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        shadowElevation = 12.dp,
-        color = Color(0xffffffff)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 16.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = !expanded) { onToggle() }
-                .padding(16.dp)
+        // 文件名
+        Text(
+            text = media.media.name,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(12.dp))
+
+        // 描述
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // ── 收起的概要行 ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Text(
+                text = "描述",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(
+                onClick = onEditDescription,
+                contentPadding = PaddingValues(horizontal = 8.dp)
             ) {
+                Text("编辑", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+        Text(
+            text = media.media.description ?: "暂无描述",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (media.media.description != null)
+                MaterialTheme.colorScheme.onSurface
+            else
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
+
+        Spacer(Modifier.height(8.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(8.dp))
+
+        // 标签
+        Text(
+            "标签",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(6.dp))
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (media.tags.isEmpty() && !isTagDeleteMode) {
                 Text(
-                    text = media.media.name,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "${media.tags.size} 个标签",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                    contentDescription = if (expanded) "收起" else "展开",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    "暂无标签",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
             }
 
-            // ── 展开信息区 ──
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
-            ) {
-                Column {
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(4.dp))
-
-                    // ── 描述 ──
+            media.tags.forEach { tag ->
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    tonalElevation = 0.dp
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        modifier = Modifier.padding(
+                            start = 12.dp, end = if (isTagDeleteMode) 4.dp else 12.dp,
+                            top = 6.dp, bottom = 6.dp
+                        ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "描述",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
+                            text = tag.name,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = "编辑",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .clickable(
-                                    indication = ripple(),                         // 新版涟漪
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    onClick = onEditDescription
-                                )
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
-                    }
-                    Text(
-                        text = media.media.description ?: "暂无描述",
-                        fontSize = 14.sp,
-                        color = if (media.media.description != null)
-                            MaterialTheme.colorScheme.onSurface
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-
-                    Spacer(Modifier.height(4.dp))
-
-                    // ── 标签 ──
-                    Text(
-                        "标签",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        if (media.tags.isEmpty() && !isTagDeleteMode) {
-                            Text(
-                                "暂无标签",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                modifier = Modifier.align(Alignment.CenterVertically)
-                            )
-                        }
-                        // 标签 chip
-                        media.tags.forEach { tag ->
-                            Box {
-                                Surface(
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = Color(tag.bgColor).copy(alpha = 0.2f)
-                                ) {
-                                    Text(
-                                        text = tag.name,
-                                        fontSize = 13.sp,
-                                        color = Color(tag.bgColor),
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                    )
-                                }
-                                if (isTagDeleteMode) {
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .offset(x = 2.dp, y = (-2).dp)
-                                            .size(16.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.Red)
-                                            .clickable { onRemoveTag(tag) },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "删除",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(10.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // [+] 按钮
-                        TagActionButton(
-                            icon = {
+                        if (isTagDeleteMode) {
+                            Spacer(Modifier.width(4.dp))
+                            IconButton(
+                                onClick = { onRemoveTag(tag) },
+                                modifier = Modifier.size(16.dp)
+                            ) {
                                 Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = "添加标签",
-                                    modifier = Modifier.size(20.dp),
-                                    tint = Color.White
+                                    Icons.Default.Close,
+                                    contentDescription = "删除",
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.error
                                 )
-                            },
-                            color = Color(0xDD4CAF50),
-                            onClick = onAddTagClick
-                        )
-
-                        // [−] 按钮
-                        TagActionButton(
-                            icon = {
-                                Text(
-                                    "−",
-                                    fontSize = 20.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            },
-                            color = Color(0xDDE53935),
-                            onClick = {
-                                if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode()
                             }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    // ── 文件信息 ──
-                    InfoGrid(
-                        items = listOf(
-                            "来源" to (media.media.source ?: "未知"),
-                            "时间" to formatDate(media.media.createdAt),
-                            "大小" to formatSize(media.media.size),
-                            "存储" to when (media.media.storageType) {
-                                StorageType.PRIVATE -> "私有内部"
-                                StorageType.PUBLIC -> "公共目录"
-                                StorageType.EXTERNAL -> "外部索引"
-                            }
-                        )
-                    )
-
-                    if (media.media.width != null && media.media.height != null) {
-                        Spacer(Modifier.height(8.dp))
-                        InfoGrid(
-                            items = listOf(
-                                "分辨率" to "${media.media.width}×${media.media.height}"
-                            )
-                        )
+                        }
                     }
                 }
             }
-        }
-    }
-}
 
-// ── 标签操作圆形按钮 ──
+            FilledTonalIconButton(
+                onClick = onAddTagClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Add, "添加标签", modifier = Modifier.size(18.dp))
+            }
 
-@Composable
-private fun TagActionButton(
-    icon: @Composable () -> Unit,
-    color: Color,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(color)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        icon()
-    }
-}
-
-// ── 信息网格 ──
-
-@Composable
-private fun InfoGrid(items: List<Pair<String, String>>) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        items.forEach { (label, value) ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = label,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(56.dp)
-                )
-                Text(text = value, fontSize = 13.sp)
+            FilledTonalIconButton(
+                onClick = {
+                    if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode()
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Text("−", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+
+        Spacer(Modifier.height(8.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(8.dp))
+
+        // 元数据
+        MetaDataItem("来源", media.media.source ?: "未知")
+        MetaDataItem("时间", formatDate(media.media.createdAt))
+        MetaDataItem("大小", formatSize(media.media.size))
+        MetaDataItem("存储", when (media.media.storageType) {
+            StorageType.PRIVATE -> "私有内部"
+            StorageType.PUBLIC -> "公共目录"
+            StorageType.EXTERNAL -> "外部索引"
+        })
+        if (media.media.width != null && media.media.height != null) {
+            MetaDataItem("分辨率", "${media.media.width}×${media.media.height}")
+        }
+    }
+}
+
+@Composable
+private fun MetaDataItem(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(64.dp)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
