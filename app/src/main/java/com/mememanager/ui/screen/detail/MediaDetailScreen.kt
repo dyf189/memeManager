@@ -292,8 +292,9 @@ fun MediaDetailScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        tonalElevation = 0.dp
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        tonalElevation = 2.dp,
+                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         if (filtered.isEmpty()) {
                             Box(
@@ -302,10 +303,7 @@ fun MediaDetailScreen(
                                     .padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    "没有可添加的标签",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Text("没有可添加的标签", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
                             LazyVerticalGrid(
@@ -332,13 +330,8 @@ fun MediaDetailScreen(
                     }
 
                     Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { showTagPicker = false }) {
-                            Text("关闭")
-                        }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showTagPicker = false }) { Text("关闭") }
                     }
                 }
             }
@@ -635,7 +628,7 @@ private fun TagItem(
             containerColor = if (isSelected)
                 MaterialTheme.colorScheme.primaryContainer
             else
-                MaterialTheme.colorScheme.surface
+                MaterialTheme.colorScheme.surface   // 改成纯 surface，完全不透明
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 1.dp)
     ) {
@@ -651,7 +644,7 @@ private fun TagItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(18.dp)
                     .clip(CircleShape)
                     .background(Color(tag.bgColor))
             )
