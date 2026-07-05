@@ -5,48 +5,52 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,27 +61,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ripple
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
@@ -88,18 +76,10 @@ import com.mememanager.ui.theme.MemeManagerTheme
 /**
  * 媒体详情页
  *
- * 布局：全屏大图 + 底部可展开信息浮层。
- * 描述和标签均可编辑——描述通过弹窗编辑，标签通过 +/- 按钮添加/删除。
+ * 全屏大图 + 底部 ModalBottomSheet 展示可编辑的描述和标签。
  *
  * @param mediaItems 媒体列表（支持 HorizontalPager 左右滑动）
- * @param availableTags 可选标签列表（用于添加标签弹窗）
- * @param initialIndex 初始显示的媒体索引
- * @param onBack 返回回调
- * @param onEdit 编辑回调
- * @param onShare 分享回调
- * @param onUpdateDescription 描述更新回调
- * @param onAddTag 添加标签回调
- * @param onRemoveTag 删除标签回调
+ * @param availableTags 可选标签列表
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,37 +108,32 @@ fun MediaDetailScreen(
     )
     val currentMedia = mediaItems[pagerState.currentPage]
 
-    // ── 本地编辑状态 ──
     var isMenuExpanded by remember { mutableStateOf(false) }
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showTagPicker by remember { mutableStateOf(false) }
     var editingDescription by remember(currentMedia) { mutableStateOf(currentMedia.media.description ?: "") }
-
-    var showBottomSheet by remember { mutableStateOf(false) }
+    var showBottomSheet by remember { mutableStateOf(true) }
     var isTagDeleteMode by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
-    var showAddTagDialog by remember { mutableStateOf(false) }
 
-    // 获取当前媒体数据（示例，根据你的实际 ViewModel 调整）
-    val currentMediaWithTags by viewModel.mediaWithTags.collectAsStateWithLifecycle()
+    val sheetState = rememberBottomSheetScaffoldState()
 
-    // ── 标签操作回调 ──
-    val onEnterTagDeleteMode = { isTagDeleteMode = true }
-    val onExitTagDeleteMode = { isTagDeleteMode = false }
-
-    val onEditDescription = {
-        showEditDialog = true  // 打开编辑描述对话框
-    }
-
-    val onAddTagClick = {
-        showAddTagDialog = true  // 打开添加标签对话框
-    }
-
-    val onRemoveTag: (TagEntity) -> Unit = { tag ->
-        viewModel.removeTag(mediaId, tag.id)
-    }
-    Scaffold(
+    BottomSheetScaffold(
         modifier = modifier,
+        scaffoldState = sheetState,
+        sheetPeekHeight = 48.dp,
+        sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        sheetDragHandle = { BottomSheetDefaults.DragHandle() },
+        sheetContent = {
+            MediaBottomSheetContent(
+                media = currentMedia,
+                isTagDeleteMode = isTagDeleteMode,
+                onEnterTagDeleteMode = { isTagDeleteMode = true },
+                onExitTagDeleteMode = { isTagDeleteMode = false },
+                onEditDescription = { showDescriptionDialog = true },
+                onAddTagClick = { showTagPicker = true },
+                onRemoveTag = { tag -> onRemoveTag(currentMedia, tag) }
+            )
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -175,9 +150,6 @@ fun MediaDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { onEdit(currentMedia) }) {
-                        Icon(Icons.Default.Edit, contentDescription = "编辑")
-                    }
                     IconButton(onClick = { onShare(currentMedia) }) {
                         Icon(Icons.Default.Share, contentDescription = "分享")
                     }
@@ -227,35 +199,6 @@ fun MediaDetailScreen(
                         .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 )
-            }
-
-            // 在 MediaDetailScreen 顶层
-            var showBottomSheet by remember { mutableStateOf(false) }
-
-// 点击底部缩略图或某个按钮时打开
-// 例如在图片下方的信息栏点击后：
-            Button(onClick = { showBottomSheet = true }) {
-                Text("查看详情")
-            }
-
-// 显示 ModalBottomSheet
-            if (showBottomSheet) {
-                ModalBottomSheet(
-                    onDismissRequest = { showBottomSheet = false },
-                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), // 直接全展开，跳过半展开
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    dragHandle = { BottomSheetDefaults.DragHandle() }  // 可拖拽手柄
-                ) {
-                    MediaBottomSheetContent(
-                        media = currentMediaWithTags,
-                        isTagDeleteMode = isTagDeleteMode,
-                        onEnterTagDeleteMode = onEnterTagDeleteMode,
-                        onExitTagDeleteMode = onExitTagDeleteMode,
-                        onEditDescription = { /* 打开编辑对话框 */ },
-                        onAddTagClick = { /* 打开添加标签 */ },
-                        onRemoveTag = { tag -> /* 删除标签 */ }
-                    )
-                }
             }
         }
     }
@@ -349,23 +292,17 @@ private fun MediaDisplay(media: MediaWithTags) {
                 fontSize = 64.sp
             )
             Spacer(Modifier.height(12.dp))
-            Text(
-                text = media.media.name,
-                fontSize = 13.sp,
-                color = Color.White.copy(alpha = 0.6f)
-            )
-            Text(
-                text = formatSize(media.media.size),
-                fontSize = 11.sp,
-                color = Color.White.copy(alpha = 0.4f)
-            )
+            Text(media.media.name, fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f))
+            Text(formatSize(media.media.size), fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
         }
     }
 }
 
+// ── BottomSheet 内容 ──
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MediaBottomSheetContent(
+private fun MediaBottomSheetContent(
     media: MediaWithTags,
     isTagDeleteMode: Boolean,
     onEnterTagDeleteMode: () -> Unit,
@@ -374,48 +311,57 @@ fun MediaBottomSheetContent(
     onAddTagClick: () -> Unit,
     onRemoveTag: (TagEntity) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp)
-    ) {
-        // 文件名
-        Text(
-            text = media.media.name,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(Modifier.height(12.dp))
+    val maxSheetHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 2 / 3
 
-        // 描述
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
+                .heightIn(max = maxSheetHeight)
+                .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "描述",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            TextButton(
-                onClick = onEditDescription,
-                contentPadding = PaddingValues(horizontal = 8.dp)
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ── 描述 ──
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("编辑", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    text = "描述",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+
+                // 编辑图标按钮（铅笔）
+                IconButton(
+                    onClick = onEditDescription,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "编辑描述",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        }
-        Text(
-            text = media.media.description ?: "暂无描述",
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (media.media.description != null)
-                MaterialTheme.colorScheme.onSurface
-            else
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        )
+            Text(
+                text = media.media.description ?: "暂无描述",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (media.media.description != null)
+                    MaterialTheme.colorScheme.onSurface
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.padding(top = 2.dp)
+            )
 
         Spacer(Modifier.height(8.dp))
         HorizontalDivider()
@@ -434,34 +380,35 @@ fun MediaBottomSheetContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            if (media.tags.isEmpty() && !isTagDeleteMode) {
+            if (media.tags.isEmpty()) {
                 Text(
                     "暂无标签",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.align(Alignment.CenterVertically)
                 )
             }
 
             media.tags.forEach { tag ->
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(tag.bgColor).copy(alpha = 0.6f),
                     tonalElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(
                             start = 12.dp, end = if (isTagDeleteMode) 4.dp else 12.dp,
-                            top = 6.dp, bottom = 6.dp
+                            top = 4.dp, bottom = 4.dp
                         ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = tag.name,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.White,
+                            fontSize = 14.sp
                         )
                         if (isTagDeleteMode) {
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(3.dp))
                             IconButton(
                                 onClick = { onRemoveTag(tag) },
                                 modifier = Modifier.size(16.dp)
@@ -478,20 +425,33 @@ fun MediaBottomSheetContent(
                 }
             }
 
-            FilledTonalIconButton(
-                onClick = onAddTagClick,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(Icons.Default.Add, "添加标签", modifier = Modifier.size(18.dp))
-            }
-
-            FilledTonalIconButton(
-                onClick = {
-                    if (isTagDeleteMode) onExitTagDeleteMode() else onEnterTagDeleteMode()
-                },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Text("−", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (isTagDeleteMode) {
+                FilledTonalIconButton(
+                    onClick = onExitTagDeleteMode,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.Check, "完成", modifier = Modifier.size(18.dp))
+                }
+            } else {
+                FilledTonalIconButton(
+                    onClick = onAddTagClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(Icons.Default.Add, "添加标签", modifier = Modifier.size(22.dp))
+                }
+                if (!media.tags.isEmpty()) {
+                    FilledTonalIconButton(
+                        onClick = onEnterTagDeleteMode,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Text(
+                            "−",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
 
@@ -510,6 +470,7 @@ fun MediaBottomSheetContent(
         })
         if (media.media.width != null && media.media.height != null) {
             MetaDataItem("分辨率", "${media.media.width}×${media.media.height}")
+        }
         }
     }
 }
@@ -534,8 +495,6 @@ private fun MetaDataItem(label: String, value: String) {
         )
     }
 }
-
-// ── 工具函数 ──
 
 private fun formatSize(bytes: Long): String {
     val kb = bytes / 1024.0
