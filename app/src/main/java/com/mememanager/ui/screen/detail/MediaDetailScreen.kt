@@ -1,10 +1,13 @@
 package com.mememanager.ui.screen.detail
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import android.R.attr.layoutDirection
+import android.graphics.Paint
+import android.graphics.Region
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +15,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,7 +23,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +42,8 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,19 +67,41 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
 import com.mememanager.data.local.entity.TagEntity
 import com.mememanager.ui.theme.MemeManagerTheme
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 
 /**
  * 媒体详情页
@@ -229,45 +259,120 @@ fun MediaDetailScreen(
     }
 
     // ── 标签选择弹窗 ──
-    if (showTagPicker) {
+    // 调试开关
+    // 调试开关，保留
+    if (true) { // 调试开关，后续替换
         val currentTagIds = currentMedia.tags.map { it.id }.toSet()
-        AlertDialog(
+        val filtered = availableTags.filter { it.id !in currentTagIds }
+
+        var selectedTag by remember { mutableStateOf<TagEntity?>(null) }
+
+        Dialog(
             onDismissRequest = { showTagPicker = false },
-            title = { Text("选择标签") },
-            text = {
-                val filtered = availableTags.filter { it.id !in currentTagIds }
-                if (filtered.isEmpty()) {
-                    Text("没有可添加的标签", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    Column {
-                        filtered.forEach { tag ->
-                            Row(
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    // 标题
+                    Text(
+                        "选择标签",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    // 标签容器（稍暗的背景，形成凹陷感）
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        tonalElevation = 0.dp
+                    ) {
+                        if (filtered.isEmpty()) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        onAddTag(currentMedia, tag)
-                                        showTagPicker = false
-                                    }
-                                    .padding(vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(tag.bgColor))
+                                Text(
+                                    "没有可添加的标签",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Spacer(Modifier.width(10.dp))
-                                Text(tag.name, fontSize = 15.sp)
+                            }
+                        } else {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                contentPadding = PaddingValues(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.heightIn(max = 400.dp)
+                            ) {
+                                items(filtered.size) { index ->
+                                    val tag = filtered[index]
+                                    TagItem(
+                                        tag = tag,
+                                        isSelected = selectedTag == tag,
+                                        onClick = {
+                                            selectedTag = tag
+                                            onAddTag(currentMedia, tag)
+                                            showTagPicker = false
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
+
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showTagPicker = false }) {
+                            Text("关闭")
+                        }
+                    }
                 }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showTagPicker = false }) { Text("关闭") }
             }
+        }
+    }
+}
+
+
+fun Modifier.innerShadow(
+    shape: androidx.compose.ui.graphics.Shape,
+    color: Color = Color.Black.copy(alpha = 0.15f),
+    blur: Dp = 12.dp,
+    offsetY: Dp = 2.dp
+): Modifier = this.drawWithContent {
+    // 先绘制原有内容（背景和前景）
+    drawContent()
+
+    // 然后在其上绘制内阴影
+    val strokeWidth = blur.toPx()
+    val offsetPx = offsetY.toPx()
+
+    // 多层描边，从外向内逐渐变淡变细，模拟模糊扩散
+    for (i in 0..10) {
+        val fraction = i / 10f
+        val currentOffset = offsetPx * (1f - fraction)
+        val currentWidth = strokeWidth * (1f - fraction)
+        val currentAlpha = 0.15f * (1f - fraction) * (1f - fraction)
+
+        drawRoundRect(
+            color = color.copy(alpha = currentAlpha),
+            topLeft = Offset(currentOffset, currentOffset),
+            size = Size(size.width - currentOffset * 2, size.height - currentOffset * 2),
+            cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
+            style = Stroke(width = currentWidth)
         )
     }
 }
@@ -388,11 +493,13 @@ private fun MediaBottomSheetContent(
                     modifier = Modifier.align(Alignment.CenterVertically)
                 )
             }
-
+            /*
             media.tags.forEach { tag ->
+                val tagColor = Color(tag.bgColor)
+
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color(tag.bgColor).copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(50.dp),
+                    color = tagColor.copy(alpha = 0.12f),   // 极淡的背景，仅作为彩色滤镜
                     tonalElevation = 0.dp
                 ) {
                     Row(
@@ -404,20 +511,60 @@ private fun MediaBottomSheetContent(
                     ) {
                         Text(
                             text = tag.name,
-                            color = Color.White,
-                            fontSize = 14.sp
+                            color = MaterialTheme.colorScheme.onSurface,   // 统一深色文字
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
                         )
                         if (isTagDeleteMode) {
-                            Spacer(Modifier.width(3.dp))
+                            Spacer(Modifier.width(2.dp))
                             IconButton(
                                 onClick = { onRemoveTag(tag) },
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(20.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Close,
                                     contentDescription = "删除",
-                                    modifier = Modifier.size(12.dp),
-                                    tint = MaterialTheme.colorScheme.error
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)  // 统一半透明深色
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            */
+            media.tags.forEach { tag ->
+                val tagColor = Color(tag.bgColor)
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, tagColor.copy(alpha = 0.5f)),
+                    tonalElevation = 0.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(
+                            start = 12.dp, end = if (isTagDeleteMode) 4.dp else 12.dp,
+                            top = 4.dp, bottom = 4.dp
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = tag.name,
+                            color = tagColor,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (isTagDeleteMode) {
+                            Spacer(Modifier.width(4.dp))
+                            IconButton(
+                                onClick = { onRemoveTag(tag) },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "删除",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = tagColor.copy(alpha = 0.7f)
                                 )
                             }
                         }
@@ -471,6 +618,51 @@ private fun MediaBottomSheetContent(
         if (media.media.width != null && media.media.height != null) {
             MetaDataItem("分辨率", "${media.media.width}×${media.media.height}")
         }
+        }
+    }
+}
+
+@Composable
+private fun TagItem(
+    tag: TagEntity,
+    isSelected: Boolean = false,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    indication = ripple(),
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onClick() }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(Color(tag.bgColor))
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = tag.name,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
