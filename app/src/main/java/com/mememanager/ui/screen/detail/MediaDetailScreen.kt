@@ -42,11 +42,13 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -311,7 +313,7 @@ fun MediaDetailScreen(
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.heightIn(max = 400.dp)
                                 ) {
-                                    items(filtered.size) { index ->
+                                    items(filtered.size,key = { index -> filtered[index].id }) { index ->
                                         val tag = filtered[index]
                                         val isSelected = tag.id in selectedIds
                                         TagItem(
@@ -333,16 +335,25 @@ fun MediaDetailScreen(
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(30.dp, Alignment.End)
                     ) {
-                        TextButton(onClick = { showTagPicker = false }) { Text("取消") }
-                        TextButton(
+                        FilledTonalButton(
+                            onClick = { showTagPicker = false },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) { Text("取消") }
+
+                        FilledTonalButton(
                             onClick = {
                                 val toAdd = filtered.filter { it.id in selectedIds }
                                 toAdd.forEach { tag -> onAddTag(currentMedia, tag) }
                                 showTagPicker = false
                             },
-                            enabled = selectedIds.isNotEmpty()
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
                         ) { Text("确定") }
                     }
                 }
@@ -634,13 +645,19 @@ private fun TagItem(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isSelected) Modifier.border(
+                    width = 2.dp,
+                    color = Color(0xFF1976D2), // Material Blue 700
+                    shape = RoundedCornerShape(16.dp)
+                ) else Modifier
+            ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-            .compositeOver(MaterialTheme.colorScheme.surfaceVariant)
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 7.dp else 2.dp)
-    ){
+    ) {
 //    Card(
 //        modifier = Modifier.fillMaxWidth(),
 //        shape = RoundedCornerShape(12.dp),
