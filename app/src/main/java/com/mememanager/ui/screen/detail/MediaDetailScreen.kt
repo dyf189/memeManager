@@ -61,6 +61,7 @@ import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -259,13 +260,11 @@ fun MediaDetailScreen(
     }
 
     // ── 标签选择弹窗 ──
-    // 调试开关
-    // 调试开关，保留
-    if (true) { // 调试开关，后续替换
+    if (showTagPicker) {
         val currentTagIds = currentMedia.tags.map { it.id }.toSet()
-        val filtered = availableTags.filter { it.id !in currentTagIds }
+        val filtered = availableTags/*.filter { it.id !in currentTagIds }*/
 
-        var selectedTag by remember { mutableStateOf<TagEntity?>(null) }
+        var selectedIds by remember { mutableStateOf(setOf<Long>()) }
 
         Dialog(
             onDismissRequest = { showTagPicker = false },
@@ -280,7 +279,6 @@ fun MediaDetailScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    // 标题
                     Text(
                         "选择标签",
                         style = MaterialTheme.typography.titleMedium,
@@ -288,13 +286,12 @@ fun MediaDetailScreen(
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
-                    // 标签容器（稍暗的背景，形成凹陷感）
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                         tonalElevation = 2.dp,
-                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         if (filtered.isEmpty()) {
                             Box(
@@ -303,35 +300,50 @@ fun MediaDetailScreen(
                                     .padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("没有可添加的标签", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("所有标签已添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(2),
-                                contentPadding = PaddingValues(12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.heightIn(max = 400.dp)
-                            ) {
-                                items(filtered.size) { index ->
-                                    val tag = filtered[index]
-                                    TagItem(
-                                        tag = tag,
-                                        isSelected = selectedTag == tag,
-                                        onClick = {
-                                            selectedTag = tag
-                                            onAddTag(currentMedia, tag)
-                                            showTagPicker = false
-                                        }
-                                    )
+                            key(selectedIds) {
+                                LazyVerticalGrid(
+                                    columns = GridCells.Fixed(2),
+                                    contentPadding = PaddingValues(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.heightIn(max = 400.dp)
+                                ) {
+                                    items(filtered.size) { index ->
+                                        val tag = filtered[index]
+                                        val isSelected = tag.id in selectedIds
+                                        TagItem(
+                                            tag = tag,
+                                            isSelected = isSelected,
+                                            onClick = {
+                                                selectedIds = if (isSelected)
+                                                    selectedIds - tag.id
+                                                else
+                                                    selectedIds + tag.id
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
                     Spacer(Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { showTagPicker = false }) { Text("关闭") }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextButton(onClick = { showTagPicker = false }) { Text("取消") }
+                        TextButton(
+                            onClick = {
+                                val toAdd = filtered.filter { it.id in selectedIds }
+                                toAdd.forEach { tag -> onAddTag(currentMedia, tag) }
+                                showTagPicker = false
+                            },
+                            enabled = selectedIds.isNotEmpty()
+                        ) { Text("确定") }
                     }
                 }
             }
@@ -623,15 +635,23 @@ private fun TagItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected)
-                MaterialTheme.colorScheme.primaryContainer
-            else
-                MaterialTheme.colorScheme.surface   // 改成纯 surface，完全不透明
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+            .compositeOver(MaterialTheme.colorScheme.surfaceVariant)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 1.dp)
-    ) {
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 7.dp else 2.dp)
+    ){
+//    Card(
+//        modifier = Modifier.fillMaxWidth(),
+//        shape = RoundedCornerShape(12.dp),
+//        colors = CardDefaults.cardColors(
+//            containerColor = if (isSelected)
+//                MaterialTheme.colorScheme.primaryContainer
+//            else
+//                MaterialTheme.colorScheme.surface   // 改成纯 surface，完全不透明
+//        ),
+//        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 1.dp)
+//    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
