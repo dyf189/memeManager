@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -62,6 +64,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -104,7 +107,10 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.platform.LocalLayoutDirection
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 媒体详情页
@@ -266,7 +272,16 @@ fun MediaDetailScreen(
         val currentTagIds = currentMedia.tags.map { it.id }.toSet()
         val filtered = availableTags/*.filter { it.id !in currentTagIds }*/
 
-        var selectedIds by remember { mutableStateOf(setOf<Long>()) }
+        var selectedIds by remember { mutableStateOf(currentTagIds) }
+
+        var forceRefresh by remember { mutableStateOf(0) }
+
+        LaunchedEffect(Unit) {
+            // 等待 50ms 后再自增，让首次绘制完成
+            kotlinx.coroutines.delay(50.milliseconds)
+            forceRefresh++
+        }
+
 
         Dialog(
             onDismissRequest = { showTagPicker = false },
@@ -305,15 +320,16 @@ fun MediaDetailScreen(
                                 Text("所有标签已添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         } else {
-                            key(selectedIds) {
+                            key(forceRefresh) {
                                 LazyVerticalGrid(
                                     columns = GridCells.Fixed(2),
                                     contentPadding = PaddingValues(12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.heightIn(max = 400.dp)
                                 ) {
-                                    items(filtered.size,key = { index -> filtered[index].id }) { index ->
+                                    items(
+                                        filtered.size,
+                                        key = { index -> filtered[index].id }) { index ->
                                         val tag = filtered[index]
                                         val isSelected = tag.id in selectedIds
                                         TagItem(
@@ -335,7 +351,7 @@ fun MediaDetailScreen(
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(30.dp, Alignment.End)
+                        horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.End)
                     ) {
                         FilledTonalButton(
                             onClick = { showTagPicker = false },
@@ -363,35 +379,6 @@ fun MediaDetailScreen(
 }
 
 
-fun Modifier.innerShadow(
-    shape: androidx.compose.ui.graphics.Shape,
-    color: Color = Color.Black.copy(alpha = 0.15f),
-    blur: Dp = 12.dp,
-    offsetY: Dp = 2.dp
-): Modifier = this.drawWithContent {
-    // 先绘制原有内容（背景和前景）
-    drawContent()
-
-    // 然后在其上绘制内阴影
-    val strokeWidth = blur.toPx()
-    val offsetPx = offsetY.toPx()
-
-    // 多层描边，从外向内逐渐变淡变细，模拟模糊扩散
-    for (i in 0..10) {
-        val fraction = i / 10f
-        val currentOffset = offsetPx * (1f - fraction)
-        val currentWidth = strokeWidth * (1f - fraction)
-        val currentAlpha = 0.15f * (1f - fraction) * (1f - fraction)
-
-        drawRoundRect(
-            color = color.copy(alpha = currentAlpha),
-            topLeft = Offset(currentOffset, currentOffset),
-            size = Size(size.width - currentOffset * 2, size.height - currentOffset * 2),
-            cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
-            style = Stroke(width = currentWidth)
-        )
-    }
-}
 
 // ── 媒体展示区 ──
 
@@ -644,41 +631,32 @@ private fun TagItem(
     isSelected: Boolean = false,
     onClick: () -> Unit
 ) {
-    Card(
+    val shape = RoundedCornerShape(16.dp)
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = if (isSelected) 7.dp else 2.dp,
+                shape = shape,
+                clip = false
+            )
+            .background(
+                color = Color.White,
+                shape = shape
+            )
             .then(
-                if (isSelected) Modifier.border(
-                    width = 2.dp,
-                    color = Color(0xFF1976D2), // Material Blue 700
-                    shape = RoundedCornerShape(16.dp)
-                ) else Modifier
-            ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 7.dp else 2.dp)
+                if (isSelected) Modifier.border(2.dp, Color(0xFF1976D2), shape)
+                else Modifier
+            )
+            .clip(shape)
+            .clickable(
+                indication = ripple(),
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-//    Card(
-//        modifier = Modifier.fillMaxWidth(),
-//        shape = RoundedCornerShape(12.dp),
-//        colors = CardDefaults.cardColors(
-//            containerColor = if (isSelected)
-//                MaterialTheme.colorScheme.primaryContainer
-//            else
-//                MaterialTheme.colorScheme.surface   // 改成纯 surface，完全不透明
-//        ),
-//        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 1.dp)
-//    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    indication = ripple(),
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { onClick() }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(18.dp)
