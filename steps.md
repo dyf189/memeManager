@@ -242,6 +242,38 @@ app/src/main/java/com/mememanager/
 
 ---
 
+## 第三步：设置页持久化 ✅
+
+### 3.1 DataStore Preferences 配置
+
+- DataStore 依赖已在 gradle 中配置（`androidx.datastore.preferences`）
+- `di/DatabaseModule.kt` 新增 `provideDataStore()` 提供 `DataStore<Preferences>` 单例
+- 使用 `preferencesDataStore(name = "settings")` 委托创建
+
+**完成文件：**
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `data/settings/AppSettings.kt` | 新建 | 6 个设置项数据类 + Preferences Key 常量 |
+| `di/DatabaseModule.kt` | 修改 | 添加 DataStore provider |
+| `ui/viewmodel/SettingsViewModel.kt` | 新建 | @HiltViewModel，DataStore 读写封装，settings StateFlow |
+| `ui/screen/settings/SettingsScreen.kt` | 修改 | 改为 hiltViewModel() 驱动，所有设置项读写 DataStore |
+
+### 3.2 持久化的设置项
+
+| 设置项 | Key | 类型 | 默认值 |
+|--------|-----|------|--------|
+| 默认存储类型 | `storage_type` | String | "私有内部" |
+| 分片大小 | `shard_size_mb` | Int | 100 |
+| 主题模式 | `theme_mode` | String | "跟随系统" |
+| 每行列数 | `grid_columns` | Int | 3 |
+| 回收站保留天数 | `trash_days` | Int | 30 |
+| JSON 同步开关 | `json_sync_enabled` | Boolean | false |
+
+关闭 App 重启后设置不丢失。
+
+---
+
 ## 当前项目结构
 
 ```
@@ -261,50 +293,46 @@ app/src/main/java/com/mememanager/
 │   │       ├── MediaTagCrossRef.kt
 │   │       ├── MediaWithTags.kt   # @Relation 封装
 │   │       └── TagEntity.kt       # bgColor/isReserved/sortOrder
-│   └── repository/
-│       ├── MediaRepository.kt     # 媒体业务封装
-│       └── TagRepository.kt       # 标签业务封装
+│   ├── repository/
+│   │   ├── MediaRepository.kt     # 媒体业务封装
+│   │   └── TagRepository.kt       # 标签业务封装
+│   └── settings/
+│       └── AppSettings.kt         # 设置项数据类 + Preferences Keys
 ├── di/
-│   └── DatabaseModule.kt          # Hilt Module (含 fallbackToDestructiveMigration)
+│   └── DatabaseModule.kt          # Hilt Module (Room + DataStore)
 └── ui/
     ├── screen/
     │   ├── Screens.kt             # 导出页面引用
     │   ├── album/
-    │   │   ├── AlbumItem.kt       # AlbumItem sealed class
-    │   │   ├── AlbumScreen.kt     # 主相册页面（AlbumViewModel 驱动）
-    │   │   ├── AlbumGridItem.kt   # 网格缩略图（combinedClickable 支持长按）
-    │   │   ├── BatchActionBar.kt  # 多选操作栏
-    │   │   ├── FilterPanel.kt     # 筛选面板
-    │   │   ├── TagChipRow.kt      # 标签胶囊栏
-    │   │   └── TimeGroupHeader.kt # 时间分组头
+    │   │   ├── AlbumItem.kt
+    │   │   ├── AlbumScreen.kt     # AlbumViewModel 驱动
+    │   │   ├── AlbumGridItem.kt
+    │   │   ├── BatchActionBar.kt
+    │   │   ├── FilterPanel.kt
+    │   │   ├── TagChipRow.kt
+    │   │   └── TimeGroupHeader.kt
     │   ├── detail/
-    │   │   └── MediaDetailScreen.kt  # 媒体详情页
+    │   │   └── MediaDetailScreen.kt
     │   ├── settings/
-    │   │   └── SettingsScreen.kt     # 设置页
+    │   │   └── SettingsScreen.kt  # SettingsViewModel 驱动
     │   └── tags/
-    │       └── TagsScreen.kt         # 标签管理器（TagsViewModel 驱动）
+    │       └── TagsScreen.kt      # TagsViewModel 驱动
     ├── theme/
-    │   ├── Color.kt
-    │   ├── Theme.kt
-    │   └── Type.kt
     ├── util/
-    │   └── TimeGroupUtil.kt       # 时间分组工具
+    │   └── TimeGroupUtil.kt
     └── viewmodel/
-        ├── AlbumUiState.kt        # 相册 UI 状态 + FilterState
-        ├── AlbumViewModel.kt      # @HiltViewModel + Paging 3 + TagRepository
-        └── TagsViewModel.kt       # @HiltViewModel + TagRepository
+        ├── AlbumUiState.kt
+        ├── AlbumViewModel.kt
+        ├── SettingsViewModel.kt   # DataStore 持久化
+        └── TagsViewModel.kt
 ```
 
 ---
 
-## 第三步：待定
-
-当前数据流已打通（Room → Repository → ViewModel → UI），三个 Tab 页面均可消费 ViewModel 的真实数据。
-数据库目前为空，需要后续实现媒体导入功能来填充数据。标签页已可通过 UI 新建/删除标签。
-设置页使用本地 `remember` 状态，不依赖数据源。
+## 第四步：待定
 
 **下一步可选方向：**
-- 媒体导入（从相册选择/文件夹导入/分享接收）
-- 详情页接入数据绑定
+- 媒体导入（从相册选择/文件夹导入/分享接收）— 让数据库有真实内容
+- 详情页接入数据绑定（MediaDetailScreen 消费 Room 数据）
 - 搜索功能（FTS5 + 结巴分词）
-- DataStore 持久化设置
+- AlbumScreen 消费 SettingsScreen 中的列数配置

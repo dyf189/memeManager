@@ -44,25 +44,21 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mememanager.ui.viewmodel.SettingsViewModel
 
 /**
  * 设置页面
  *
- * 分组：
- * 1. 存储 — 默认存储类型、分片大小
- * 2. 显示 — 主题模式、每行列数
- * 3. 回收站 — 保留天数、清空按钮
- * 4. 数据 — JSON 同步开关
- * 5. 关于 — 版本信息
+ * 数据来源：SettingsViewModel（DataStore Preferences 持久化）
  */
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
-    var storageType by remember { mutableStateOf("私有内部") }
-    var shardSizeMB by remember { mutableIntStateOf(100) }
-    var themeMode by remember { mutableStateOf("跟随系统") }
-    var gridColumns by remember { mutableIntStateOf(3) }
-    var trashDays by remember { mutableIntStateOf(30) }
-    var jsonSyncEnabled by remember { mutableStateOf(false) }
+fun SettingsScreen(
+    viewModel: SettingsViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier
+) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
@@ -82,14 +78,14 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     FilterRow(
                         label = "默认存储类型",
                         options = listOf("私有内部", "公共目录", "外部索引"),
-                        selected = storageType,
-                        onSelected = { storageType = it }
+                        selected = settings.storageType,
+                        onSelected = { viewModel.setStorageType(it) }
                     )
                     Divider()
                     SliderRow(
                         label = "分片大小",
-                        value = shardSizeMB.toFloat(),
-                        onValueChange = { shardSizeMB = it.toInt() },
+                        value = settings.shardSizeMB.toFloat(),
+                        onValueChange = { viewModel.setShardSizeMB(it.toInt()) },
                         valueRange = 10f..500f,
                         unit = "MB"
                     )
@@ -102,14 +98,14 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     FilterRow(
                         label = "主题模式",
                         options = listOf("浅色", "深色", "跟随系统"),
-                        selected = themeMode,
-                        onSelected = { themeMode = it }
+                        selected = settings.themeMode,
+                        onSelected = { viewModel.setThemeMode(it) }
                     )
                     Divider()
                     SliderRow(
                         label = "每行列数",
-                        value = gridColumns.toFloat(),
-                        onValueChange = { gridColumns = it.toInt() },
+                        value = settings.gridColumns.toFloat(),
+                        onValueChange = { viewModel.setGridColumns(it.toInt()) },
                         valueRange = 3f..5f,
                         steps = 1,
                         unit = "列"
@@ -122,8 +118,8 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 SettingsCard(title = "回收站") {
                     SliderRow(
                         label = "保留天数",
-                        value = trashDays.toFloat(),
-                        onValueChange = { trashDays = it.toInt() },
+                        value = settings.trashDays.toFloat(),
+                        onValueChange = { viewModel.setTrashDays(it.toInt()) },
                         valueRange = 0f..90f,
                         unit = "天"
                     )
@@ -137,7 +133,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     ) {
                         Text("清空回收站", fontSize = 15.sp)
                         Button(
-                            onClick = { /* TODO */ },
+                            onClick = { /* TODO: 调用回收站清理 */ },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error
                             )
@@ -165,7 +161,10 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Switch(checked = jsonSyncEnabled, onCheckedChange = { jsonSyncEnabled = it })
+                        Switch(
+                            checked = settings.jsonSyncEnabled,
+                            onCheckedChange = { viewModel.setJsonSyncEnabled(it) }
+                        )
                     }
                 }
             }
@@ -265,7 +264,6 @@ private fun SliderRow(
         ) {
             Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 紧凑输入框（34dp 高）
                 Box(
                     modifier = Modifier
                         .width(58.dp)
