@@ -66,6 +66,7 @@ import com.mememanager.ui.viewmodel.AlbumViewModel
 fun AlbumScreen(
     columns: Int = 3,
     viewModel: AlbumViewModel = hiltViewModel(),
+    onNavigateToDetail: (index: Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
@@ -204,6 +205,11 @@ fun AlbumScreen(
                                 onClick = {
                                     if (uiState.isMultiSelectMode) {
                                         viewModel.toggleSelection(mediaWithTags.media.id)
+                                    } else {
+                                        val currentList = items.mapNotNull { it }
+                                        viewModel.setCurrentItems(currentList)
+                                        val idx = currentList.indexOf(mediaWithTags)
+                                        onNavigateToDetail(if (idx >= 0) idx else 0)
                                     }
                                 },
                                 onLongClick = {

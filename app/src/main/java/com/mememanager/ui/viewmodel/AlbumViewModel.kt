@@ -58,6 +58,15 @@ class AlbumViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AlbumUiState())
     val uiState: StateFlow<AlbumUiState> = _uiState.asStateFlow()
 
+    // ── 当前媒体列表缓存（供详情页共享） ──
+
+    private val _currentItems = MutableStateFlow<List<MediaWithTags>>(emptyList())
+    val currentItems: StateFlow<List<MediaWithTags>> = _currentItems.asStateFlow()
+
+    fun setCurrentItems(items: List<MediaWithTags>) {
+        _currentItems.value = items
+    }
+
     // ── 操作 ──
 
     fun setTypeFilter(type: MediaType?) {
@@ -162,6 +171,27 @@ class AlbumViewModel @Inject constructor(
                 val entity = MediaImporter.importFromUri(application, uri)
                 mediaRepository.insert(entity)
             }
+        }
+    }
+
+    // ── 单个媒体操作（详情页用） ──
+
+    fun updateDescription(mediaId: Long, description: String) {
+        viewModelScope.launch {
+            val entity = mediaRepository.getMediaById(mediaId) ?: return@launch
+            mediaRepository.update(entity.copy(description = description.ifEmpty { null }))
+        }
+    }
+
+    fun addTag(mediaId: Long, tagId: Long) {
+        viewModelScope.launch {
+            mediaRepository.addTagToMedia(mediaId, tagId)
+        }
+    }
+
+    fun removeTag(mediaId: Long, tagId: Long) {
+        viewModelScope.launch {
+            mediaRepository.removeTagFromMedia(mediaId, tagId)
         }
     }
 }

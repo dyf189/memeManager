@@ -368,11 +368,33 @@ app/src/main/java/com/mememanager/
 
 ---
 
-## 第五步：待定
+## 第五步：详情页导航 + 数据绑定 ✅
 
-**下一步可选方向：**
-- 分享接收（Intent.ACTION_SEND 入口）
-- SAF 文件夹批量导入
-- 详情页接入数据绑定（MediaDetailScreen 消费 Room 数据）
-- 搜索功能（FTS5 + 结巴分词）
-- AlbumScreen 列数与 SettingsScreen 联动
+### 5.1 导航架构
+
+- NavHost 新增 `detail/{index}` 路由
+- AlbumViewModel 提升为 Activity 作用域，相册和详情页共享
+- AlbumScreen 新增 `onNavigateToDetail(index)` 回调
+- 单击缩略图：收集当前 `itemSnapshotList` → `setCurrentItems()` → 导航
+- 详情页底部导航栏自动隐藏
+
+### 5.2 数据编辑回写 Room
+
+AlbumViewModel 新增三个方法：
+- `updateDescription(mediaId, description)`
+- `addTag(mediaId, tagId)`
+- `removeTag(mediaId, tagId)`
+
+### 5.3 完成文件
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `ui/viewmodel/AlbumViewModel.kt` | 修改 | currentItems 缓存 + 3 编辑方法 |
+| `ui/screen/album/AlbumScreen.kt` | 修改 | onNavigateToDetail 回调 |
+| `MainActivity.kt` | 修改 | detail 路由 + 共享 ViewModel + 回调绑定 |
+
+---
+
+## 第六步：待定
+
+可选方向：设置联动 / 搜索 / 分享接收 / 编辑后刷新缓存
