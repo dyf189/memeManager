@@ -97,7 +97,7 @@ app/src/main/java/com/mememanager/
 
 ---
 
-## 第一步：数据层完善
+## 第一步：数据层完善 ✅
 
 ### 1.1 更新 Entity
 
@@ -145,13 +145,13 @@ app/src/main/java/com/mememanager/
 | `data/local/AppDatabase.kt` | 修改 | version 1→2，注册 TypeConverters，暴露 mediaTagRefDao |
 | `di/DatabaseModule.kt` | 修改 | 添加 provideMediaTagRefDao，fallbackToDestructiveMigration |
 
-### 1.3 更新 AppDatabase（已完成）
+### 1.3 更新 AppDatabase ✅
 
 - 注册新 Entity（StorageType 需 TypeConverter）
 - 注册 MediaTagRefDao
 - version 1→2（实体新增字段）
 
-### 1.4 创建 Repository 层
+### 1.4 创建 Repository 层 ✅
 
 - `MediaRepository` — 封装媒体增删改查/分页/筛选
 - `TagRepository` — 封装标签管理
@@ -163,7 +163,7 @@ app/src/main/java/com/mememanager/
 | `data/repository/MediaRepository.kt` | 新建 — 分页查询、CRUD、回收站、标签关联操作，Paging 3 Pager 封装 |
 | `data/repository/TagRepository.kt` | 新建 — 标签 CRUD、搜索、预设颜色分配 |
 
-### 1.5 创建 AlbumViewModel
+### 1.5 创建 AlbumViewModel ✅
 
 - Paging 3 提供分页相册数据
 - `StateFlow<AlbumUiState>`
@@ -175,6 +175,70 @@ app/src/main/java/com/mememanager/
 |------|------|
 | `ui/viewmodel/AlbumUiState.kt` | 新建 — FilterState（7 种筛选条件）、ViewMode、AlbumUiState |
 | `ui/viewmodel/AlbumViewModel.kt` | 新建 — @HiltViewModel，筛选变动自动重建 PagingData 流，多选模式管理，批量删除/标签操作 |
+
+---
+
+## 第二步：搭建 UI 页面 ✅
+
+### 2.1 假数据源 — 跳过
+
+假数据已通过各页面的 `@Preview` 函数覆盖（仅在 `main-ui-preview` 分支），不需要独立的 `FakeDataSource.kt`。
+
+### 2.2 时间分组工具 ✅
+
+`ui/util/TimeGroupUtil.kt`：
+- 根据时间戳计算分组标签（刚刚 / X分钟前 / X小时前 / 昨天 / 前天 / 三天前 / MM-dd / yyyy-MM-dd）
+- 分组 ID 生成（用于 LazyVerticalGrid stickyHeader 排序）
+
+### 2.3 AlbumScreen UI 组件 ✅
+
+新建 `ui/screen/album/` 包，拆分以下组件：
+
+| 组件 | 文件 | 说明 |
+|------|------|------|
+| `AlbumScreen` | `AlbumScreen.kt` | 主页面编排（标签栏+筛选面板+网格+批量操作栏），由 AlbumViewModel 驱动 |
+| `AlbumGridItem` | `AlbumGridItem.kt` | 单个缩略图卡片（Coil 加载 + 右下角标签圆点最多4个+N + 类型角标） |
+| `TimeGroupHeader` | `TimeGroupHeader.kt` | 时间分组粘性头（stickyHeader） |
+| `TagChipRow` | `TagChipRow.kt` | 横向滑动标签胶囊筛选栏（全部+各标签，选中高亮） |
+| `FilterPanel` | `FilterPanel.kt` | 覆盖式筛选面板（类型 FilterChip，即时应用） |
+| `BatchActionBar` | `BatchActionBar.kt` | 多选模式顶部操作栏（取消+已选数量+打标签/导出/删除/分享图标） |
+| `AlbumItem` | `AlbumItem.kt` | AlbumItem sealed class（Header / Media）用于时间分组列表 |
+
+**完成文件列表：**
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `ui/util/TimeGroupUtil.kt` | 新建 | 时间分组工具（TimeGroup 模型 + getGroup 方法） |
+| `ui/screen/album/AlbumItem.kt` | 新建 | AlbumItem sealed class |
+| `ui/screen/album/AlbumScreen.kt` | 新建 | 主相册页面，消费 AlbumViewModel 的 PagingData + stickyHeader |
+| `ui/screen/album/AlbumGridItem.kt` | 新建 | 网格缩略图（Coil 图片 + 标签圆点 + 选中蒙层 + 存储类型标记 + 长按多选） |
+| `ui/screen/album/TimeGroupHeader.kt` | 新建 | 时间分组粘性头 |
+| `ui/screen/album/TagChipRow.kt` | 新建 | 标签胶囊筛选栏 |
+| `ui/screen/album/FilterPanel.kt` | 新建 | 覆盖式筛选面板（类型 FilterChip，即时应用无按钮） |
+| `ui/screen/album/BatchActionBar.kt` | 新建 | 多选批量操作栏 |
+| `ui/screen/Screens.kt` | 修改 | 移除 AlbumScreen 占位，改为引用 album 包实现 |
+
+### 2.4 AlbumViewModel 接入真实数据 ✅
+
+- AlbumViewModel 新增 `TagRepository` 注入 + `tags: StateFlow<List<TagEntity>>`
+- AlbumScreen 改为 `hiltViewModel()` 获取，消费 `pagingDataFlow.collectAsLazyPagingItems()`
+- 时间分组头在 UI 层计算：for 循环遍历 `itemSnapshotList`，检测分组边界插入 `stickyHeader`
+- 筛选面板的媒体类型选择联动 ViewModel 的 `setTypeFilter()`
+- 多选模式：长按 → `enterMultiSelectMode()`，点击 → `toggleSelection()`，批量删除 → `softDeleteSelected()`
+- AlbumGridItem 长按改为 `combinedClickable`（原为单独 `clickable`，未接线 onLongClick）
+
+### 2.5 时间分组 Paging 适配 ✅
+
+- 方案：在 AlbumScreen 的 `LazyVerticalGrid` 中直接 for 循环遍历 `lazyPagingItems.itemSnapshotList`
+- 每项检测时间分组是否变化（与前一项比较 `sortKey`），变化时插入 `stickyHeader`
+- 无需 ViewModel 层映射为 AlbumItem（避免了 PagingData.map 无法插入新 item 的限制）
+
+### 2.6 TagsScreen + TagsViewModel ✅
+
+- 新建 `ui/viewmodel/TagsViewModel.kt`：@HiltViewModel，注入 TagRepository，提供 `tags: StateFlow<List<TagEntity>>` 及 add/update/delete 方法
+- TagsScreen 改为 `hiltViewModel()` 获取，消费 `viewModel.tags.collectAsStateWithLifecycle()`
+- 新建标签：AlertDialog + OutlinedTextField，默认颜色 0xFF2196F3，确认后写入 Room
+- 删除标签：保留标签（`isReserved`）显示锁图标不可删除
 
 ---
 
@@ -204,15 +268,21 @@ app/src/main/java/com/mememanager/
 │   └── DatabaseModule.kt          # Hilt Module (含 fallbackToDestructiveMigration)
 └── ui/
     ├── screen/
-    │   ├── Screens.kt             # TagsScreen / SettingsScreen 占位
-    │   └── album/
-    │       ├── AlbumItem.kt       # AlbumItem sealed class
-    │       ├── AlbumScreen.kt     # 主相册页面（假数据驱动）
-    │       ├── AlbumGridItem.kt   # 网格缩略图
-    │       ├── BatchActionBar.kt  # 多选操作栏
-    │       ├── FilterPanel.kt     # 筛选面板
-    │       ├── TagChipRow.kt      # 标签胶囊栏
-    │       └── TimeGroupHeader.kt # 时间分组头
+    │   ├── Screens.kt             # 导出页面引用
+    │   ├── album/
+    │   │   ├── AlbumItem.kt       # AlbumItem sealed class
+    │   │   ├── AlbumScreen.kt     # 主相册页面（AlbumViewModel 驱动）
+    │   │   ├── AlbumGridItem.kt   # 网格缩略图（combinedClickable 支持长按）
+    │   │   ├── BatchActionBar.kt  # 多选操作栏
+    │   │   ├── FilterPanel.kt     # 筛选面板
+    │   │   ├── TagChipRow.kt      # 标签胶囊栏
+    │   │   └── TimeGroupHeader.kt # 时间分组头
+    │   ├── detail/
+    │   │   └── MediaDetailScreen.kt  # 媒体详情页
+    │   ├── settings/
+    │   │   └── SettingsScreen.kt     # 设置页
+    │   └── tags/
+    │       └── TagsScreen.kt         # 标签管理器（TagsViewModel 驱动）
     ├── theme/
     │   ├── Color.kt
     │   ├── Theme.kt
@@ -221,67 +291,20 @@ app/src/main/java/com/mememanager/
     │   └── TimeGroupUtil.kt       # 时间分组工具
     └── viewmodel/
         ├── AlbumUiState.kt        # 相册 UI 状态 + FilterState
-        └── AlbumViewModel.kt      # @HiltViewModel + Paging 3
+        ├── AlbumViewModel.kt      # @HiltViewModel + Paging 3 + TagRepository
+        └── TagsViewModel.kt       # @HiltViewModel + TagRepository
 ```
 
 ---
 
-## 第二步：搭建相册 UI 页面（假数据驱动）
+## 第三步：待定
 
-### 2.1 创建假数据源
+当前数据流已打通（Room → Repository → ViewModel → UI），三个 Tab 页面均可消费 ViewModel 的真实数据。
+数据库目前为空，需要后续实现媒体导入功能来填充数据。标签页已可通过 UI 新建/删除标签。
+设置页使用本地 `remember` 状态，不依赖数据源。
 
-在 `data/fake/` 下创建 `FakeDataSource.kt`：
-- 生成 30+ 条 `MediaWithTags` 假数据（不同时间、类型、标签组合）
-- 包含若干 `TagEntity` 假标签（带颜色）
-- 模拟时间分布：刚刚、几小时前、昨天、前几天、上个月、去年
-
-### 2.2 创建时间分组工具 ✅
-
-`ui/util/TimeGroupUtil.kt`：
-- 根据时间戳计算分组标签（刚刚 / X分钟前 / X小时前 / 昨天 / 前天 / 三天前 / MM-dd / yyyy-MM-dd）
-- 分组 ID 生成（用于 LazyVerticalGrid stickyHeader 排序）
-
-### 2.3 创建 AlbumScreen UI 组件 ✅
-
-新建 `ui/screen/album/` 包，拆分以下组件：
-
-| 组件 | 文件 | 说明 |
-|------|------|------|
-| `AlbumScreen` | `AlbumScreen.kt` | 主页面编排（标签栏+筛选面板+网格+批量操作栏），内嵌 16 条样本数据 |
-| `AlbumGridItem` | `AlbumGridItem.kt` | 单个缩略图卡片（占位色块按类型区分：蓝=图片/绿=GIF/粉=视频，右下角标签圆点最多4个+N） |
-| `TimeGroupHeader` | `TimeGroupHeader.kt` | 时间分组粘性头（stickyHeader） |
-| `TagChipRow` | `TagChipRow.kt` | 横向滑动标签胶囊筛选栏（全部+6个标签，选中高亮） |
-| `FilterPanel` | `FilterPanel.kt` | 下拉展开的筛选面板（类型 FilterChip + 应用/清除按钮） |
-| `BatchActionBar` | `BatchActionBar.kt` | 多选模式顶部操作栏（取消+已选数量+打标签/导出/删除/分享图标） |
-| `AlbumItem` | `AlbumItem.kt` | AlbumItem sealed class（Header / Media）用于时间分组列表 |
-
-**完成文件列表：**
-
-| 文件 | 操作 | 说明 |
-|------|------|------|
-| `ui/util/TimeGroupUtil.kt` | 新建 | 时间分组工具（TimeGroup 模型 + getGroup 方法） |
-| `ui/screen/album/AlbumItem.kt` | 新建 | AlbumItem sealed class |
-| `ui/screen/album/AlbumScreen.kt` | 新建 | 主相册页面，内嵌 16 条样本数据，时间分组 + stickyHeader 网格 |
-| `ui/screen/album/AlbumGridItem.kt` | 新建 | 网格缩略图（类型色块 + 标签圆点 + 选中蒙层 + 存储类型标记） |
-| `ui/screen/album/TimeGroupHeader.kt` | 新建 | 时间分组粘性头 |
-| `ui/screen/album/TagChipRow.kt` | 新建 | 标签胶囊筛选栏 |
-| `ui/screen/album/FilterPanel.kt` | 新建 | 下拉筛选面板 |
-| `ui/screen/album/BatchActionBar.kt` | 新建 | 多选批量操作栏 |
-| `ui/screen/Screens.kt` | 修改 | 移除 AlbumScreen 占位，改为引用 album 包实现 |
-
-### 2.4 更新 AlbumViewModel 支持假数据
-
-- 在 ViewModel 中创建 `fakePagingDataFlow`，将假数据转为 `Flow<PagingData<MediaWithTags>>`
-- 提供 `useFakeData` 开关，方便后续切换为真实数据库
-
-### 2.5 时间分组 Paging 适配
-
-由于 Paging 3 默认按 createdAt DESC 分页，时间分组头需要在 UI 层计算：
-- 在 `AlbumViewModel` 中将 `MediaWithTags` 映射为带分组信息的 UI 模型 `AlbumItem`
-- `AlbumItem` sealed class：`HeaderItem(groupLabel)` + `MediaItem(mediaWithTags)`
-- `LazyVerticalGrid` 通过 `items(..., key = ...)` 交替渲染 Header/Media
-
-### 依赖关系
-
-2.1 ← 2.4 ← 2.5 ← 2.3（组件需要 ViewModel 的数据来渲染）
-2.2 ← 2.5（时间分组逻辑被 Paging 适配层使用）
+**下一步可选方向：**
+- 媒体导入（从相册选择/文件夹导入/分享接收）
+- 详情页接入数据绑定
+- 搜索功能（FTS5 + 结巴分词）
+- DataStore 持久化设置

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -31,62 +32,57 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.mememanager.data.local.entity.MediaType
-import com.mememanager.data.local.entity.MediaWithTags
-import com.mememanager.data.local.entity.TagEntity
 import com.mememanager.ui.util.TimeGroupUtil
+import com.mememanager.ui.viewmodel.AlbumViewModel
 
 /**
  * 主相册页面
  *
+ * 数据来源：AlbumViewModel（Room → Repository → Paging 3）
  * 布局：
  * ┌──────────────────────────────┐
- * │ 🔍 搜索栏（占位）       [🔽]│
+ * │ 🔍 搜索栏              筛选 │
  * ├──────────────────────────────┤
  * │ [全部] [标签1] [标签2] …     │  ← TagChipRow
  * ├──────────────────────────────┤
- * │ 筛选面板（可折叠）           │  ← FilterPanel
+ * │ 筛选面板（覆盖层）           │  ← FilterPanel
  * ├──────────────────────────────┤
- * │  网格视图（3列）            │  ← LazyVerticalGrid + stickyHeader
- * │  ┌───┐ ┌───┐ ┌───┐         │
- * │  │ ● │ │   │ │ ●●│         │
+ * │  网格视图 + 粘性时间分组头   │  ← LazyVerticalGrid + stickyHeader
  * └──────────────────────────────┘
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumScreen(
     columns: Int = 3,
-    tags: List<TagEntity> = emptyList(),
-    mediaItems: List<MediaWithTags> = emptyList(),
+    viewModel: AlbumViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    // ── 构建带时间分组的 AlbumItem 列表 ──
-    val albumItems = remember(mediaItems) {
-        buildAlbumItems(mediaItems)
-    }
+    val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
+    val tags by viewModel.tags.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // ── UI 状态 ──
+    // ── 纯 UI 状态（不进入 ViewModel） ──
     var searchQuery by remember { mutableStateOf("") }
     var isFilterPanelVisible by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf<MediaType?>(null) }
     var selectedTagId by remember { mutableStateOf<Long?>(null) }
-    var isMultiSelectMode by remember { mutableStateOf(false) }
-    var selectedIds by remember { mutableStateOf(setOf<Long>()) }
 
     Scaffold(
         topBar = {
-            if (isMultiSelectMode) {
+            if (uiState.isMultiSelectMode) {
                 BatchActionBar(
-                    selectedCount = selectedIds.size,
-                    onCancel = {
-                        isMultiSelectMode = false
-                        selectedIds = emptySet()
-                    },
+                    selectedCount = uiState.selectedMediaIds.size,
+                    onCancel = { viewModel.exitMultiSelectMode() },
                     onDelete = {
-                        // 假数据：不做实际删除
-                        isMultiSelectMode = false
-                        selectedIds = emptySet()
-                    }
+                        viewModel.softDeleteSelected()
+                    },
+                    onTag = {},
+                    onExport = {},
+                    onShare = {}
                 )
             }
         },
@@ -94,7 +90,6 @@ fun AlbumScreen(
     ) { innerPadding ->
         Column(
             modifier = Modifier
-//                .padding(innerPadding)
                 .padding(bottom = innerPadding.calculateBottomPadding(), top = 8.dp)
                 .fillMaxSize()
         ) {
@@ -145,6 +140,14 @@ fun AlbumScreen(
 
             // ── 网格 + 筛选覆盖层 ──
             Box(modifier = Modifier.fillMaxSize()) {
+                val items = lazyPagingItems.itemSnapshotList
+
+                if (items.isEmpty() && lazyPagingItems.loadState.refresh is androidx.paging.LoadState.Loading) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("加载中…", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
                     contentPadding = PaddingValues(4.dp),
@@ -152,32 +155,32 @@ fun AlbumScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // ── 时间分组头（粘性） + 媒体网格 ──
-                    albumItems.forEach { item ->
-                        when (item) {
-                            is AlbumItem.Header -> {
-                                stickyHeader {
-                                    TimeGroupHeader(group = item.group)
-                                }
-                            }
+                    for (i in 0 until items.size) {
+                        val mediaWithTags = items[i] ?: continue
 
-                            is AlbumItem.Media -> {
-                                val mediaId = item.mediaWithTags.media.id
-                                item(key = mediaId) {
-                                    AlbumGridItem(
-                                        mediaWithTags = item.mediaWithTags,
-                                        isSelected = mediaId in selectedIds,
-                                        onClick = {
-                                            if (isMultiSelectMode) {
-                                                selectedIds = if (mediaId in selectedIds)
-                                                    selectedIds - mediaId
-                                                else
-                                                    selectedIds + mediaId
-                                            }
-                                        }
-                                    )
-                                }
+                        // ── 时间分组粘性头（跨列全宽） ──
+                        val group = TimeGroupUtil.getGroup(mediaWithTags.media.createdAt)
+                        val prevItem = if (i > 0) items[i - 1] else null
+                        val prevGroup = prevItem?.let { TimeGroupUtil.getGroup(it.media.createdAt) }
+                        if (prevGroup == null || group.sortKey != prevGroup.sortKey) {
+                            stickyHeader(key = "header_${group.sortKey}") {
+                                TimeGroupHeader(group = group)
                             }
+                        }
+
+                        item(key = mediaWithTags.media.id) {
+                            AlbumGridItem(
+                                mediaWithTags = mediaWithTags,
+                                isSelected = mediaWithTags.media.id in uiState.selectedMediaIds,
+                                onClick = {
+                                    if (uiState.isMultiSelectMode) {
+                                        viewModel.toggleSelection(mediaWithTags.media.id)
+                                    }
+                                },
+                                onLongClick = {
+                                    viewModel.enterMultiSelectMode(mediaWithTags.media.id)
+                                }
+                            )
                         }
                     }
                 }
@@ -187,28 +190,13 @@ fun AlbumScreen(
                     visible = isFilterPanelVisible,
                     onDismiss = { isFilterPanelVisible = false },
                     selectedType = selectedType,
-                    onTypeSelected = { selectedType = it },
+                    onTypeSelected = {
+                        selectedType = it
+                        viewModel.setTypeFilter(it)
+                    },
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
         }
     }
 }
-
-/**
- * 将 MediaWithTags 列表按时间分组转换为 AlbumItem 列表
- */
-fun buildAlbumItems(items: List<MediaWithTags>): List<AlbumItem> {
-    val result = mutableListOf<AlbumItem>()
-    var lastGroupKey = -1L
-    for (item in items) {
-        val group = TimeGroupUtil.getGroup(item.media.createdAt)
-        if (group.sortKey != lastGroupKey) {
-            result.add(AlbumItem.Header(group))
-            lastGroupKey = group.sortKey
-        }
-        result.add(AlbumItem.Media(item))
-    }
-    return result
-}
-

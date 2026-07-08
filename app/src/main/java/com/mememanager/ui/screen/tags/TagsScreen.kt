@@ -21,15 +21,20 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,24 +42,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mememanager.data.local.entity.TagEntity
+import com.mememanager.ui.viewmodel.TagsViewModel
 
 /**
  * 标签管理器页面
  *
- * @param tags 当前标签列表
- * @param onEdit 编辑标签回调
- * @param onDelete 删除标签回调（保留标签不可调用）
- * @param onAdd 新建标签回调
+ * 数据来源：TagsViewModel（Room → Repository）
  */
 @Composable
 fun TagsScreen(
-    tags: List<TagEntity> = emptyList(),
-    onEdit: (TagEntity) -> Unit = {},
-    onDelete: (TagEntity) -> Unit = {},
-    onAdd: () -> Unit = {},
+    viewModel: TagsViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
+    val tags by viewModel.tags.collectAsStateWithLifecycle()
+
+    // ── 新建标签对话框 ──
+    var showNewTagDialog by remember { mutableStateOf(false) }
+    var newTagName by remember { mutableStateOf("") }
+
     Column(modifier = modifier.fillMaxSize()) {
         // ── 标题栏 ──
         Row(
@@ -69,11 +77,46 @@ fun TagsScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = onAdd) {
+            TextButton(onClick = { showNewTagDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(4.dp))
                 Text("新建")
             }
+        }
+
+        // ── 新建标签对话框 ──
+        if (showNewTagDialog) {
+            AlertDialog(
+                onDismissRequest = { showNewTagDialog = false },
+                title = { Text("新建标签") },
+                text = {
+                    OutlinedTextField(
+                        value = newTagName,
+                        onValueChange = { newTagName = it },
+                        placeholder = { Text("标签名称") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (newTagName.isNotBlank()) {
+                                viewModel.addTag(
+                                    name = newTagName.trim(),
+                                    bgColor = 0xFF2196F3.toInt(),
+                                    sortOrder = tags.size
+                                )
+                                newTagName = ""
+                                showNewTagDialog = false
+                            }
+                        }
+                    ) { Text("确定") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showNewTagDialog = false }) { Text("取消") }
+                }
+            )
         }
 
         // ── 列表 ──
@@ -96,8 +139,8 @@ fun TagsScreen(
                 itemsIndexed(tags, key = { _, tag -> tag.id }) { _, tag ->
                     TagCard(
                         tag = tag,
-                        onEdit = { onEdit(tag) },
-                        onDelete = if (tag.isReserved) null else { { onDelete(tag) } }
+                        onEdit = { /* TODO: 编辑标签 */ },
+                        onDelete = if (tag.isReserved) null else { { viewModel.deleteTag(tag) } }
                     )
                 }
             }

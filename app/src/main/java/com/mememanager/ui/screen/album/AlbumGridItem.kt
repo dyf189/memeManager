@@ -3,6 +3,7 @@ package com.mememanager.ui.screen.album
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -64,7 +65,7 @@ fun AlbumGridItem(
                     2.dp, MaterialTheme.colorScheme.primary, RectangleShape
                 ) else Modifier
             )
-            .clickable(onClick = onClick),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         shape = RectangleShape,
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
