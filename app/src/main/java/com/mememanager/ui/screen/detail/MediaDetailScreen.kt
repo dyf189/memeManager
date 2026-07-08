@@ -418,7 +418,7 @@ private fun MediaDisplay(media: MediaWithTags) {
             .background(Color(0xFF1A1A1A))
             .then(
                 // 仅在放大时启用缩放/平移手势，1x 时不拦截 Pager 滑动
-                if (scale > 1f) Modifier.pointerInput(Unit) {
+                if (scale > 1f) Modifier.pointerInput(scale) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         scale = (scale * zoom).coerceIn(1f, 5f)
                         if (scale > 1f) {
