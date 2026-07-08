@@ -71,6 +71,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
+import java.io.File
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -382,25 +387,49 @@ fun MediaDetailScreen(
 
 @Composable
 private fun MediaDisplay(media: MediaWithTags) {
+    val context = LocalContext.current
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A)),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = when (media.media.type) {
-                    MediaType.IMAGE -> "🖼️"
-                    MediaType.GIF -> "🎞️"
-                    MediaType.VIDEO -> "🎬"
-                },
-                fontSize = 64.sp
-            )
-            Spacer(Modifier.height(12.dp))
-            Text(media.media.name, fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f))
-            Text(formatSize(media.media.size), fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
-        }
+        SubcomposeAsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(File(media.media.filePath))
+                .crossfade(true)
+                .build(),
+            contentDescription = media.media.name,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(),
+            loading = {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        when (media.media.type) {
+                            MediaType.IMAGE -> "🖼️"
+                            MediaType.GIF -> "🎞️"
+                            MediaType.VIDEO -> "🎬"
+                        },
+                        fontSize = 48.sp
+                    )
+                }
+            },
+            error = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        when (media.media.type) {
+                            MediaType.IMAGE -> "🖼️"
+                            MediaType.GIF -> "🎞️"
+                            MediaType.VIDEO -> "🎬"
+                        },
+                        fontSize = 48.sp
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text(media.media.name, fontSize = 13.sp, color = Color.White.copy(alpha = 0.6f))
+                    Text(formatSize(media.media.size), fontSize = 11.sp, color = Color.White.copy(alpha = 0.4f))
+                }
+            }
+        )
     }
 }
 
