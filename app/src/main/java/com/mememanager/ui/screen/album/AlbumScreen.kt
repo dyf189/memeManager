@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -44,6 +46,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.ui.util.TimeGroupUtil
 import com.mememanager.ui.viewmodel.AlbumViewModel
+import com.mememanager.ui.viewmodel.SettingsViewModel
 
 /**
  * 主相册页面
@@ -64,11 +67,13 @@ import com.mememanager.ui.viewmodel.AlbumViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumScreen(
-    columns: Int = 3,
     viewModel: AlbumViewModel = hiltViewModel(),
     onNavigateToDetail: (index: Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+    val columns = settings.gridColumns
     val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
     val tags by viewModel.tags.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -81,6 +86,17 @@ fun AlbumScreen(
             viewModel.importMedia(uris)
         }
     }
+
+    // ── 文件选择器（SAF） ──
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            viewModel.importMedia(uris)
+        }
+    }
+
+    var showImportMenu by remember { mutableStateOf(false) }
 
     // ── 纯 UI 状态（不进入 ViewModel） ──
     var searchQuery by remember { mutableStateOf("") }
@@ -105,14 +121,33 @@ fun AlbumScreen(
         },
         floatingActionButton = {
             if (!uiState.isMultiSelectMode) {
-                FloatingActionButton(
-                    onClick = {
-                        imagePickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                Box {
+                    FloatingActionButton(
+                        onClick = { showImportMenu = true }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "导入媒体")
+                    }
+                    DropdownMenu(
+                        expanded = showImportMenu,
+                        onDismissRequest = { showImportMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("从相册导入") },
+                            onClick = {
+                                showImportMenu = false
+                                imagePickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("从文件导入") },
+                            onClick = {
+                                showImportMenu = false
+                                filePickerLauncher.launch(arrayOf("image/*", "video/*"))
+                            }
                         )
                     }
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "导入媒体")
                 }
             }
         },

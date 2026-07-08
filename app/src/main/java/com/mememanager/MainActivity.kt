@@ -1,5 +1,7 @@
 package com.mememanager
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,6 +19,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -42,12 +45,43 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private var pendingShareUris = mutableListOf<Uri>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
         enableEdgeToEdge()
         setContent {
             MemeManagerTheme {
-                AppContent()
+                AppContent(
+                    shareUris = pendingShareUris.toList(),
+                    onShareConsumed = { pendingShareUris.clear() }
+                )
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+        setContent {
+            MemeManagerTheme {
+                AppContent(
+                    shareUris = pendingShareUris.toList(),
+                    onShareConsumed = { pendingShareUris.clear() }
+                )
+            }
+        }
+    }
+
+    private fun handleIntent(intent: Intent) {
+        if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            val uris = mutableListOf<Uri>()
+            intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris.add(it) }
+            intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris.addAll(it) }
+            if (uris.isNotEmpty()) {
+                pendingShareUris.addAll(uris)
             }
         }
     }
@@ -60,21 +94,30 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 }
 
 @Composable
-fun AppContent() {
+fun AppContent(
+    shareUris: List<Uri> = emptyList(),
+    onShareConsumed: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
     val screens = listOf(Screen.Album, Screen.Tags, Screen.Settings)
 
-    // 共享 AlbumViewModel（Activity 作用域，相册和详情页共用）
     val activity = LocalContext.current as ComponentActivity
     val sharedAlbumViewModel: AlbumViewModel = hiltViewModel(viewModelStoreOwner = activity)
+
+    // 处理分享导入
+    LaunchedEffect(shareUris) {
+        if (shareUris.isNotEmpty()) {
+            sharedAlbumViewModel.importMedia(shareUris)
+            onShareConsumed()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            // 详情页隐藏底部导航栏
             if (currentDestination?.route?.startsWith("detail") != true) {
                 NavigationBar(
                     modifier = Modifier.height(110.dp)
