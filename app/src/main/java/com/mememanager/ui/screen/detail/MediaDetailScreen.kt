@@ -406,25 +406,27 @@ private fun MediaDisplay(media: MediaWithTags) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A))
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    scale = (scale * zoom).coerceIn(1f, 5f)
-                    if (scale > 1f) {
-                        val maxX = screenW * (scale - 1f) / 2f
-                        val maxY = screenH * (scale - 1f) / 2f
-                        // 橡皮筋：超出边界时阻尼衰减
-                        val damp = 0.35f
-                        var newX = offsetX + pan.x * scale
-                        var newY = offsetY + pan.y * scale
-                        if (newX > maxX) newX = maxX + (newX - maxX) * damp
-                        if (newX < -maxX) newX = -maxX - (-maxX - newX) * damp
-                        if (newY > maxY) newY = maxY + (newY - maxY) * damp
-                        if (newY < -maxY) newY = -maxY - (-maxY - newY) * damp
-                        offsetX = newX
-                        offsetY = newY
+            .then(
+                // 仅在放大时启用缩放/平移手势，1x 时不拦截 Pager 滑动
+                if (scale > 1f) Modifier.pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        if (scale > 1f) {
+                            val maxX = screenW * (scale - 1f) / 2f
+                            val maxY = screenH * (scale - 1f) / 2f
+                            val damp = 0.35f
+                            var newX = offsetX + pan.x * scale
+                            var newY = offsetY + pan.y * scale
+                            if (newX > maxX) newX = maxX + (newX - maxX) * damp
+                            if (newX < -maxX) newX = -maxX - (-maxX - newX) * damp
+                            if (newY > maxY) newY = maxY + (newY - maxY) * damp
+                            if (newY < -maxY) newY = -maxY - (-maxY - newY) * damp
+                            offsetX = newX
+                            offsetY = newY
+                        }
                     }
-                }
-            }
+                } else Modifier
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
