@@ -398,6 +398,16 @@ private fun MediaDisplay(media: MediaWithTags) {
     val screenW = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val screenH = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
 
+    // 根据图片原始宽高 + ContentScale.Fit 反推实际显示尺寸
+    val imgW = media.media.width?.toFloat()
+    val imgH = media.media.height?.toFloat()
+    val (displayW, displayH) = if (imgW != null && imgH != null && imgW > 0 && imgH > 0) {
+        val fitScale = minOf(screenW / imgW, screenH / imgH)
+        imgW * fitScale to imgH * fitScale
+    } else {
+        screenW to screenH  // 无尺寸信息时回退到屏幕
+    }
+
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -412,8 +422,8 @@ private fun MediaDisplay(media: MediaWithTags) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         scale = (scale * zoom).coerceIn(1f, 5f)
                         if (scale > 1f) {
-                            val maxX = screenW * (scale - 1f) / 2f
-                            val maxY = screenH * (scale - 1f) / 2f
+                            val maxX = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
+                            val maxY = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
                             val damp = 0.35f
                             var newX = offsetX + pan.x * scale
                             var newY = offsetY + pan.y * scale
