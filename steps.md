@@ -395,6 +395,35 @@ AlbumViewModel 新增三个方法：
 
 ---
 
-## 第六步：待定
+## 第六步：设置联动 + 外部导入 ✅
 
-可选方向：设置联动 / 搜索 / 分享接收 / 编辑后刷新缓存
+### 6.1 设置联动
+
+- AlbumScreen 新增 `SettingsViewModel` 读取 `gridColumns`
+- 移除硬编码 `columns` 参数
+- 在设置页改列数，回到相册网格立刻生效
+
+### 6.2 分享接收
+
+- `AndroidManifest.xml` 添加 `ACTION_SEND` / `ACTION_SEND_MULTIPLE` intent-filter
+- `MainActivity` 改为 `singleTask`，`onNewIntent` 处理分享
+- 从微信/QQ/相册分享图片到本 App，自动导入 Room
+
+### 6.3 SAF 文件导入
+
+- AlbumScreen FAB 改为 `DropdownMenu`：从相册导入 / 从文件导入
+- `OpenMultipleDocuments` 支持从文件管理器批量选图
+
+**完成文件：**
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `ui/screen/album/AlbumScreen.kt` | 修改 | SettingsViewModel 列数 + SAF 文件选择器 + FAB 菜单 |
+| `AndroidManifest.xml` | 修改 | ACTION_SEND intent-filter |
+| `MainActivity.kt` | 修改 | singleTask + onNewIntent + LaunchedEffect 导入 |
+
+---
+
+## 第七步：待定
+
+可选方向：搜索功能 / 编辑后刷新缓存 / 回收站功能
