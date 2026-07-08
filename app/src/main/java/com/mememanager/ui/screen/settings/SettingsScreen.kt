@@ -251,9 +251,13 @@ private fun SliderRow(
     unit: String
 ) {
     var textValue by remember { mutableStateOf(value.toInt().toString()) }
-    val intValue = value.toInt()
-    if (intValue.toString() != textValue) {
-        textValue = intValue.toString()
+    var dragging by remember { mutableStateOf(false) }
+    var dragValue by remember { mutableStateOf(value) }
+
+    // 外部值变化且不在拖拽中 → 同步本地状态
+    if (!dragging) {
+        textValue = value.toInt().toString()
+        dragValue = value
     }
 
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -280,7 +284,9 @@ private fun SliderRow(
                             textValue = filtered
                             val num = filtered.toIntOrNull()
                             if (num != null) {
-                                onValueChange(num.toFloat().coerceIn(valueRange))
+                                val coerced = num.toFloat().coerceIn(valueRange)
+                                dragValue = coerced
+                                onValueChange(coerced) // 打字直接提交
                             }
                         },
                         singleLine = true,
@@ -302,8 +308,16 @@ private fun SliderRow(
             }
         }
         Slider(
-            value = value,
-            onValueChange = onValueChange,
+            value = if (dragging) dragValue else value,
+            onValueChange = {
+                dragValue = it
+                textValue = it.toInt().toString()
+                dragging = true
+            },
+            onValueChangeFinished = {
+                dragging = false
+                onValueChange(dragValue) // 松手才提交
+            },
             valueRange = valueRange,
             steps = steps
         )
