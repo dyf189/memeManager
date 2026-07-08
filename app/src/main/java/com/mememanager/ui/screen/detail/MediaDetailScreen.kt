@@ -75,6 +75,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
@@ -393,6 +394,10 @@ fun MediaDetailScreen(
 @Composable
 private fun MediaDisplay(media: MediaWithTags) {
     val context = LocalContext.current
+    val density = LocalDensity.current
+    val screenW = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+    val screenH = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -405,8 +410,18 @@ private fun MediaDisplay(media: MediaWithTags) {
                 detectTransformGestures { _, pan, zoom, _ ->
                     scale = (scale * zoom).coerceIn(1f, 5f)
                     if (scale > 1f) {
-                        offsetX += pan.x * scale
-                        offsetY += pan.y * scale
+                        val maxX = screenW * (scale - 1f) / 2f
+                        val maxY = screenH * (scale - 1f) / 2f
+                        // 橡皮筋：超出边界时阻尼衰减
+                        val damp = 0.35f
+                        var newX = offsetX + pan.x * scale
+                        var newY = offsetY + pan.y * scale
+                        if (newX > maxX) newX = maxX + (newX - maxX) * damp
+                        if (newX < -maxX) newX = -maxX - (-maxX - newX) * damp
+                        if (newY > maxY) newY = maxY + (newY - maxY) * damp
+                        if (newY < -maxY) newY = -maxY - (-maxY - newY) * damp
+                        offsetX = newX
+                        offsetY = newY
                     }
                 }
             }
