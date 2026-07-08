@@ -274,38 +274,76 @@ app/src/main/java/com/mememanager/
 
 ---
 
+## 第四步：媒体导入 ✅
+
+### 4.1 文件导入工具
+
+`util/MediaImporter.kt`：
+- 从 `content://` URI 读取文件信息（文件名、大小、MIME 类型）
+- 自动推断媒体类型（IMAGE / GIF / VIDEO）
+- 根据存储类型决定复制策略：
+  - PRIVATE → 复制到 `filesDir/media/`
+  - PUBLIC → 复制到 `externalFilesDir/media/`
+  - EXTERNAL → 不复制，仅记录 URI
+- 自动处理重名文件（追加 `_1`, `_2` …）
+
+### 4.2 AlbumViewModel 导入支持
+
+- 构造函数新增 `Application` 注入（用于文件操作）
+- 新增 `importMedia(uris: List<Uri>)` 方法：
+  - 遍历 URI，调用 `MediaImporter.importFromUri()`
+  - 每条结果 `mediaRepository.insert()` 写入 Room
+  - Paging 3 自动刷新无需手动触发
+
+### 4.3 AlbumScreen 导入入口
+
+- 右下角添加 `FloatingActionButton`（多选模式下隐藏）
+- 使用 `ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)` 系统相册选择器
+- 选择完成后调用 `viewModel.importMedia(uris)`
+- 免权限（系统选择器隔离，无需 READ_MEDIA_*）
+
+**完成文件：**
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `util/MediaImporter.kt` | 新建 | URI → MediaEntity 导入工具 |
+| `ui/viewmodel/AlbumViewModel.kt` | 修改 | 新增 importMedia() + Application 注入 |
+| `ui/screen/album/AlbumScreen.kt` | 修改 | 添加 FAB + PickMultipleVisualMedia 选择器 |
+
+---
+
 ## 当前项目结构
 
 ```
 app/src/main/java/com/mememanager/
-├── MemeManagerApp.kt              # @HiltAndroidApp
-├── MainActivity.kt                # @AndroidEntryPoint + NavHost + 底部导航
+├── MemeManagerApp.kt
+├── MainActivity.kt
 ├── data/
 │   ├── local/
-│   │   ├── AppDatabase.kt         # Room Database (version 2)
-│   │   ├── Converters.kt          # TypeConverter (枚举↔String)
+│   │   ├── AppDatabase.kt
+│   │   ├── Converters.kt
 │   │   ├── dao/
-│   │   │   ├── MediaDao.kt        # PagingSource / 软删除 / 关系查询
-│   │   │   ├── MediaTagRefDao.kt  # 多对多关联 CRUD
+│   │   │   ├── MediaDao.kt
+│   │   │   ├── MediaTagRefDao.kt
 │   │   │   └── TagDao.kt
 │   │   └── entity/
-│   │       ├── MediaEntity.kt     # 完整字段 + MediaType/StorageType 枚举
+│   │       ├── MediaEntity.kt
 │   │       ├── MediaTagCrossRef.kt
-│   │       ├── MediaWithTags.kt   # @Relation 封装
-│   │       └── TagEntity.kt       # bgColor/isReserved/sortOrder
+│   │       ├── MediaWithTags.kt
+│   │       └── TagEntity.kt
 │   ├── repository/
-│   │   ├── MediaRepository.kt     # 媒体业务封装
-│   │   └── TagRepository.kt       # 标签业务封装
+│   │   ├── MediaRepository.kt
+│   │   └── TagRepository.kt
 │   └── settings/
-│       └── AppSettings.kt         # 设置项数据类 + Preferences Keys
+│       └── AppSettings.kt
 ├── di/
-│   └── DatabaseModule.kt          # Hilt Module (Room + DataStore)
+│   └── DatabaseModule.kt
 └── ui/
     ├── screen/
-    │   ├── Screens.kt             # 导出页面引用
+    │   ├── Screens.kt
     │   ├── album/
     │   │   ├── AlbumItem.kt
-    │   │   ├── AlbumScreen.kt     # AlbumViewModel 驱动
+    │   │   ├── AlbumScreen.kt      # 含 FAB 图片导入
     │   │   ├── AlbumGridItem.kt
     │   │   ├── BatchActionBar.kt
     │   │   ├── FilterPanel.kt
@@ -314,25 +352,27 @@ app/src/main/java/com/mememanager/
     │   ├── detail/
     │   │   └── MediaDetailScreen.kt
     │   ├── settings/
-    │   │   └── SettingsScreen.kt  # SettingsViewModel 驱动
+    │   │   └── SettingsScreen.kt
     │   └── tags/
-    │       └── TagsScreen.kt      # TagsViewModel 驱动
+    │       └── TagsScreen.kt
     ├── theme/
     ├── util/
+    │   ├── MediaImporter.kt        # 媒体导入工具
     │   └── TimeGroupUtil.kt
     └── viewmodel/
         ├── AlbumUiState.kt
-        ├── AlbumViewModel.kt
-        ├── SettingsViewModel.kt   # DataStore 持久化
+        ├── AlbumViewModel.kt       # 含 importMedia()
+        ├── SettingsViewModel.kt
         └── TagsViewModel.kt
 ```
 
 ---
 
-## 第四步：待定
+## 第五步：待定
 
 **下一步可选方向：**
-- 媒体导入（从相册选择/文件夹导入/分享接收）— 让数据库有真实内容
+- 分享接收（Intent.ACTION_SEND 入口）
+- SAF 文件夹批量导入
 - 详情页接入数据绑定（MediaDetailScreen 消费 Room 数据）
 - 搜索功能（FTS5 + 结巴分词）
-- AlbumScreen 消费 SettingsScreen 中的列数配置
+- AlbumScreen 列数与 SettingsScreen 联动

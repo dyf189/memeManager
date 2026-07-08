@@ -1,5 +1,9 @@
 package com.mememanager.ui.screen.album
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +17,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +58,7 @@ import com.mememanager.ui.viewmodel.AlbumViewModel
  * │ 筛选面板（覆盖层）           │  ← FilterPanel
  * ├──────────────────────────────┤
  * │  网格视图 + 粘性时间分组头   │  ← LazyVerticalGrid + stickyHeader
+ * │                          [+] │  ← FAB 导入
  * └──────────────────────────────┘
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,6 +71,15 @@ fun AlbumScreen(
     val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
     val tags by viewModel.tags.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // ── 图片选择器 ──
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            viewModel.importMedia(uris)
+        }
+    }
 
     // ── 纯 UI 状态（不进入 ViewModel） ──
     var searchQuery by remember { mutableStateOf("") }
@@ -84,6 +100,19 @@ fun AlbumScreen(
                     onExport = {},
                     onShare = {}
                 )
+            }
+        },
+        floatingActionButton = {
+            if (!uiState.isMultiSelectMode) {
+                FloatingActionButton(
+                    onClick = {
+                        imagePickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                        )
+                    }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "导入媒体")
+                }
             }
         },
         modifier = modifier

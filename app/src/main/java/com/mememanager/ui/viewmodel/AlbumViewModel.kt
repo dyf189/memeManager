@@ -1,5 +1,7 @@
 package com.mememanager.ui.viewmodel
 
+import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
@@ -10,6 +12,7 @@ import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.repository.MediaRepository
 import com.mememanager.data.repository.TagRepository
+import com.mememanager.util.MediaImporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +31,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AlbumViewModel @Inject constructor(
     private val mediaRepository: MediaRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val application: Application
 ) : ViewModel() {
 
     // ── 标签数据 ──
@@ -146,6 +150,17 @@ class AlbumViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value.selectedMediaIds.forEach { mediaId ->
                 mediaRepository.removeTagFromMedia(mediaId, tagId)
+            }
+        }
+    }
+
+    // ── 媒体导入 ──
+
+    fun importMedia(uris: List<Uri>) {
+        viewModelScope.launch {
+            uris.forEach { uri ->
+                val entity = MediaImporter.importFromUri(application, uri)
+                mediaRepository.insert(entity)
             }
         }
     }
