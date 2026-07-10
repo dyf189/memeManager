@@ -419,6 +419,12 @@ private fun MediaDisplay(media: MediaWithTags) {
     val offsetXAnim = remember { Animatable(0f) }
     val offsetYAnim = remember { Animatable(0f) }
 
+    // 边界计算
+    fun maxOffset(sc: Float) = Pair(
+        (displayW * sc - screenW).coerceAtLeast(0f) / 2f,
+        (displayH * sc - screenH).coerceAtLeast(0f) / 2f
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -430,10 +436,12 @@ private fun MediaDisplay(media: MediaWithTags) {
                     var isMultiTouch = false
                     var prevCentroid = down.position
                     var prevSpan = 0f
-                    val s = scaleAnim.value
+                    var curScale = scaleAnim.value
+                    var curOffX = offsetXAnim.value
+                    var curOffY = offsetYAnim.value
 
                     // 单指
-                    if (s <= 1f) {
+                    if (curScale <= 1f) {
                         while (true) {
                             val event = awaitPointerEvent()
                             val active = event.changes.filter { it.pressed }
@@ -458,14 +466,11 @@ private fun MediaDisplay(media: MediaWithTags) {
                                 break
                             }
                             if (active.size == 1) {
-                                val change = active[0]
-                                val delta = change.position - change.previousPosition
-                                val sc = scaleAnim.value
-                                val maxX = (displayW * sc - screenW).coerceAtLeast(0f) / 2f
-                                val maxY = (displayH * sc - screenH).coerceAtLeast(0f) / 2f
-                                offsetXAnim.snapTo((offsetXAnim.value + delta.x).coerceIn(-maxX, maxX))
-                                offsetYAnim.snapTo((offsetYAnim.value + delta.y).coerceIn(-maxY, maxY))
-                                change.consume()
+                                val delta = active[0].position - active[0].previousPosition
+                                val (mx, my) = maxOffset(curScale)
+                                curOffX = (curOffX + delta.x).coerceIn(-mx, mx)
+                                curOffY = (curOffY + delta.y).coerceIn(-my, my)
+                                active[0].consume()
                             }
                             if (active.isEmpty()) break
                         }
@@ -483,38 +488,36 @@ private fun MediaDisplay(media: MediaWithTags) {
                             val zoom = if (prevSpan > 0f) span / prevSpan else 1f
                             val pan = centroid - prevCentroid
 
-                            val newScale = (scaleAnim.value * zoom).coerceIn(1f, 5f)
-                            scaleAnim.snapTo(newScale)
-                            val sc = newScale
-                            val maxX = (displayW * sc - screenW).coerceAtLeast(0f) / 2f
-                            val maxY = (displayH * sc - screenH).coerceAtLeast(0f) / 2f
+                            curScale = (curScale * zoom).coerceIn(1f, 5f)
+                            val (mx, my) = maxOffset(curScale)
                             val damp = 0.35f
-                            var nx = offsetXAnim.value + pan.x * sc
-                            var ny = offsetYAnim.value + pan.y * sc
-                            if (nx > maxX) nx = maxX + (nx - maxX) * damp
-                            if (nx < -maxX) nx = -maxX - (-maxX - nx) * damp
-                            if (ny > maxY) ny = maxY + (ny - maxY) * damp
-                            if (ny < -maxY) ny = -maxY - (-maxY - ny) * damp
-                            offsetXAnim.snapTo(nx)
-                            offsetYAnim.snapTo(ny)
+                            var nx = curOffX + pan.x * curScale
+                            var ny = curOffY + pan.y * curScale
+                            if (nx > mx) nx = mx + (nx - mx) * damp
+                            if (nx < -mx) nx = -mx - (-mx - nx) * damp
+                            if (ny > my) ny = my + (ny - my) * damp
+                            if (ny < -my) ny = -my - (-my - ny) * damp
+                            curOffX = nx; curOffY = ny
                             prevCentroid = centroid; prevSpan = span
                             active.forEach { it.consume() }
                         }
                     }
 
-                    // 手势结束：超出边界则弹簧回弹
-                    val scEnd = scaleAnim.value
-                    if (scEnd > 1f) {
-                        val maxX = (displayW * scEnd - screenW).coerceAtLeast(0f) / 2f
-                        val maxY = (displayH * scEnd - screenH).coerceAtLeast(0f) / 2f
-                        val tx = offsetXAnim.value.coerceIn(-maxX, maxX)
-                        val ty = offsetYAnim.value.coerceIn(-maxY, maxY)
-                        if (tx != offsetXAnim.value || ty != offsetYAnim.value) {
-                            launch {
-                                offsetXAnim.animateTo(tx, spring())
-                            }
-                            launch {
-                                offsetYAnim.animateTo(ty, spring())
+                    // 通过 launch 跳出 restricted scope 提交到 Animatable
+                    val fScale = curScale; val fX = curOffX; val fY = curOffY
+                    launch {
+                        scaleAnim.snapTo(fScale)
+                        offsetXAnim.snapTo(fX)
+                        offsetYAnim.snapTo(fY)
+                        if (fScale > 1f) {
+                            val (mx, my) = maxOffset(fScale)
+                            val tx = fX.coerceIn(-mx, mx)
+                            val ty = fY.coerceIn(-my, my)
+                            if (tx != fX || ty != fY) {
+                                coroutineScope {
+                                    launch { offsetXAnim.animateTo(tx, spring()) }
+                                    launch { offsetYAnim.animateTo(ty, spring()) }
+                                }
                             }
                         }
                     }
