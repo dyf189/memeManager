@@ -271,6 +271,7 @@ fun MediaDetailScreen(
             onDismissRequest = {
                 visible = false
                 scope.launch { kotlinx.coroutines.delay(200); showDescriptionDialog = false }
+                                Unit
             },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
@@ -298,11 +299,13 @@ fun MediaDetailScreen(
                             TextButton(onClick = {
                                 visible = false
                                 scope.launch { kotlinx.coroutines.delay(200); showDescriptionDialog = false }
+                                Unit
                             }) { Text("取消") }
                             TextButton(onClick = {
                                 onUpdateDescription(currentMedia, editingDescription)
                                 visible = false
                                 scope.launch { kotlinx.coroutines.delay(200); showDescriptionDialog = false }
+                                Unit
                             }) { Text("确定") }
                         }
                     }
@@ -330,6 +333,7 @@ fun MediaDetailScreen(
         val dismiss = {
             visible = false
             scope.launch { kotlinx.coroutines.delay(200); showTagPicker = false }
+            Unit
         }
 
         Dialog(
