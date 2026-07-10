@@ -3,6 +3,8 @@ package com.mememanager.ui.screen.detail
 import android.R.attr.layoutDirection
 import android.graphics.Paint
 import android.graphics.Region
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,6 +73,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -120,6 +123,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.platform.LocalLayoutDirection
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -413,6 +417,32 @@ private fun MediaDisplay(media: MediaWithTags) {
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
+    // 动画（LaunchedEffect 驱动，不受 PointerInputScope 限制）
+    var isAnimating by remember { mutableStateOf(false) }
+    val sAnim = remember { Animatable(1f) }
+    val oxAnim = remember { Animatable(0f) }
+    val oyAnim = remember { Animatable(0f) }
+    var animTrigger by remember { mutableIntStateOf(0) }
+    var aScale by remember { mutableFloatStateOf(1f) }
+    var aFromX by remember { mutableFloatStateOf(0f) }
+    var aFromY by remember { mutableFloatStateOf(0f) }
+    var aToX by remember { mutableFloatStateOf(0f) }
+    var aToY by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(animTrigger) {
+        if (animTrigger > 0) {
+            isAnimating = true
+            sAnim.snapTo(scale)
+            oxAnim.snapTo(aFromX)
+            oyAnim.snapTo(aFromY)
+            launch { oxAnim.animateTo(aToX, spring()) }
+            launch { oyAnim.animateTo(aToY, spring()) }
+            sAnim.animateTo(aScale, spring())
+            scale = sAnim.value; offsetX = oxAnim.value; offsetY = oyAnim.value
+            isAnimating = false
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -495,16 +525,32 @@ private fun MediaDisplay(media: MediaWithTags) {
                             active.forEach { it.consume() }
                         }
                     }
+
+                    // 手势结束：超出边界触发放大动画回弹
+                    if (scale > 1f) {
+                        val mx = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
+                        val my = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
+                        val cx = offsetX.coerceIn(-mx, mx)
+                        val cy = offsetY.coerceIn(-my, my)
+                        if (cx != offsetX || cy != offsetY) {
+                            aScale = scale; aFromX = offsetX; aFromY = offsetY
+                            aToX = cx; aToY = cy
+                            animTrigger++
+                        }
+                    }
                 }
             }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
                         if (scale > 1f) {
-                            scale = 1f; offsetX = 0f; offsetY = 0f
+                            aScale = 1f; aFromX = offsetX; aFromY = offsetY
+                            aToX = 0f; aToY = 0f
                         } else {
-                            scale = 3f
+                            aScale = 3f; aFromX = 0f; aFromY = 0f
+                            aToX = 0f; aToY = 0f
                         }
+                        animTrigger++
                     }
                 )
             },
@@ -520,10 +566,10 @@ private fun MediaDisplay(media: MediaWithTags) {
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offsetX
-                    translationY = offsetY
+                    scaleX = if (isAnimating) sAnim.value else scale
+                    scaleY = if (isAnimating) sAnim.value else scale
+                    translationX = if (isAnimating) oxAnim.value else offsetX
+                    translationY = if (isAnimating) oyAnim.value else offsetY
                 },
             loading = {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
