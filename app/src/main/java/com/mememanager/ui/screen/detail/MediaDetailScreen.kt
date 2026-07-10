@@ -414,12 +414,14 @@ private fun MediaDisplay(media: MediaWithTags) {
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
+    // key 保证跨越 1x 边界时 pointerInput 完全重建
+    key(scale > 1f) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A))
             .then(
-                if (scale > 1f) Modifier.pointerInput(scale) {
+                if (scale > 1f) Modifier.pointerInput(Unit) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         scale = (scale * zoom).coerceIn(1f, 5f)
                         if (scale > 1f) {
@@ -497,7 +499,7 @@ private fun MediaDisplay(media: MediaWithTags) {
             }
         )
     }
-}
+    } // end key
 
 // ── BottomSheet 内容 ──
 
