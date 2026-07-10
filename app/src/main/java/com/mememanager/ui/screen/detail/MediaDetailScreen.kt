@@ -7,10 +7,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -414,39 +413,95 @@ private fun MediaDisplay(media: MediaWithTags) {
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
-    // key 保证跨越 1x 边界时 pointerInput 完全重建
-    key(scale > 1f) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A))
-            .then(
-                if (scale > 1f) Modifier.pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(1f, 5f)
-                        if (scale > 1f) {
+            .pointerInput(Unit) {
+                // 自定义手势：双指缩放/平移，单指不消费（透传 Pager）
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var pointerId = down.id
+                    var isMultiTouch = false
+                    var prevCentroid = down.position
+                    var prevSpan = 0f
+                    var prevAngle = 0f
+
+                    // 单指移动 → 放大时自己处理平移，1x 时透传
+                    if (scale <= 1f) {
+                        // 1x: 不消费，等第二个手指来变成 pinch
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val active = event.changes.filter { it.pressed }
+                            if (active.size >= 2) {
+                                isMultiTouch = true
+                                prevCentroid = active.map { it.position }.let { (a, b) -> (a + b) / 2f }
+                                prevSpan = (active[0].position - active[1].position).getDistance()
+                                active.forEach { it.consume() }
+                                break
+                            }
+                            if (active.isEmpty() || active.all { it.id == pointerId && !it.pressed }) break
+                        }
+                    } else {
+                        isMultiTouch = false
+                        // >1x: 单指平移
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val active = event.changes.filter { it.pressed }
+                            if (active.size >= 2) {
+                                isMultiTouch = true
+                                prevCentroid = active.map { it.position }.let { (a, b) -> (a + b) / 2f }
+                                prevSpan = (active[0].position - active[1].position).getDistance()
+                                active.forEach { it.consume() }
+                                break
+                            }
+                            if (active.size == 1) {
+                                val change = active[0]
+                                val delta = change.position - change.previousPosition
+                                val maxX = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
+                                val maxY = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
+                                offsetX = (offsetX + delta.x).coerceIn(-maxX, maxX)
+                                offsetY = (offsetY + delta.y).coerceIn(-maxY, maxY)
+                                change.consume()
+                            }
+                            if (active.isEmpty()) break
+                        }
+                    }
+
+                    // 双指：缩放+平移
+                    if (isMultiTouch) {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val active = event.changes.filter { it.pressed }
+                            if (active.size < 2) break
+                            val (a, b) = active[0].position to active[1].position
+                            val centroid = (a + b) / 2f
+                            val span = (a - b).getDistance()
+                            val zoom = if (prevSpan > 0f) span / prevSpan else 1f
+                            val pan = centroid - prevCentroid
+
+                            scale = (scale * zoom).coerceIn(1f, 5f)
                             val maxX = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
                             val maxY = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
                             val damp = 0.35f
-                            var newX = offsetX + pan.x * scale
-                            var newY = offsetY + pan.y * scale
-                            if (newX > maxX) newX = maxX + (newX - maxX) * damp
-                            if (newX < -maxX) newX = -maxX - (-maxX - newX) * damp
-                            if (newY > maxY) newY = maxY + (newY - maxY) * damp
-                            if (newY < -maxY) newY = -maxY - (-maxY - newY) * damp
-                            offsetX = newX
-                            offsetY = newY
+                            var nx = offsetX + pan.x * scale
+                            var ny = offsetY + pan.y * scale
+                            if (nx > maxX) nx = maxX + (nx - maxX) * damp
+                            if (nx < -maxX) nx = -maxX - (-maxX - nx) * damp
+                            if (ny > maxY) ny = maxY + (ny - maxY) * damp
+                            if (ny < -maxY) ny = -maxY - (-maxY - ny) * damp
+                            offsetX = nx; offsetY = ny
+                            prevCentroid = centroid; prevSpan = span
+                            active.forEach { it.consume() }
                         }
                     }
-                } else Modifier
-            )
+                }
+            }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
                         if (scale > 1f) {
-                            scale = 1f
-                            offsetX = 0f
-                            offsetY = 0f
+                            scale = 1f; offsetX = 0f; offsetY = 0f
                         } else {
                             scale = 3f
                         }
@@ -499,13 +554,13 @@ private fun MediaDisplay(media: MediaWithTags) {
             }
         )
     }
-    } // end key
+}
 
 // ── BottomSheet 内容 ──
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MediaBottomSheetContent(
+fun MediaBottomSheetContent(
     media: MediaWithTags,
     isTagDeleteMode: Boolean,
     onEnterTagDeleteMode: () -> Unit,
@@ -721,7 +776,7 @@ private fun MediaBottomSheetContent(
 }
 
 @Composable
-private fun TagItem(
+fun TagItem(
     tag: TagEntity,
     isSelected: Boolean = false,
     onClick: () -> Unit
