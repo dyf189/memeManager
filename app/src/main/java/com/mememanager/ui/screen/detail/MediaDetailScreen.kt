@@ -3,6 +3,9 @@ package com.mememanager.ui.screen.detail
 import android.R.attr.layoutDirection
 import android.graphics.Paint
 import android.graphics.Region
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,6 +81,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import java.io.File
@@ -409,27 +414,26 @@ private fun MediaDisplay(media: MediaWithTags) {
         screenW to screenH  // 无尺寸信息时回退到屏幕
     }
 
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val scaleAnim = remember { Animatable(1f) }
+    val offsetXAnim = remember { Animatable(0f) }
+    val offsetYAnim = remember { Animatable(0f) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A))
             .pointerInput(Unit) {
-                // 自定义手势：双指缩放/平移，单指不消费（透传 Pager）
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     var pointerId = down.id
                     var isMultiTouch = false
                     var prevCentroid = down.position
                     var prevSpan = 0f
-                    var prevAngle = 0f
+                    val s = scaleAnim.value
 
-                    // 单指移动 → 放大时自己处理平移，1x 时透传
-                    if (scale <= 1f) {
-                        // 1x: 不消费，等第二个手指来变成 pinch
+                    // 单指
+                    if (s <= 1f) {
                         while (true) {
                             val event = awaitPointerEvent()
                             val active = event.changes.filter { it.pressed }
@@ -443,8 +447,6 @@ private fun MediaDisplay(media: MediaWithTags) {
                             if (active.isEmpty() || active.all { it.id == pointerId && !it.pressed }) break
                         }
                     } else {
-                        isMultiTouch = false
-                        // >1x: 单指平移
                         while (true) {
                             val event = awaitPointerEvent()
                             val active = event.changes.filter { it.pressed }
@@ -458,17 +460,18 @@ private fun MediaDisplay(media: MediaWithTags) {
                             if (active.size == 1) {
                                 val change = active[0]
                                 val delta = change.position - change.previousPosition
-                                val maxX = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
-                                val maxY = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
-                                offsetX = (offsetX + delta.x).coerceIn(-maxX, maxX)
-                                offsetY = (offsetY + delta.y).coerceIn(-maxY, maxY)
+                                val sc = scaleAnim.value
+                                val maxX = (displayW * sc - screenW).coerceAtLeast(0f) / 2f
+                                val maxY = (displayH * sc - screenH).coerceAtLeast(0f) / 2f
+                                offsetXAnim.snapTo((offsetXAnim.value + delta.x).coerceIn(-maxX, maxX))
+                                offsetYAnim.snapTo((offsetYAnim.value + delta.y).coerceIn(-maxY, maxY))
                                 change.consume()
                             }
                             if (active.isEmpty()) break
                         }
                     }
 
-                    // 双指：缩放+平移
+                    // 双指
                     if (isMultiTouch) {
                         while (true) {
                             val event = awaitPointerEvent()
@@ -480,19 +483,39 @@ private fun MediaDisplay(media: MediaWithTags) {
                             val zoom = if (prevSpan > 0f) span / prevSpan else 1f
                             val pan = centroid - prevCentroid
 
-                            scale = (scale * zoom).coerceIn(1f, 5f)
-                            val maxX = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
-                            val maxY = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
+                            val newScale = (scaleAnim.value * zoom).coerceIn(1f, 5f)
+                            scaleAnim.snapTo(newScale)
+                            val sc = newScale
+                            val maxX = (displayW * sc - screenW).coerceAtLeast(0f) / 2f
+                            val maxY = (displayH * sc - screenH).coerceAtLeast(0f) / 2f
                             val damp = 0.35f
-                            var nx = offsetX + pan.x * scale
-                            var ny = offsetY + pan.y * scale
+                            var nx = offsetXAnim.value + pan.x * sc
+                            var ny = offsetYAnim.value + pan.y * sc
                             if (nx > maxX) nx = maxX + (nx - maxX) * damp
                             if (nx < -maxX) nx = -maxX - (-maxX - nx) * damp
                             if (ny > maxY) ny = maxY + (ny - maxY) * damp
                             if (ny < -maxY) ny = -maxY - (-maxY - ny) * damp
-                            offsetX = nx; offsetY = ny
+                            offsetXAnim.snapTo(nx)
+                            offsetYAnim.snapTo(ny)
                             prevCentroid = centroid; prevSpan = span
                             active.forEach { it.consume() }
+                        }
+                    }
+
+                    // 手势结束：超出边界则弹簧回弹
+                    val scEnd = scaleAnim.value
+                    if (scEnd > 1f) {
+                        val maxX = (displayW * scEnd - screenW).coerceAtLeast(0f) / 2f
+                        val maxY = (displayH * scEnd - screenH).coerceAtLeast(0f) / 2f
+                        val tx = offsetXAnim.value.coerceIn(-maxX, maxX)
+                        val ty = offsetYAnim.value.coerceIn(-maxY, maxY)
+                        if (tx != offsetXAnim.value || ty != offsetYAnim.value) {
+                            launch {
+                                offsetXAnim.animateTo(tx, spring())
+                            }
+                            launch {
+                                offsetYAnim.animateTo(ty, spring())
+                            }
                         }
                     }
                 }
@@ -500,10 +523,14 @@ private fun MediaDisplay(media: MediaWithTags) {
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
-                        if (scale > 1f) {
-                            scale = 1f; offsetX = 0f; offsetY = 0f
-                        } else {
-                            scale = 3f
+                        coroutineScope.launch {
+                            if (scaleAnim.value > 1f) {
+                                scaleAnim.animateTo(1f, spring())
+                                offsetXAnim.animateTo(0f, spring())
+                                offsetYAnim.animateTo(0f, spring())
+                            } else {
+                                scaleAnim.animateTo(3f, spring())
+                            }
                         }
                     }
                 )
@@ -520,10 +547,10 @@ private fun MediaDisplay(media: MediaWithTags) {
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offsetX
-                    translationY = offsetY
+                    scaleX = scaleAnim.value
+                    scaleY = scaleAnim.value
+                    translationX = offsetXAnim.value
+                    translationY = offsetYAnim.value
                 },
             loading = {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
