@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -413,29 +414,30 @@ private fun MediaDisplay(media: MediaWithTags) {
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
-    // transformable 只拦截双指手势，单指滑动透传给 HorizontalPager
-    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 5f)
-        if (scale > 1f) {
-            val maxX = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
-            val maxY = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
-            val damp = 0.35f
-            var newX = offsetX + panChange.x * scale
-            var newY = offsetY + panChange.y * scale
-            if (newX > maxX) newX = maxX + (newX - maxX) * damp
-            if (newX < -maxX) newX = -maxX - (-maxX - newX) * damp
-            if (newY > maxY) newY = maxY + (newY - maxY) * damp
-            if (newY < -maxY) newY = -maxY - (-maxY - newY) * damp
-            offsetX = newX
-            offsetY = newY
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1A1A1A))
-            .transformable(state = transformState, lockRotationOnZoomPan = true)
+            .then(
+                if (scale > 1f) Modifier.pointerInput(scale) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        if (scale > 1f) {
+                            val maxX = (displayW * scale - screenW).coerceAtLeast(0f) / 2f
+                            val maxY = (displayH * scale - screenH).coerceAtLeast(0f) / 2f
+                            val damp = 0.35f
+                            var newX = offsetX + pan.x * scale
+                            var newY = offsetY + pan.y * scale
+                            if (newX > maxX) newX = maxX + (newX - maxX) * damp
+                            if (newX < -maxX) newX = -maxX - (-maxX - newX) * damp
+                            if (newY > maxY) newY = maxY + (newY - maxY) * damp
+                            if (newY < -maxY) newY = -maxY - (-maxY - newY) * damp
+                            offsetX = newX
+                            offsetY = newY
+                        }
+                    }
+                } else Modifier
+            )
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = {
