@@ -3,8 +3,13 @@ package com.mememanager.ui.screen.detail
 import android.R.attr.layoutDirection
 import android.graphics.Paint
 import android.graphics.Region
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -81,6 +86,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.rememberCoroutineScope
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import java.io.File
@@ -258,133 +264,160 @@ fun MediaDetailScreen(
 
     // ── 描述编辑弹窗 ──
     if (showDescriptionDialog) {
-        AlertDialog(
-            onDismissRequest = { showDescriptionDialog = false },
-            title = { Text("编辑描述") },
-            text = {
-                OutlinedTextField(
-                    value = editingDescription,
-                    onValueChange = { editingDescription = it },
-                    placeholder = { Text("输入描述…") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+        val scope = rememberCoroutineScope()
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
+        Dialog(
+            onDismissRequest = {
+                visible = false
+                scope.launch { kotlinx.coroutines.delay(200); showDescriptionDialog = false }
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    onUpdateDescription(currentMedia, editingDescription)
-                    showDescriptionDialog = false
-                }) { Text("确定") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDescriptionDialog = false }) { Text("取消") }
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            AnimatedVisibility(
+                visible = visible,
+                enter = scaleIn(spring()) + fadeIn(spring()),
+                exit = scaleOut(spring()) + fadeOut(spring()),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            ) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text("编辑描述", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 12.dp))
+                        OutlinedTextField(
+                            value = editingDescription,
+                            onValueChange = { editingDescription = it },
+                            placeholder = { Text("输入描述…") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = {
+                                visible = false
+                                scope.launch { kotlinx.coroutines.delay(200); showDescriptionDialog = false }
+                            }) { Text("取消") }
+                            TextButton(onClick = {
+                                onUpdateDescription(currentMedia, editingDescription)
+                                visible = false
+                                scope.launch { kotlinx.coroutines.delay(200); showDescriptionDialog = false }
+                            }) { Text("确定") }
+                        }
+                    }
+                }
             }
-        )
+        }
     }
 
     // ── 标签选择弹窗 ──
     if (showTagPicker) {
+        val scope = rememberCoroutineScope()
+        var visible by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { visible = true }
         val currentTagIds = currentMedia.tags.map { it.id }.toSet()
         val filtered = availableTags/*.filter { it.id !in currentTagIds }*/
 
         var selectedIds by remember { mutableStateOf(currentTagIds) }
-
         var forceRefresh by remember { mutableStateOf(0) }
 
         LaunchedEffect(Unit) {
-            // 等待 50ms 后再自增，让首次绘制完成
             kotlinx.coroutines.delay(50.milliseconds)
             forceRefresh++
         }
 
+        val dismiss = {
+            visible = false
+            scope.launch { kotlinx.coroutines.delay(200); showTagPicker = false }
+        }
 
         Dialog(
-            onDismissRequest = { showTagPicker = false },
+            onDismissRequest = dismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            AnimatedVisibility(
+                visible = visible,
+                enter = scaleIn(spring()) + fadeIn(spring()),
+                exit = scaleOut(spring()) + fadeOut(spring()),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        "选择标签",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            "选择标签",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
 
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                        tonalElevation = 2.dp,
-                        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        if (filtered.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("所有标签已添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        } else {
-                            key(forceRefresh) {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(2),
-                                    contentPadding = PaddingValues(12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                            tonalElevation = 2.dp,
+                            border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            if (filtered.isEmpty()) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    items(
-                                        filtered.size,
-                                        key = { index -> filtered[index].id }) { index ->
-                                        val tag = filtered[index]
-                                        val isSelected = tag.id in selectedIds
-                                        TagItem(
-                                            tag = tag,
-                                            isSelected = isSelected,
-                                            onClick = {
-                                                selectedIds = if (isSelected)
-                                                    selectedIds - tag.id
-                                                else
-                                                    selectedIds + tag.id
-                                            }
-                                        )
+                                    Text("所有标签已添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            } else {
+                                key(forceRefresh) {
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Fixed(2),
+                                        contentPadding = PaddingValues(12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        items(filtered.size, key = { index -> filtered[index].id }) { index ->
+                                            val tag = filtered[index]
+                                            val isSelected = tag.id in selectedIds
+                                            TagItem(
+                                                tag = tag,
+                                                isSelected = isSelected,
+                                                onClick = {
+                                                    selectedIds = if (isSelected) selectedIds - tag.id else selectedIds + tag.id
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.End)
-                    ) {
-                        FilledTonalButton(
-                            onClick = { showTagPicker = false },
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) { Text("取消") }
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.End)
+                        ) {
+                            FilledTonalButton(
+                                onClick = dismiss,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) { Text("取消") }
 
-                        FilledTonalButton(
-                            onClick = {
-                                val toAdd = filtered.filter { it.id in selectedIds }
-                                toAdd.forEach { tag -> onAddTag(currentMedia, tag) }
-                                showTagPicker = false
-                            },
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) { Text("确定") }
+                            FilledTonalButton(
+                                onClick = {
+                                    val toAdd = filtered.filter { it.id in selectedIds }
+                                    toAdd.forEach { tag -> onAddTag(currentMedia, tag) }
+                                    dismiss()
+                                },
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) { Text("确定") }
+                        }
                     }
                 }
             }
