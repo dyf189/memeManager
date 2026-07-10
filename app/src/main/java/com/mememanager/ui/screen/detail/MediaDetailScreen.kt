@@ -125,6 +125,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.platform.LocalLayoutDirection
+import kotlinx.coroutines.coroutineScope
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -503,18 +504,18 @@ private fun MediaDisplay(media: MediaWithTags) {
                         }
                     }
 
-                    // 通过 launch 跳出 restricted scope 提交到 Animatable
+                    // 通过 coroutineScope 跳出 restricted scope 提交到 Animatable
                     val fScale = curScale; val fX = curOffX; val fY = curOffY
-                    launch {
-                        scaleAnim.snapTo(fScale)
-                        offsetXAnim.snapTo(fX)
-                        offsetYAnim.snapTo(fY)
-                        if (fScale > 1f) {
-                            val (mx, my) = maxOffset(fScale)
-                            val tx = fX.coerceIn(-mx, mx)
-                            val ty = fY.coerceIn(-my, my)
-                            if (tx != fX || ty != fY) {
-                                coroutineScope {
+                    kotlinx.coroutines.coroutineScope {
+                        launch {
+                            scaleAnim.snapTo(fScale)
+                            offsetXAnim.snapTo(fX)
+                            offsetYAnim.snapTo(fY)
+                            if (fScale > 1f) {
+                                val (mx, my) = maxOffset(fScale)
+                                val tx = fX.coerceIn(-mx, mx)
+                                val ty = fY.coerceIn(-my, my)
+                                if (tx != fX || ty != fY) {
                                     launch { offsetXAnim.animateTo(tx, spring()) }
                                     launch { offsetYAnim.animateTo(ty, spring()) }
                                 }
