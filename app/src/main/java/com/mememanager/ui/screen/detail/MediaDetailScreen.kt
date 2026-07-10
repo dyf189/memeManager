@@ -175,6 +175,7 @@ fun MediaDetailScreen(
     var isTagDeleteMode by remember { mutableStateOf(false) }
 
     val sheetState = rememberBottomSheetScaffoldState()
+    LaunchedEffect(Unit) { sheetState.bottomSheetState.expand() }
 
     BottomSheetScaffold(
         modifier = modifier,
