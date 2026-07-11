@@ -16,6 +16,7 @@ import com.mememanager.util.MediaImporter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -180,18 +181,39 @@ class AlbumViewModel @Inject constructor(
         viewModelScope.launch {
             val entity = mediaRepository.getMediaById(mediaId) ?: return@launch
             mediaRepository.update(entity.copy(description = description.ifEmpty { null }))
+            // 刷新 currentItems 缓存
+            val items = _currentItems.value.toMutableList()
+            val idx = items.indexOfFirst { it.media.id == mediaId }
+            if (idx >= 0) {
+                items[idx] = items[idx].copy(
+                    media = items[idx].media.copy(description = description.ifEmpty { null })
+                )
+                _currentItems.value = items
+            }
         }
     }
 
     fun addTag(mediaId: Long, tagId: Long) {
         viewModelScope.launch {
             mediaRepository.addTagToMedia(mediaId, tagId)
+            // 从 Room 重新加载当前媒体的完整数据
+            val updated = mediaRepository.getMediaWithTagsById(mediaId).first() ?: return@launch
+            val items = _currentItems.value.toMutableList()
+            val idx = items.indexOfFirst { it.media.id == mediaId }
+            if (idx >= 0) items[idx] = updated
+            _currentItems.value = items
         }
     }
 
     fun removeTag(mediaId: Long, tagId: Long) {
         viewModelScope.launch {
             mediaRepository.removeTagFromMedia(mediaId, tagId)
+            // 从 Room 重新加载当前媒体的完整数据
+            val updated = mediaRepository.getMediaWithTagsById(mediaId).first() ?: return@launch
+            val items = _currentItems.value.toMutableList()
+            val idx = items.indexOfFirst { it.media.id == mediaId }
+            if (idx >= 0) items[idx] = updated
+            _currentItems.value = items
         }
     }
 }

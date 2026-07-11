@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -186,16 +188,21 @@ fun AlbumScreen(
                     ),
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedButton(onClick = { isFilterPanelVisible = !isFilterPanelVisible },modifier = Modifier.width(50.dp)) {
-                    Text(
-                        text = "筛选",
-                        fontSize = 14.sp,
-                        color = if (isFilterPanelVisible)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                Spacer(modifier = Modifier.width(8.dp))
+                FilterChip(
+                    selected = isFilterPanelVisible,
+                    onClick = { isFilterPanelVisible = !isFilterPanelVisible },
+                    label = { Text("筛选") },
+                    trailingIcon = {
+                        Text(
+                            if (isFilterPanelVisible) "▲" else "▼",
+                            fontSize = 10.sp
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
                     )
-                }
+                )
             }
 
             // ── 标签胶囊栏 ──
