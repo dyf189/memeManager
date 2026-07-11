@@ -25,6 +25,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -189,20 +190,16 @@ fun AlbumScreen(
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                FilterChip(
-                    selected = isFilterPanelVisible,
-                    onClick = { isFilterPanelVisible = !isFilterPanelVisible },
-                    label = { Text("筛选") },
-                    trailingIcon = {
-                        Text(
-                            if (isFilterPanelVisible) "▲" else "▼",
-                            fontSize = 10.sp
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                IconButton(onClick = { isFilterPanelVisible = !isFilterPanelVisible }) {
+                    Text(
+                        if (isFilterPanelVisible) "✕" else "☰",
+                        fontSize = 20.sp,
+                        color = if (isFilterPanelVisible)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                )
+                }
             }
 
             // ── 标签胶囊栏 ──
