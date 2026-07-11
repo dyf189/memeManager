@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -28,7 +30,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -189,10 +190,10 @@ fun AlbumScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(onClick = { isFilterPanelVisible = !isFilterPanelVisible }) {
-                    Text(
-                        if (isFilterPanelVisible) "✕" else "☰",
-                        fontSize = 20.sp,
-                        color = if (isFilterPanelVisible)
+                    Icon(
+                        if (isFilterPanelVisible) Icons.Default.Close else Icons.Default.FilterList,
+                        contentDescription = "筛选",
+                        tint = if (isFilterPanelVisible)
                             MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.onSurfaceVariant
