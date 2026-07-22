@@ -80,22 +80,24 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    val query by viewModel.query.collectAsStateWithLifecycle()
+    // 本地输入状态 — 解耦 TextField 与 ViewModel flow，保证输入永远跟手
+    var localQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    // 搜索页返回防抖
-    var hasNavigatedBack by remember { mutableStateOf(false) }
-    val safeBack = {
-        if (!hasNavigatedBack) {
-            hasNavigatedBack = true
-            onBack()
-        }
+    // 防抖同步到 ViewModel
+    LaunchedEffect(localQuery) {
+        kotlinx.coroutines.delay(300)
+        viewModel.setQuery(localQuery)
     }
 
+    // 返回防抖
+    var hasNavigatedBack by remember { mutableStateOf(false) }
+
     // 搜索结果
-    val lazyItems = if (query.isBlank()) null else viewModel.searchResults.collectAsLazyPagingItems()
+    val lazyItems = if (localQuery.isBlank()) null
+        else viewModel.searchResults.collectAsLazyPagingItems()
 
     Column(modifier = modifier.fillMaxSize()) {
         // ── 搜索栏 ──
@@ -105,12 +107,17 @@ fun SearchScreen(
                 .padding(start = 3.dp, end = 15.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = safeBack) {
+            IconButton(onClick = {
+                    if (!hasNavigatedBack) {
+                        hasNavigatedBack = true
+                        onBack()
+                    }
+                }) {
                 Icon(Icons.Default.ArrowBack, "返回")
             }
             TextField(
-                value = query,
-                onValueChange = { viewModel.setQuery(it) },
+                value = localQuery,
+                onValueChange = { localQuery = it },
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(focusRequester),
@@ -118,8 +125,8 @@ fun SearchScreen(
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Search, "搜索") },
                 trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setQuery("") }) {
+                    if (localQuery.isNotEmpty()) {
+                        IconButton(onClick = { localQuery = "" }) {
                             Icon(Icons.Default.Close, "清除")
                         }
                     }
@@ -134,7 +141,7 @@ fun SearchScreen(
 
         // ── 内容区 ──
         when {
-            query.isBlank() -> {
+            localQuery.isBlank() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("输入关键词开始搜索", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -159,7 +166,7 @@ fun SearchScreen(
                         item?.let { result ->
                             SearchResultRow(
                                 item = result,
-                                query = query,
+                                query = localQuery,
                                 onClick = {
                                     // TODO: 需要把搜索结果列表传给详情页
                                     // onNavigateToDetail(index)
