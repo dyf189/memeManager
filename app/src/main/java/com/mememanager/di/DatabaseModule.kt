@@ -40,7 +40,16 @@ object DatabaseModule {
             .addMigrations(AppDatabase.MIGRATION_2_3)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    // 首次安装时迁移不会执行，必须在此创建 FTS
+                    ensureFts(db)
+                }
+                override fun onOpen(db: SupportSQLiteDatabase) {
+                    ensureFts(db)
+                }
+                private fun ensureFts(db: SupportSQLiteDatabase) {
+                    val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='media_fts'")
+                    val exists = cursor.moveToFirst()
+                    cursor.close()
+                    if (exists) return
                     db.execSQL("""
                         CREATE VIRTUAL TABLE IF NOT EXISTS media_fts USING fts5(
                             name, description, content='media', content_rowid='id', tokenize='unicode61'
@@ -61,6 +70,10 @@ object DatabaseModule {
                             INSERT INTO media_fts(rowid, name, description)
                             VALUES (new.id, new.name, new.description);
                         END;
+                    """)
+                    db.execSQL("""
+                        INSERT INTO media_fts(rowid, name, description)
+                        SELECT id, name, description FROM media WHERE isDeleted = 0
                     """)
                 }
             })
