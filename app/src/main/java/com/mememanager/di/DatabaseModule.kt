@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.mememanager.data.local.AppDatabase
 import com.mememanager.data.local.dao.MediaDao
+import com.mememanager.data.local.dao.MediaFtsDao
 import com.mememanager.data.local.dao.MediaTagRefDao
 import com.mememanager.data.local.dao.TagDao
 import dagger.Module
@@ -34,6 +35,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "meme_manager.db"
         )
+            .addMigrations(AppDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }
