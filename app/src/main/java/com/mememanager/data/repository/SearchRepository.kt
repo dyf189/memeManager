@@ -3,6 +3,7 @@ package com.mememanager.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.mememanager.data.local.dao.MediaFtsDao
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.util.JiebaTokenizer
@@ -35,7 +36,17 @@ class SearchRepository @Inject constructor(
                 initialLoadSize = PAGE_SIZE
             ),
             pagingSourceFactory = {
-                mediaFtsDao.search(ftsQuery)
+                mediaFtsDao.search(
+                    SimpleSQLiteQuery(
+                        """
+                        SELECT m.* FROM media m
+                        JOIN media_fts ON m.id = media_fts.rowid
+                        WHERE media_fts MATCH ? AND m.isDeleted = 0
+                        ORDER BY rank
+                        """,
+                        arrayOf(ftsQuery)
+                    )
+                )
             }
         ).flow
     }

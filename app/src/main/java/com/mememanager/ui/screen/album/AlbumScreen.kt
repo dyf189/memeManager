@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.ui.util.TimeGroupUtil
@@ -191,8 +192,7 @@ fun AlbumScreen(
                     colors = TextFieldDefaults.colors(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                    ),
-                    modifier = Modifier.weight(1f)
+                    )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(onClick = { isFilterPanelVisible = !isFilterPanelVisible }) {
@@ -218,7 +218,7 @@ fun AlbumScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 val items = lazyPagingItems.itemSnapshotList
 
-                if (items.isEmpty() && lazyPagingItems.loadState.refresh is androidx.paging.LoadState.Loading) {
+                if (items.isEmpty() && lazyPagingItems.loadState.refresh is LoadState.Loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("加载中…", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
