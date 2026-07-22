@@ -106,7 +106,6 @@ fun AlbumScreen(
     var showImportMenu by remember { mutableStateOf(false) }
 
     // ── 纯 UI 状态（不进入 ViewModel） ──
-    var searchQuery by remember { mutableStateOf("") }
     var isFilterPanelVisible by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf<MediaType?>(null) }
     var selectedTagId by remember { mutableStateOf<Long?>(null) }
@@ -172,28 +171,33 @@ fun AlbumScreen(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("搜索表情…", fontSize = 14.sp) },
-                    leadingIcon = {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clickable { onSearchClick() },
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
                             Icons.Default.Search,
                             contentDescription = "搜索",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
-                    },
-                    singleLine = true,
-                    readOnly = true,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onSearchClick() },
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                    )
-                )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "搜索表情…",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(onClick = { isFilterPanelVisible = !isFilterPanelVisible }) {
                     Icon(
