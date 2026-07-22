@@ -8,6 +8,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mememanager.data.local.AppDatabase
+import io.requery.android.database.sqlite.RequerySQLiteOpenHelperFactory
 import com.mememanager.data.local.dao.MediaDao
 import com.mememanager.data.local.dao.MediaFtsDao
 import com.mememanager.data.local.dao.MediaTagRefDao
@@ -37,6 +38,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "meme_manager.db"
         )
+            .openHelperFactory(RequerySQLiteOpenHelperFactory())
             .addMigrations(AppDatabase.MIGRATION_2_3)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
