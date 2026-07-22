@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.mememanager.data.local.AppDatabase
 import com.mememanager.data.local.dao.MediaDao
 import com.mememanager.data.local.dao.MediaFtsDao
@@ -36,6 +38,32 @@ object DatabaseModule {
             "meme_manager.db"
         )
             .addMigrations(AppDatabase.MIGRATION_2_3)
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    // 首次安装时迁移不会执行，必须在此创建 FTS
+                    db.execSQL("""
+                        CREATE VIRTUAL TABLE IF NOT EXISTS media_fts USING fts5(
+                            name, description, content='media', content_rowid='id', tokenize='unicode61'
+                        )
+                    """)
+                    db.execSQL("""
+                        CREATE TRIGGER IF NOT EXISTS media_fts_ai AFTER INSERT ON media BEGIN
+                            INSERT INTO media_fts(rowid, name, description)
+                            VALUES (new.id, new.name, new.description);
+                        END;
+                        CREATE TRIGGER IF NOT EXISTS media_fts_ad AFTER DELETE ON media BEGIN
+                            INSERT INTO media_fts(media_fts, rowid, name, description)
+                            VALUES ('delete', old.id, old.name, old.description);
+                        END;
+                        CREATE TRIGGER IF NOT EXISTS media_fts_au AFTER UPDATE ON media BEGIN
+                            INSERT INTO media_fts(media_fts, rowid, name, description)
+                            VALUES ('delete', old.id, old.name, old.description);
+                            INSERT INTO media_fts(rowid, name, description)
+                            VALUES (new.id, new.name, new.description);
+                        END;
+                    """)
+                }
+            })
             .fallbackToDestructiveMigration(dropAllTables = true)
             .build()
     }

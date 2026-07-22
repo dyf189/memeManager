@@ -187,7 +187,11 @@ fun AppContent(
             }
             composable("search") {
                 SearchScreen(
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        }
+                    },
                     onNavigateToDetail = { /* TODO */ }
                 )
             }
