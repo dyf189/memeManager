@@ -426,4 +426,44 @@ AlbumViewModel 新增三个方法：
 
 ## 第七步：待定
 
-可选方向：搜索功能 / 编辑后刷新缓存 / 回收站功能
+可选方向：编辑后刷新缓存 / 回收站功能（编辑后刷新已在第七步后完成）
+
+---
+
+## 第八步：搜索功能 ✅
+
+### 8.1 FTS5 虚拟表 + 索引同步
+- `AppDatabase` 版本 2→3，迁移中创建 `media_fts` 虚拟表（unicode61 tokenizer）
+- 三条触发器：INSERT/DELETE/UPDATE 自动同步 FTS 索引
+- 存量数据自动填充索引
+- `MediaFtsDao`：FTS5 MATCH 查询 → PagingSource
+
+### 8.2 结巴分词集成
+- 依赖：`com.huaban:jieba-analysis:1.0.2`
+- `util/JiebaTokenizer.kt`：分词 + OR 拼接 + 前缀匹配兜底
+
+### 8.3 SearchRepository + SearchViewModel
+- `SearchRepository`：Pager + FTS DAO，返回 `PagingData<MediaWithTags>`
+- `SearchViewModel`：300ms 防抖 + flatMapLatest 搜索 + cachedIn
+
+### 8.4 SearchScreen UI
+- 搜索栏：返回按钮 + 输入框 + 清除按钮
+- 结果列表：48dp 缩略图 + 标题(匹配高亮) + 描述(匹配高亮，最多两行) + 信息行
+- 空状态/加载态
+- 简单高亮工具 `highlightText()`
+
+### 8.5 导航集成
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `data/local/dao/MediaFtsDao.kt` | 新建 | FTS5 MATCH PagingSource |
+| `data/local/AppDatabase.kt` | 修改 | 版本 2→3，MIGRATION_2_3（CREATE FTS + 触发器 + 存量索引） |
+| `gradle/libs.versions.toml` | 修改 | 添加 jieba-analysis 依赖 |
+| `app/build.gradle.kts` | 修改 | 引用 jieba-analysis |
+| `util/JiebaTokenizer.kt` | 新建 | 结巴分词 → FTS MATCH 表达式 |
+| `data/repository/SearchRepository.kt` | 新建 | Pager + FTS |
+| `ui/viewmodel/SearchViewModel.kt` | 新建 | 防抖 + 搜索 Flow |
+| `ui/screen/search/SearchScreen.kt` | 新建 | 搜索页 UI + 高亮 |
+| `MainActivity.kt` | 修改 | 添加 search 路由 + 底部导航隐藏 |
+| `di/DatabaseModule.kt` | 修改 | 添加 MediaFtsDao provider + MIGRATION_2_3 |
+| `ui/screen/album/AlbumScreen.kt` | 修改 | onSearchClick 回调 + readOnly 搜索栏可点击 |

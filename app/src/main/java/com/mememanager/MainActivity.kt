@@ -39,6 +39,7 @@ import androidx.navigation.navArgument
 import com.mememanager.ui.screen.album.AlbumScreen
 import com.mememanager.ui.screen.detail.MediaDetailScreen
 import com.mememanager.ui.screen.settings.SettingsScreen
+import com.mememanager.ui.screen.search.SearchScreen
 import com.mememanager.ui.screen.tags.TagsScreen
 import com.mememanager.ui.theme.MemeManagerTheme
 import com.mememanager.ui.viewmodel.AlbumViewModel
@@ -119,7 +120,9 @@ fun AppContent(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            if (currentDestination?.route?.startsWith("detail") != true) {
+            if (currentDestination?.route?.startsWith("detail") != true &&
+                currentDestination?.route != "search"
+            ) {
                 NavigationBar(
                     modifier = Modifier.height(70.dp)
                 ) {
@@ -153,6 +156,9 @@ fun AppContent(
                     viewModel = sharedAlbumViewModel,
                     onNavigateToDetail = { index ->
                         navController.navigate("detail/$index")
+                    },
+                    onSearchClick = {
+                        navController.navigate("search")
                     }
                 )
             }
@@ -177,6 +183,12 @@ fun AppContent(
                     onRemoveTag = { mediaWithTags, tag ->
                         sharedAlbumViewModel.removeTag(mediaWithTags.media.id, tag.id)
                     }
+                )
+            }
+            composable("search") {
+                SearchScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToDetail = { /* TODO */ }
                 )
             }
             composable(Screen.Tags.route) { TagsScreen() }

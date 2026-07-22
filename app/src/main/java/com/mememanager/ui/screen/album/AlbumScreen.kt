@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,6 +74,7 @@ import com.mememanager.ui.viewmodel.SettingsViewModel
 fun AlbumScreen(
     viewModel: AlbumViewModel = hiltViewModel(),
     onNavigateToDetail: (index: Int) -> Unit = {},
+    onSearchClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val settingsViewModel: SettingsViewModel = hiltViewModel()
@@ -181,7 +183,11 @@ fun AlbumScreen(
                         )
                     },
                     singleLine = true,
+                    readOnly = true,
                     shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSearchClick() },
                     colors = TextFieldDefaults.colors(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,

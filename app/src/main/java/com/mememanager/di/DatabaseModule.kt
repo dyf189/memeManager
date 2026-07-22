@@ -52,4 +52,9 @@ object DatabaseModule {
     fun provideMediaTagRefDao(database: AppDatabase): MediaTagRefDao {
         return database.mediaTagRefDao()
     }
+
+    @Provides
+    fun provideMediaFtsDao(database: AppDatabase): MediaFtsDao {
+        return database.mediaFtsDao()
+    }
 }
