@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -46,10 +47,14 @@ class SearchViewModel @Inject constructor(
         .debounce(300)
         .filter { it.isNotBlank() }
         .flatMapLatest { rawQuery ->
-            searchRepository.search(rawQuery).map { pagingData ->
-                pagingData.map { media ->
-                    SearchResultItem(mediaWithTags = media)
+            try {
+                searchRepository.search(rawQuery).map { pagingData ->
+                    pagingData.map { media ->
+                        SearchResultItem(mediaWithTags = media)
+                    }
                 }
+            } catch (e: Exception) {
+                emptyFlow()
             }
         }
         .cachedIn(viewModelScope)
