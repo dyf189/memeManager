@@ -47,8 +47,7 @@ object DatabaseModule {
                 }
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     createFts(db)
-                    // 全量重建索引：FTS5 rebuild 命令自动从 content 表（media）重新索引
-                    db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
+                    // 日常打开只确保表存在，索引由触发器自动维护
                 }
                 private fun createFts(db: SupportSQLiteDatabase) {
                     db.execSQL("""
