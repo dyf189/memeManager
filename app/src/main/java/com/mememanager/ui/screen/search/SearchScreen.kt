@@ -1,6 +1,5 @@
 package com.mememanager.ui.screen.search
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,25 +52,19 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.mememanager.data.local.entity.MediaType
 import com.mememanager.ui.viewmodel.SearchResultItem
 import com.mememanager.ui.viewmodel.SearchViewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 搜索页面
- *
- * @param onBack 返回回调
- * @param onNavigateToDetail 点击结果 → 详情页
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,39 +74,42 @@ fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    // 本地输入状态 — 解耦 TextField 与 ViewModel flow，保证输入永远跟手
     var localQuery by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+    var hasNavigatedBack by remember { mutableStateOf(false) }
+
+    // 避免返回到空白页——只有回退栈还有东西才 pop
+    fun goBack() {
+        if (!hasNavigatedBack) {
+            hasNavigatedBack = true
+            onBack()
+        }
+    }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    // 防抖同步到 ViewModel
+    // 300ms 后才同步到 ViewModel 触发搜索（避免输入过程中频繁触发 Paging）
     LaunchedEffect(localQuery) {
-        kotlinx.coroutines.delay(300.milliseconds)
-        viewModel.setQuery(localQuery)
+        if (localQuery.isNotBlank()) {
+            kotlinx.coroutines.delay(300)
+            viewModel.setQuery(localQuery)
+        }
     }
 
-    // 返回防抖
-    var hasNavigatedBack by remember { mutableStateOf(false) }
-
-    // 搜索结果
-    val lazyItems = if (localQuery.isBlank()) null
-        else viewModel.searchResults.collectAsLazyPagingItems()
+    // 仅 localQuery 非空时才收集搜索结果
+    val lazyItems = remember(localQuery) {
+        if (localQuery.isBlank()) null
+        else viewModel.searchResults
+    }?.collectAsLazyPagingItems()
 
     Column(modifier = modifier.fillMaxSize()) {
-        // ── 搜索栏 ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(start = 3.dp, end = 15.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {
-                    if (!hasNavigatedBack) {
-                        hasNavigatedBack = true
-                        onBack()
-                    }
-                }) {
+            IconButton(onClick = { goBack() }) {
                 Icon(Icons.Default.ArrowBack, "返回")
             }
             TextField(
@@ -140,7 +136,6 @@ fun SearchScreen(
             )
         }
 
-        // ── 内容区 ──
         when {
             localQuery.isBlank() -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -168,10 +163,7 @@ fun SearchScreen(
                             SearchResultRow(
                                 item = result,
                                 query = localQuery,
-                                onClick = {
-                                    // TODO: 需要把搜索结果列表传给详情页
-                                    // onNavigateToDetail(index)
-                                }
+                                onClick = { /* TODO */ }
                             )
                         }
                     }
@@ -202,7 +194,6 @@ private fun SearchResultRow(
             modifier = Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 缩略图 48dp
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(File(media.filePath))
@@ -213,13 +204,9 @@ private fun SearchResultRow(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
             )
-
             Spacer(Modifier.width(12.dp))
-
             Column(modifier = Modifier.weight(1f)) {
-                // 标题 — 匹配高亮
                 Text(
                     text = highlightText(media.name, query),
                     fontSize = 14.sp,
@@ -227,10 +214,6 @@ private fun SearchResultRow(
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-
-                Spacer(Modifier.height(2.dp))
-
-                // 描述 — 匹配高亮，最多两行，灰色
                 val desc = media.description
                 if (!desc.isNullOrBlank()) {
                     Text(
@@ -241,10 +224,6 @@ private fun SearchResultRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                Spacer(Modifier.height(2.dp))
-
-                // 信息行：大小 + 日期
                 Text(
                     text = "${formatSize(media.size)} · ${formatDate(media.createdAt)}",
                     fontSize = 11.sp,
@@ -255,22 +234,15 @@ private fun SearchResultRow(
     }
 }
 
-/** 简单高亮：query 在 text 中的匹配部分加粗 */
 @Composable
 private fun highlightText(text: String, query: String) = buildAnnotatedString {
-    if (query.isBlank()) {
-        append(text)
-        return@buildAnnotatedString
-    }
+    if (query.isBlank()) { append(text); return@buildAnnotatedString }
     val lower = text.lowercase()
     val q = query.lowercase()
     var pos = 0
     while (pos < text.length) {
         val idx = lower.indexOf(q, pos)
-        if (idx < 0) {
-            append(text.substring(pos))
-            break
-        }
+        if (idx < 0) { append(text.substring(pos)); break }
         append(text.substring(pos, idx))
         withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFFF6B35))) {
             append(text.substring(idx, idx + query.length))
