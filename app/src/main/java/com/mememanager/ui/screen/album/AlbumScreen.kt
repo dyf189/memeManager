@@ -187,7 +187,11 @@ fun AlbumScreen(
 
                 if (items.isEmpty() && lazyPagingItems.loadState.refresh is LoadState.Loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("加载中…", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "加载中…",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
@@ -283,3 +287,4 @@ fun AlbumScreen(
             }
         }
     }
+}
