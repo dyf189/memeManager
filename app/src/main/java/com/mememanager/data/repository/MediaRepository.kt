@@ -97,6 +97,14 @@ class MediaRepository @Inject constructor(
         }
     }
 
+    /** 全量重建 FTS 索引（升级迁移后调用一次） */
+    suspend fun seedAllFts() {
+        val all = mediaDao.getAll().let { kotlinx.coroutines.flow.first(it) }
+        all.filter { !it.isDeleted }.forEach { media ->
+            syncFts(media.id, media.name, media.description ?: "")
+        }
+    }
+
     suspend fun purgeDeletedBefore(cutoffTime: Long): Int =
         mediaDao.purgeDeletedBefore(cutoffTime)
 
