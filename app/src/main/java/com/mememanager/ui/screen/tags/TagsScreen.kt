@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
@@ -253,9 +254,19 @@ private fun EditTagDialog(
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("颜色", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row {
-                        TextButton(onClick = { deleteMode = !deleteMode }) { Text(if (deleteMode) "完成" else "—", fontSize = 12.sp) }
-                        TextButton(onClick = { showAddDialog = true }) { Text("+", fontSize = 16.sp) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { deleteMode = !deleteMode }) {
+                            Icon(
+                                if (deleteMode) Icons.Default.Check else Icons.Default.Delete,
+                                contentDescription = if (deleteMode) "完成" else "删除颜色",
+                                tint = if (deleteMode) MaterialTheme.colorScheme.primary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        IconButton(onClick = { showAddDialog = true }) {
+                            Icon(Icons.Default.Add, "添加颜色", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                        }
                         TextButton(onClick = { showResetConfirm = true }) { Text("重置", fontSize = 12.sp) }
                     }
                 }
