@@ -31,14 +31,23 @@ object JiebaTokenizer {
         val words = tokens
             .filter { it.word.isNotBlank() }
             .map { it.word.trim() }
-            .filter { it.length >= 2 || it.any { c -> c.code > 127 } } // 短英文过滤，中文单字保留
+            .filter { it.length >= 2 || it.any { c -> c.code > 127 } }
 
         if (words.isEmpty()) return "\"$trimmed\"*"
 
-        // 去重 + OR 连接
         val unique = words.distinct()
-        // 加上原始查询的前缀匹配（覆盖未登录词）
-        val terms = unique + "\"$trimmed\"*"
+
+        // 每个多字词生成两种匹配：
+        // 1. 原词（匹配 FTS 中的完整 token，如英文）
+        // 2. NEAR 降级（中文逐字匹配，"卡住" → "卡 NEAR/1 住"）
+        val terms = unique.flatMap { word ->
+            if (word.length >= 2 && word.any { it.code > 127 }) {
+                val near = word.toCharArray().joinToString(" NEAR/1 ") { "\"$it\"" }
+                listOf(word, "($near)")
+            } else {
+                listOf(word)
+            }
+        }
 
         return terms.joinToString(" OR ")
     }
