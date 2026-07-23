@@ -47,7 +47,15 @@ object DatabaseModule {
                 }
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     createFts(db)
-                    // 日常打开只确保表存在，索引由触发器自动维护
+                    // 兜底：FTS 表为空时全量重建（覆盖老数据未进索引的场景）
+                    try {
+                        val c = db.query("SELECT count(*) FROM media_fts")
+                        val empty = !c.moveToFirst() || c.getInt(0) == 0
+                        c.close()
+                        if (empty) db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
+                    } catch (_: Exception) {
+                        db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
+                    }
                 }
                 private fun createFts(db: SupportSQLiteDatabase) {
                     db.execSQL("""
