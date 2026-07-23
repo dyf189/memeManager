@@ -78,31 +78,17 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     var hasNavigatedBack by remember { mutableStateOf(false) }
 
-    // 避免返回到空白页——只有回退栈还有东西才 pop
-    fun goBack() {
-        if (!hasNavigatedBack) {
-            hasNavigatedBack = true
-            onBack()
-        }
-    }
-
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    // 防抖后的搜索词
-    var debouncedQuery by remember { mutableStateOf("") }
+    // 防抖后同步 ViewModel
     LaunchedEffect(localQuery) {
         if (localQuery.isNotBlank()) {
             kotlinx.coroutines.delay(300)
         }
-        debouncedQuery = localQuery
+        viewModel.setQuery(localQuery)
     }
 
-    // 每次搜索词变化，创建独立的 cold Paging flow
-    val searchFlow = remember(debouncedQuery) {
-        if (debouncedQuery.isBlank()) null
-        else viewModel.search(debouncedQuery)
-    }
-    val lazyItems = searchFlow?.collectAsLazyPagingItems()
+    val lazyItems = viewModel.searchResults.collectAsLazyPagingItems()
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -111,7 +97,9 @@ fun SearchScreen(
                 .padding(start = 3.dp, end = 15.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { goBack() }) {
+            IconButton(onClick = {
+                if (!hasNavigatedBack) { hasNavigatedBack = true; onBack() }
+            }) {
                 Icon(Icons.Default.ArrowBack, "返回")
             }
             TextField(
@@ -144,7 +132,7 @@ fun SearchScreen(
                     Text("输入关键词开始搜索", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            lazyItems == null -> {
+            lazyItems.loadState.refresh is LoadState.Loading && lazyItems.itemCount == 0 -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -164,8 +152,7 @@ fun SearchScreen(
                         item?.let { result ->
                             SearchResultRow(
                                 item = result,
-                                query = localQuery,
-                                onClick = { /* TODO */ }
+                                onClick = { /* TODO: 详情页导航 */ }
                             )
                         }
                     }
@@ -178,7 +165,6 @@ fun SearchScreen(
 @Composable
 private fun SearchResultRow(
     item: SearchResultItem,
-    query: String,
     onClick: () -> Unit
 ) {
     val media = item.mediaWithTags.media
@@ -210,7 +196,7 @@ private fun SearchResultRow(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = highlightText(media.name, query),
+                    text = highlightText(media.name, item.segments),
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -219,7 +205,7 @@ private fun SearchResultRow(
                 val desc = media.description
                 if (!desc.isNullOrBlank()) {
                     Text(
-                        text = highlightText(desc, query),
+                        text = highlightText(desc, item.segments),
                         fontSize = 12.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -236,21 +222,45 @@ private fun SearchResultRow(
     }
 }
 
+/**
+ * 按 Jieba 分词结果逐词高亮（每个 segment 独立匹配，消除"卡了"中"卡"不高亮的问题）
+ */
 @Composable
-private fun highlightText(text: String, query: String) = buildAnnotatedString {
-    if (query.isBlank()) { append(text); return@buildAnnotatedString }
+private fun highlightText(text: String, segments: List<String>) = buildAnnotatedString {
+    if (segments.isEmpty()) { append(text); return@buildAnnotatedString }
     val lower = text.lowercase()
-    val q = query.lowercase()
-    var pos = 0
-    while (pos < text.length) {
-        val idx = lower.indexOf(q, pos)
-        if (idx < 0) { append(text.substring(pos)); break }
-        append(text.substring(pos, idx))
-        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFFF6B35))) {
-            append(text.substring(idx, idx + query.length))
+    // 收集所有匹配区间 [start, end)
+    val matches = mutableListOf<Pair<Int, Int>>()
+    for (seg in segments) {
+        val q = seg.lowercase()
+        var pos = 0
+        while (pos < text.length) {
+            val idx = lower.indexOf(q, pos)
+            if (idx < 0) break
+            matches.add(idx to idx + seg.length)
+            pos = idx + 1 // 允许重叠
         }
-        pos = idx + query.length
     }
+    // 合并重叠区间
+    matches.sortBy { it.first }
+    val merged = mutableListOf<Pair<Int, Int>>()
+    for ((s, e) in matches) {
+        if (merged.isNotEmpty() && s <= merged.last().second) {
+            merged[merged.lastIndex] = merged.last().first to maxOf(merged.last().second, e)
+        } else {
+            merged.add(s to e)
+        }
+    }
+    // 构建 AnnotatedString
+    var pos = 0
+    for ((s, e) in merged) {
+        if (s > pos) append(text.substring(pos, s))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFFF6B35))) {
+            append(text.substring(s, e))
+        }
+        pos = e
+    }
+    if (pos < text.length) append(text.substring(pos))
 }
 
 private fun formatSize(bytes: Long): String {
