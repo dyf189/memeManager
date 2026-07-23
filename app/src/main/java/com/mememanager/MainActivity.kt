@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
-//        enableEdgeToEdge()
+        enableEdgeToEdge()
         setContent {
             MemeManagerTheme {
                 AppContent(
@@ -125,7 +125,7 @@ fun AppContent(
                 currentDestination?.route != "search"
             ) {
                 NavigationBar(
-                    modifier = Modifier.height(70.dp)
+                    modifier = Modifier.height(80.dp)
                 ) {
                     screens.forEach { screen ->
                         NavigationBarItem(
