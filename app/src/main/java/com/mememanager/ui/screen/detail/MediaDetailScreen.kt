@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -193,56 +194,59 @@ fun MediaDetailScreen(
                 onAddTagClick = { showTagPicker = true },
                 onRemoveTag = { tag -> onRemoveTag(currentMedia, tag) }
             )
-        },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = currentMedia.media.name,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        fontSize = 16.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { onShare(currentMedia) }) {
-                        Icon(Icons.Default.Share, contentDescription = "分享")
-                    }
-                    Box {
-                        IconButton(onClick = { isMenuExpanded = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "更多")
-                        }
-                        DropdownMenu(
-                            expanded = isMenuExpanded,
-                            onDismissRequest = { isMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("保存到相册") },
-                                onClick = { isMenuExpanded = false }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("查看原始信息") },
-                                onClick = { isMenuExpanded = false }
-                            )
-                        }
-                    }
-                }
-            )
         }
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .statusBarsPadding()
         ) {
+            // 标题栏
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                }
+                Text(
+                    text = currentMedia.media.name,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { onShare(currentMedia) }) {
+                    Icon(Icons.Default.Share, contentDescription = "分享")
+                }
+                Box {
+                    IconButton(onClick = { isMenuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                    }
+                    DropdownMenu(
+                        expanded = isMenuExpanded,
+                        onDismissRequest = { isMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("保存到相册") },
+                            onClick = { isMenuExpanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("查看原始信息") },
+                            onClick = { isMenuExpanded = false }
+                        )
+                    }
+                }
+            }
+            // 内容区
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 56.dp)
             ) { page ->
                 val media = mediaItems[page]
                 MediaDisplay(media = media)
