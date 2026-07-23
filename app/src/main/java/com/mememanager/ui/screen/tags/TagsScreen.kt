@@ -32,6 +32,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -162,25 +164,18 @@ fun TagsScreen(
         )
     }
 }
-// 仿 MediaDetailScreen.TagItem 的选中/未选中样式
+// 圆形颜色色块 — 选中时 2dp 蓝色边框
 @Composable
 private fun ColorChip(color: Int, selected: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
-            .widthIn(min = 56.dp)
-            .shadow(elevation = if (selected) 6.dp else 1.dp, shape = shape, clip = false)
-            .background(Color.White, shape = shape)
-            .then(if (selected) Modifier.border(2.dp, Color(0xFF1976D2), shape) else Modifier)
-            .clip(shape)
+            .size(36.dp)
+            .shadow(elevation = if (selected) 4.dp else 1.dp, shape = CircleShape, clip = false)
+            .background(Color(color), CircleShape)
+            .then(if (selected) Modifier.border(2.dp, Color(0xFF1976D2), CircleShape) else Modifier)
+            .clip(CircleShape)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() }
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(16.dp).clip(CircleShape).background(Color(color)))
-        }
-    }
+    )
 }
 
 // ── 编辑标签弹窗 ──
@@ -198,7 +193,7 @@ private fun EditTagDialog(
         onDismissRequest = onDismiss,
         title = { Text("编辑标签") },
         confirmButton = {
-            TextButton(onClick = {
+            FilledTonalButton(onClick = {
                 if (editName.isNotBlank()) onConfirm(tag.copy(name = editName.trim(), bgColor = editColor))
             }) { Text("确定") }
         },
