@@ -172,7 +172,6 @@ fun AppContent(
                 val currentItems by sharedAlbumViewModel.currentItems.collectAsStateWithLifecycle()
                 val allTags by sharedAlbumViewModel.tags.collectAsStateWithLifecycle()
                 MediaDetailScreen(
-                    modifier = Modifier.padding(innerPadding),
                     mediaItems = currentItems,
                     availableTags = allTags,
                     initialIndex = index,
