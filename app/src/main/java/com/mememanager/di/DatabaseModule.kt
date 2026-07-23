@@ -51,6 +51,13 @@ object DatabaseModule {
                 }
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     createFts(db)
+                    // 增量补索：仅填充 FTS 表缺失的媒体（每次打开都跑，但只插新行）
+                    db.execSQL("""
+                        INSERT INTO media_fts(rowid, name, description)
+                        SELECT m.id, m.name, m.description FROM media m
+                        WHERE m.isDeleted = 0
+                        AND m.id NOT IN (SELECT rowid FROM media_fts)
+                    """)
                 }
                 private fun createFts(db: SupportSQLiteDatabase) {
                     db.execSQL("""

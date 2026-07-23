@@ -165,7 +165,7 @@ fun AlbumScreen(
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .padding(bottom = innerPadding.calculateBottomPadding(), top = 8.dp)
+                .padding(innerPadding)
                 .fillMaxSize()
         ) {
             // ── 搜索栏 + 筛选按钮 ──

@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.room.util.copy
 import com.mememanager.ui.screen.album.AlbumScreen
 import com.mememanager.ui.screen.detail.MediaDetailScreen
 import com.mememanager.ui.screen.settings.SettingsScreen
