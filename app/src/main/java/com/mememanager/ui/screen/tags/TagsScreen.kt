@@ -8,6 +8,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -180,6 +182,7 @@ private fun ColorChip(color: Int, selected: Boolean, onClick: () -> Unit) {
 
 // ── 编辑标签弹窗 ──
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EditTagDialog(
     tag: TagEntity,
@@ -188,6 +191,51 @@ private fun EditTagDialog(
 ) {
     var editName by remember(tag) { mutableStateOf(tag.name) }
     var editColor by remember(tag) { mutableIntStateOf(tag.bgColor) }
+    var colors by remember { mutableStateOf(PRESET_COLORS.toMutableList()) }
+    var deleteMode by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showResetConfirm by remember { mutableStateOf(false) }
+    var newColorHex by remember { mutableStateOf("") }
+
+    if (showResetConfirm) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = { Text("重置配色") },
+            text = { Text("恢复出厂预设颜色？已添加的颜色将丢失。") },
+            confirmButton = { TextButton(onClick = { colors = PRESET_COLORS.toMutableList(); showResetConfirm = false }) { Text("重置") } },
+            dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text("取消") } }
+        )
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = { Text("添加颜色") },
+            text = {
+                Column {
+                    OutlinedTextField(value = newColorHex, onValueChange = { newColorHex = it },
+                        placeholder = { Text("#FF5733") }, singleLine = true, label = { Text("十六进制颜色值") })
+                    Spacer(Modifier.height(8.dp))
+                    Text("快速选择", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val qc = listOf(0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7, 0xFF3F51B5,
+                            0xFF2196F3, 0xFF00BCD4, 0xFF4CAF50, 0xFFFFC107, 0xFFFF9800)
+                        qc.forEach { c -> ColorChip(c.toInt(), selected = false, onClick = { newColorHex = String.format("#%06X", c and 0xFFFFFF) }) }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    try { val v = newColorHex.removePrefix("#").toLong(16).toInt()
+                        if (v !in colors) colors = (colors + v).toMutableList()
+                    } catch (_: Exception) {}
+                    showAddDialog = false
+                }) { Text("添加") }
+            },
+            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("取消") } }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -197,21 +245,33 @@ private fun EditTagDialog(
                 if (editName.isNotBlank()) onConfirm(tag.copy(name = editName.trim(), bgColor = editColor))
             }) { Text("确定") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
-        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
         text = {
             Column {
                 OutlinedTextField(value = editName, onValueChange = { editName = it },
                     label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(12.dp))
-                Text("颜色", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    PRESET_COLORS.chunked(5).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                            row.forEach { c ->
-                                ColorChip(c, selected = editColor == c, onClick = { editColor = c })
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("颜色", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row {
+                        TextButton(onClick = { deleteMode = !deleteMode }) { Text(if (deleteMode) "完成" else "—", fontSize = 12.sp) }
+                        TextButton(onClick = { showAddDialog = true }) { Text("+", fontSize = 16.sp) }
+                        TextButton(onClick = { showResetConfirm = true }) { Text("重置", fontSize = 12.sp) }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    colors.forEach { c ->
+                        Box {
+                            ColorChip(c, selected = editColor == c, onClick = { if (!deleteMode) editColor = c })
+                            if (deleteMode) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(16.dp).clip(CircleShape).background(Color.Red)
+                                        .clickable { colors = colors.toMutableList().also { it.remove(c) } },
+                                    contentAlignment = Alignment.Center
+                                ) { Text("✕", fontSize = 9.sp, color = Color.White) }
                             }
                         }
                     }
