@@ -3,6 +3,7 @@ package com.mememanager.ui.screen.tags
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -151,14 +153,21 @@ fun TagsScreen(
                     Text("颜色", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        PRESET_COLORS.forEachIndexed { i, c ->
-                            Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(Color(c))
-                                .then(if (editColor == c) Modifier.padding(3.dp).clip(CircleShape).background(Color(c))
-                                else Modifier)
-                                .pointerInput(c) { awaitPointerEventScope { awaitPointerEvent(); editColor = c } }
-                            ) {
-                                if (editColor == c) Box(Modifier.fillMaxSize().then(Modifier), contentAlignment = Alignment.Center) {} else Unit
-                            }
+                        PRESET_COLORS.forEach { c ->
+                            val selected = editColor == c
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(c))
+                                    .padding(if (selected) 3.dp else 0.dp)
+                                    .clip(CircleShape)
+                                    .background(if (selected) Color(c) else Color.Transparent)
+                                    .pointerInput(c) {
+                                        awaitPointerEventScope { awaitPointerEvent() }
+                                        editColor = c
+                                    }
+                            )
                         }
                     }
                 }
