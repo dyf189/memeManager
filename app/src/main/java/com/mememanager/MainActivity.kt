@@ -150,7 +150,9 @@ fun AppContent(
         NavHost(
             navController = navController,
             startDestination = Screen.Album.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
         ) {
             composable(Screen.Album.route) {
                 AlbumScreen(

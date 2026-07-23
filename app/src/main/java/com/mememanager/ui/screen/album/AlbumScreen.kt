@@ -114,60 +114,19 @@ fun AlbumScreen(
     var selectedType by remember { mutableStateOf<MediaType?>(null) }
     var selectedTagId by remember { mutableStateOf<Long?>(null) }
 
-    Scaffold(
-        topBar = {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // ── 批量操作栏 ──
             if (uiState.isMultiSelectMode) {
                 BatchActionBar(
                     selectedCount = uiState.selectedMediaIds.size,
                     onCancel = { viewModel.exitMultiSelectMode() },
-                    onDelete = {
-                        viewModel.softDeleteSelected()
-                    },
+                    onDelete = { viewModel.softDeleteSelected() },
                     onTag = {},
                     onExport = {},
                     onShare = {}
                 )
             }
-        },
-        floatingActionButton = {
-            if (!uiState.isMultiSelectMode) {
-                Box {
-                    FloatingActionButton(
-                        onClick = { showImportMenu = true }
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "导入媒体")
-                    }
-                    DropdownMenu(
-                        expanded = showImportMenu,
-                        onDismissRequest = { showImportMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("从相册导入") },
-                            onClick = {
-                                showImportMenu = false
-                                imagePickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
-                                )
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("从文件导入") },
-                            onClick = {
-                                showImportMenu = false
-                                filePickerLauncher.launch(arrayOf("image/*", "video/*"))
-                            }
-                        )
-                    }
-                }
-            }
-        },
-        modifier = modifier
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-        ) {
             // ── 搜索栏 + 筛选按钮 ──
             Row(
                 modifier = Modifier
@@ -287,5 +246,40 @@ fun AlbumScreen(
                 )
             }
         }
+
+        // ── FAB ──
+        if (!uiState.isMultiSelectMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = { showImportMenu = true }
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "导入媒体")
+                }
+                DropdownMenu(
+                    expanded = showImportMenu,
+                    onDismissRequest = { showImportMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("从相册导入") },
+                        onClick = {
+                            showImportMenu = false
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("从文件导入") },
+                        onClick = {
+                            showImportMenu = false
+                            filePickerLauncher.launch(arrayOf("image/*", "video/*"))
+                        }
+                    )
+                }
+            }
+        }
     }
-}
