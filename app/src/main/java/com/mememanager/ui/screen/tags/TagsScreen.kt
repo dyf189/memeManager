@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -203,7 +203,11 @@ private fun EditTagDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text("重置配色") },
             text = { Text("恢复出厂预设颜色？已添加的颜色将丢失。") },
-            confirmButton = { TextButton(onClick = { colors = PRESET_COLORS.toMutableList(); showResetConfirm = false }) { Text("重置") } },
+            confirmButton = { TextButton(onClick = { colors = PRESET_COLORS.toMutableList(); showResetConfirm = false }) { Text(
+                text = "重置",
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold
+            ) } },
             dismissButton = { TextButton(onClick = { showResetConfirm = false }) { Text("取消") } }
         )
     }
@@ -244,9 +248,17 @@ private fun EditTagDialog(
         confirmButton = {
             FilledTonalButton(onClick = {
                 if (editName.isNotBlank()) onConfirm(tag.copy(name = editName.trim(), bgColor = editColor))
-            }) { Text("确定") }
+            },colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )) { Text("确定") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { FilledTonalButton(
+            onClick = onDismiss,
+            colors = ButtonDefaults.filledTonalButtonColors(
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) { Text("取消") }},
         text = {
             Column {
                 OutlinedTextField(value = editName, onValueChange = { editName = it },
@@ -267,7 +279,12 @@ private fun EditTagDialog(
                         IconButton(onClick = { showAddDialog = true }) {
                             Icon(Icons.Default.Add, "添加颜色", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                         }
-                        TextButton(onClick = { showResetConfirm = true }) { Text("重置", fontSize = 12.sp) }
+                        TextButton(onClick = { showResetConfirm = true }) { Text(
+                            text = "重置",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
+                        ) }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
