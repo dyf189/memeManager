@@ -43,21 +43,12 @@ object DatabaseModule {
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     createFts(db)
-                    // 首次安装时填充存量数据
-                    db.execSQL("""
-                        INSERT INTO media_fts(rowid, name, description)
-                        SELECT id, name, description FROM media WHERE isDeleted = 0
-                    """)
+                    db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
                 }
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     createFts(db)
-                    // 增量补索：仅填充 FTS 表缺失的媒体（每次打开都跑，但只插新行）
-                    db.execSQL("""
-                        INSERT INTO media_fts(rowid, name, description)
-                        SELECT m.id, m.name, m.description FROM media m
-                        WHERE m.isDeleted = 0
-                        AND m.id NOT IN (SELECT rowid FROM media_fts)
-                    """)
+                    // 全量重建索引：FTS5 rebuild 命令自动从 content 表（media）重新索引
+                    db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
                 }
                 private fun createFts(db: SupportSQLiteDatabase) {
                     db.execSQL("""
