@@ -6,8 +6,9 @@ import com.huaban.analysis.jieba.SegToken
 /**
  * 结巴分词 + FTS5 MATCH 查询构建
  *
- * FTS5 unicode61 tokenizer 对中文逐字拆 token，
- * 因此对 Jieba 产出的多字词通过 NEAR 操作符降级为逐字相邻匹配。
+ * FTS5 unicode61 tokenizer 对中文逐字拆 token。
+ * 中文多字词用 FTS5 phrase 查询（双引号包裹），
+ * 例："好的" 匹配索引中相邻的 "好" → "的" token。
  */
 object JiebaTokenizer {
 
@@ -21,7 +22,10 @@ object JiebaTokenizer {
     /**
      * 用户输入 → FTS5 MATCH 布尔表达式
      *
-     * 例："卡住了" → ("卡" NEAR/1 "住") OR "了"
+     * 中文多字词用双引号包裹做 phrase 查询——FTS5 unicode61 逐字分词后，
+     * "好的" 匹配索引中相邻的 "好" → "的" token。
+     *
+     * 例："卡住了" → "\"卡住\" OR \"了\""
      */
     fun toFtsQuery(query: String): String {
         val trimmed = query.trim()
@@ -36,17 +40,7 @@ object JiebaTokenizer {
 
         if (words.isEmpty()) return "\"$trimmed\""
 
-        val terms = words.distinct().map { word ->
-            if (word.any { it.code > 127 } && word.length >= 2) {
-                // 中文多字词 → 逐字 NEAR
-                "(" + word.toCharArray().joinToString(" NEAR/1 ") { "\"$it\"" } + ")"
-            } else {
-                // 英文/单字 → 直接匹配
-                "\"$word\""
-            }
-        }
-
-        return terms.joinToString(" OR ")
+        return words.distinct().joinToString(" OR ") { "\"$it\"" }
     }
 
     /**
