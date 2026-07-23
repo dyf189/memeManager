@@ -150,12 +150,11 @@ fun AppContent(
         NavHost(
             navController = navController,
             startDestination = Screen.Album.route,
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             composable(Screen.Album.route) {
                 AlbumScreen(
+                    modifier = Modifier.padding(innerPadding),
                     viewModel = sharedAlbumViewModel,
                     onNavigateToDetail = { index ->
                         navController.navigate("detail/$index")
@@ -173,6 +172,7 @@ fun AppContent(
                 val currentItems by sharedAlbumViewModel.currentItems.collectAsStateWithLifecycle()
                 val allTags by sharedAlbumViewModel.tags.collectAsStateWithLifecycle()
                 MediaDetailScreen(
+                    modifier = Modifier.padding(innerPadding),
                     mediaItems = currentItems,
                     availableTags = allTags,
                     initialIndex = index,
@@ -190,6 +190,7 @@ fun AppContent(
             }
             composable("search") {
                 SearchScreen(
+                    modifier = Modifier.padding(innerPadding),
                     onBack = {
                         if (navController.previousBackStackEntry != null) {
                             navController.popBackStack()
@@ -198,8 +199,8 @@ fun AppContent(
                     onNavigateToDetail = { /* TODO */ }
                 )
             }
-            composable(Screen.Tags.route) { TagsScreen() }
-            composable(Screen.Settings.route) { SettingsScreen() }
+            composable(Screen.Tags.route) { TagsScreen(modifier = Modifier.padding(innerPadding)) }
+            composable(Screen.Settings.route) { SettingsScreen(modifier = Modifier.padding(innerPadding)) }
         }
     }
 }

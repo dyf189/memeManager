@@ -178,6 +178,7 @@ fun MediaDetailScreen(
     LaunchedEffect(Unit) { sheetState.bottomSheetState.expand() }
 
     BottomSheetScaffold(
+        modifier = modifier,
         scaffoldState = sheetState,
         sheetPeekHeight = 48.dp,
         sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
