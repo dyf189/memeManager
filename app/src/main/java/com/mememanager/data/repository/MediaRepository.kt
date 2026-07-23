@@ -1,5 +1,6 @@
 package com.mememanager.data.repository
 
+import androidx.compose.remote.creation.dsl.first
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -13,6 +14,7 @@ import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.TagEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -110,7 +112,7 @@ class MediaRepository @Inject constructor(
 
     /** 全量重建 FTS 索引（升级迁移后调用一次） */
     suspend fun seedAllFts() {
-        val all = mediaDao.getAll().let { kotlinx.coroutines.flow.first(it) }
+        val all = mediaDao.getAll().first()
         all.filter { !it.isDeleted }.forEach { media ->
             syncFts(media.id, media.name, media.description ?: "")
         }
