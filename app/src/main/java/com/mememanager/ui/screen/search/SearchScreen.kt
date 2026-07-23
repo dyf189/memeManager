@@ -65,6 +65,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 搜索页面
@@ -88,7 +89,7 @@ fun SearchScreen(
 
     // 防抖同步到 ViewModel
     LaunchedEffect(localQuery) {
-        kotlinx.coroutines.delay(300)
+        kotlinx.coroutines.delay(300.milliseconds)
         viewModel.setQuery(localQuery)
     }
 

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 搜索页搜索结果项
@@ -44,7 +45,7 @@ class SearchViewModel @Inject constructor(
     // ── 搜索结果 ──
     @OptIn(FlowPreview::class)
     val searchResults: Flow<PagingData<SearchResultItem>> = _query
-        .debounce(300)
+        .debounce(300.milliseconds)
         .filter { it.isNotBlank() }
         .flatMapLatest { rawQuery ->
             try {
