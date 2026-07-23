@@ -88,19 +88,21 @@ fun SearchScreen(
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    // 300ms 后才同步到 ViewModel 触发搜索（避免输入过程中频繁触发 Paging）
+    // 防抖后的搜索词
+    var debouncedQuery by remember { mutableStateOf("") }
     LaunchedEffect(localQuery) {
         if (localQuery.isNotBlank()) {
             kotlinx.coroutines.delay(300)
-            viewModel.setQuery(localQuery)
         }
+        debouncedQuery = localQuery
     }
 
-    // 仅 localQuery 非空时才收集搜索结果
-    val lazyItems = remember(localQuery) {
-        if (localQuery.isBlank()) null
-        else viewModel.searchResults
-    }?.collectAsLazyPagingItems()
+    // 每次搜索词变化，创建独立的 cold Paging flow
+    val searchFlow = remember(debouncedQuery) {
+        if (debouncedQuery.isBlank()) null
+        else viewModel.search(debouncedQuery)
+    }
+    val lazyItems = searchFlow?.collectAsLazyPagingItems()
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
