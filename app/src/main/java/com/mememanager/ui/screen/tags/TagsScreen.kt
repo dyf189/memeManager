@@ -15,11 +15,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -318,29 +320,26 @@ private fun ReorderableTagList(
     onEdit: (TagEntity) -> Unit,
     onDelete: (TagEntity?) -> Unit
 ) {
-    val listState = rememberLazyListState()
     var dragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var itemHeightPx by remember { mutableIntStateOf(80) }
+    val scrollState = rememberScrollState()
 
-    LazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        userScrollEnabled = dragIndex < 0 // 拖拽时禁止滚动
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState, enabled = dragIndex < 0)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
+        tags.forEachIndexed { index, tag ->
             val dragging = index == dragIndex
             Box(
                 modifier = Modifier
                     .zIndex(if (dragging) 1f else 0f)
                     .offset { IntOffset(0, if (dragging) dragOffset.roundToInt() else 0) }
-                    .onSizeChanged { itemHeightPx = it.height }
-                    .shadow(
-                        elevation = if (dragging) 12.dp else 0.dp,
-                        shape = RoundedCornerShape(14.dp),
-                        clip = false
-                    )
+                    .onSizeChanged { if (index == dragIndex) itemHeightPx = it.height }
+                    .shadow(if (dragging) 12.dp else 0.dp, RoundedCornerShape(14.dp))
             ) {
                 TagCard(
                     tag = tag,
@@ -350,14 +349,14 @@ private fun ReorderableTagList(
                     onDragStart = { dragIndex = index; dragOffset = 0f },
                     onDrag = { delta ->
                         dragOffset += delta
-                        val target = (index + (dragOffset / itemHeightPx).roundToInt()).coerceIn(0, tags.size - 1)
-                        if (target != index) {
+                        val target = (index + (dragOffset / itemHeightPx.coerceAtLeast(1)).roundToInt())
+                            .coerceIn(0, tags.size - 1)
+                        if (target != index && target != dragIndex) {
                             val reordered = tags.toMutableList()
                             reordered.removeAt(index)
                             reordered.add(target, tag)
                             onReorder(reordered)
                             dragOffset = 0f
-                            dragIndex = target
                         }
                     },
                     onDragEnd = { dragIndex = -1; dragOffset = 0f }
