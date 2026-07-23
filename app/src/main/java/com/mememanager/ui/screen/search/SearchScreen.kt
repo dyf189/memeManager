@@ -63,9 +63,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * 搜索页面
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -80,11 +77,8 @@ fun SearchScreen(
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
-    // 防抖后同步 ViewModel
     LaunchedEffect(localQuery) {
-        if (localQuery.isNotBlank()) {
-            kotlinx.coroutines.delay(300)
-        }
+        if (localQuery.isNotBlank()) kotlinx.coroutines.delay(300)
         viewModel.setQuery(localQuery)
     }
 
@@ -92,185 +86,156 @@ fun SearchScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 3.dp, end = 15.dp, top = 6.dp, bottom = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 3.dp, end = 15.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {
-                if (!hasNavigatedBack) { hasNavigatedBack = true; onBack() }
-            }) {
+            IconButton(onClick = { if (!hasNavigatedBack) { hasNavigatedBack = true; onBack() } }) {
                 Icon(Icons.Default.ArrowBack, "返回")
             }
             TextField(
                 value = localQuery,
                 onValueChange = { localQuery = it },
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
+                modifier = Modifier.weight(1f).focusRequester(focusRequester),
                 placeholder = { Text("搜索文件名、描述…") },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Search, "搜索") },
                 trailingIcon = {
-                    if (localQuery.isNotEmpty()) {
-                        IconButton(onClick = { localQuery = "" }) {
-                            Icon(Icons.Default.Close, "清除")
-                        }
-                    }
+                    if (localQuery.isNotEmpty()) IconButton(onClick = { localQuery = "" }) { Icon(Icons.Default.Close, "清除") }
                 },
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
+                colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
                 shape = RoundedCornerShape(24.dp)
             )
         }
 
         when {
-            localQuery.isBlank() -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("输入关键词开始搜索", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            localQuery.isBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("输入关键词开始搜索", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            lazyItems.loadState.refresh is LoadState.Loading && lazyItems.itemCount == 0 -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+            lazyItems.loadState.refresh is LoadState.Loading && lazyItems.itemCount == 0 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            lazyItems.itemCount == 0 && lazyItems.loadState.refresh !is LoadState.Loading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("无匹配结果", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            lazyItems.itemCount == 0 && lazyItems.loadState.refresh !is LoadState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("无匹配结果", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(lazyItems.itemCount) { index ->
-                        val item = lazyItems[index]
-                        item?.let { result ->
-                            SearchResultRow(
-                                item = result,
-                                onClick = { /* TODO: 详情页导航 */ }
-                            )
-                        }
-                    }
-                }
+            else -> LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(lazyItems.itemCount) { index -> lazyItems[index]?.let { SearchResultRow(item = it, onClick = { }) } }
             }
         }
     }
 }
 
 @Composable
-private fun SearchResultRow(
-    item: SearchResultItem,
-    onClick: () -> Unit
-) {
+private fun SearchResultRow(item: SearchResultItem, onClick: () -> Unit) {
     val media = item.mediaWithTags.media
     val context = LocalContext.current
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(File(media.filePath))
-                    .crossfade(true)
-                    .build(),
-                contentDescription = media.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                model = ImageRequest.Builder(context).data(File(media.filePath)).crossfade(true).build(),
+                contentDescription = media.name, contentScale = ContentScale.Crop,
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = highlightText(media.name, item.segments),
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = highlightTitle(media.name, item.segments), fontSize = 14.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface
                 )
-                val desc = media.description
-                if (!desc.isNullOrBlank()) {
+                if (!media.description.isNullOrBlank()) {
                     Text(
-                        text = highlightText(desc, item.segments),
-                        fontSize = 12.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = highlightDesc(media.description, item.segments), fontSize = 12.sp,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(
                     text = "${formatSize(media.size)} · ${formatDate(media.createdAt)}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
         }
     }
 }
 
-/**
- * 按 Jieba 分词结果逐词高亮（每个 segment 独立匹配，消除"卡了"中"卡"不高亮的问题）
- */
+// ── 智能高亮截断 ──
+
+private const val TITLE_MAX = 20
+private const val DESC_MAX = 40
+
 @Composable
-private fun highlightText(text: String, segments: List<String>) = buildAnnotatedString {
-    if (segments.isEmpty()) { append(text); return@buildAnnotatedString }
+private fun highlightTitle(text: String, segments: List<String>) = buildAnnotatedString {
+    val matches = findMatches(text, segments)
+    if (matches.isEmpty()) { append(truncate(text, TITLE_MAX)); return@buildAnnotatedString }
+    val m = matches.first()
+    val start = (m.first - TITLE_MAX / 2).coerceAtLeast(0)
+    val end = (start + TITLE_MAX).coerceAtMost(text.length)
+    appendWindow(text, matches, start, end, start > 0, end < text.length)
+}
+
+@Composable
+private fun highlightDesc(text: String, segments: List<String>) = buildAnnotatedString {
+    val matches = findMatches(text, segments)
+    if (matches.isEmpty()) { append(truncate(text, DESC_MAX)); return@buildAnnotatedString }
+    val span = matches.last().second - matches.first().first
+    if (span <= DESC_MAX) {
+        val start = (matches.first().first - 4).coerceAtLeast(0)
+        appendWindow(text, matches, start, (start + DESC_MAX).coerceAtMost(text.length), start > 0, (start + DESC_MAX) < text.length)
+    } else {
+        val m = matches.first()
+        val start = (m.first - 6).coerceAtLeast(0)
+        appendWindow(text, matches, start, (m.second + DESC_MAX - 6).coerceAtMost(text.length), start > 0, (m.second + DESC_MAX - 6) < text.length)
+    }
+}
+
+private fun findMatches(text: String, segments: List<String>): List<Pair<Int, Int>> {
+    if (segments.isEmpty()) return emptyList()
     val lower = text.lowercase()
-    // 收集所有匹配区间 [start, end)
-    val matches = mutableListOf<Pair<Int, Int>>()
+    val m = mutableListOf<Pair<Int, Int>>()
     for (seg in segments) {
-        val q = seg.lowercase()
-        var pos = 0
-        while (pos < text.length) {
-            val idx = lower.indexOf(q, pos)
-            if (idx < 0) break
-            matches.add(idx to idx + seg.length)
-            pos = idx + 1 // 允许重叠
+        val q = seg.lowercase(); var p = 0
+        while (p < text.length) {
+            val i = lower.indexOf(q, p); if (i < 0) break
+            m.add(i to i + seg.length); p = i + 1
         }
     }
-    // 合并重叠区间
-    matches.sortBy { it.first }
-    val merged = mutableListOf<Pair<Int, Int>>()
+    m.sortBy { it.first }
+    val r = mutableListOf<Pair<Int, Int>>()
+    for ((s, e) in m) {
+        if (r.isNotEmpty() && s <= r.last().second) r[r.lastIndex] = r.last().first to maxOf(r.last().second, e)
+        else r.add(s to e)
+    }
+    return r
+}
+
+private fun truncate(text: String, max: Int) = if (text.length <= max) text else text.take(max - 1) + "…"
+
+private fun androidx.compose.ui.text.AnnotatedString.Builder.appendWindow(
+    text: String, matches: List<Pair<Int, Int>>, ws: Int, we: Int, left: Boolean, right: Boolean
+) {
+    if (left) append("…")
+    var p = ws
     for ((s, e) in matches) {
-        if (merged.isNotEmpty() && s <= merged.last().second) {
-            merged[merged.lastIndex] = merged.last().first to maxOf(merged.last().second, e)
-        } else {
-            merged.add(s to e)
-        }
+        if (e <= ws) continue; if (s >= we) break
+        val cs = s.coerceIn(ws, we); val ce = e.coerceIn(ws, we)
+        if (cs > p) append(text.substring(p, cs))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFFF6B35))) { append(text.substring(cs, ce)) }
+        p = ce
     }
-    // 构建 AnnotatedString
-    var pos = 0
-    for ((s, e) in merged) {
-        if (s > pos) append(text.substring(pos, s))
-        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFFFF6B35))) {
-            append(text.substring(s, e))
-        }
-        pos = e
-    }
-    if (pos < text.length) append(text.substring(pos))
+    if (p < we) append(text.substring(p, we))
+    if (right) append("…")
 }
 
 private fun formatSize(bytes: Long): String {
     if (bytes < 1024) return "${bytes}B"
     val kb = bytes / 1024.0
     if (kb < 1024) return "%.1fKB".format(kb)
-    val mb = kb / 1024.0
-    return "%.1fMB".format(mb)
+    return "%.1fMB".format(kb / 1024.0)
 }
 
-private fun formatDate(timestamp: Long): String {
-    return SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
-}
+private fun formatDate(timestamp: Long): String =
+    SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
