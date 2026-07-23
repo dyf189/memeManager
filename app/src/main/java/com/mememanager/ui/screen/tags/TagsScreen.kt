@@ -48,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -163,10 +162,7 @@ fun TagsScreen(
                                     .padding(if (selected) 3.dp else 0.dp)
                                     .clip(CircleShape)
                                     .background(if (selected) Color(c) else Color.Transparent)
-                                    .pointerInput(c) {
-                                        awaitPointerEventScope { awaitPointerEvent() }
-                                        editColor = c
-                                    }
+                                    .clickable { editColor = c }
                             )
                         }
                     }
