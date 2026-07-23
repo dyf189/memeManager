@@ -54,4 +54,15 @@ object JiebaTokenizer {
             .map { it.word.trim() }
             .distinct()
     }
+
+    /**
+     * 文本 → FTS 存储内容（Jieba 分词后用空格拼接）
+     *
+     * 例："卡住了好" → "卡住 了 好"
+     */
+    fun toFtsContent(text: String): String {
+        if (text.isBlank()) return ""
+        return segmenter.process(text, JiebaSegmenter.SegMode.SEARCH)
+            .joinToString(" ") { it.word }
+    }
 }

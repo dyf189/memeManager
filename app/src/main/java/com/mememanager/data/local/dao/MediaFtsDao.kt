@@ -19,4 +19,13 @@ interface MediaFtsDao {
     @Transaction
     @RawQuery(observedEntities = [MediaEntity::class])
     fun search(query: SupportSQLiteQuery): PagingSource<Int, MediaWithTags>
+
+    @androidx.room.Query("INSERT INTO media_fts(rowid, name, description) VALUES (:id, :name, :desc)")
+    suspend fun insert(id: Long, name: String, desc: String)
+
+    @androidx.room.Query("UPDATE media_fts SET name = :name, description = :desc WHERE rowid = :id")
+    suspend fun update(id: Long, name: String, desc: String)
+
+    @androidx.room.Query("DELETE FROM media_fts WHERE rowid = :id")
+    suspend fun delete(id: Long)
 }

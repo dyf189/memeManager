@@ -4,6 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import com.mememanager.data.local.dao.MediaDao
+import com.mememanager.data.local.dao.MediaFtsDao
 import com.mememanager.data.local.dao.MediaTagRefDao
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaTagCrossRef
@@ -17,7 +18,8 @@ import javax.inject.Singleton
 @Singleton
 class MediaRepository @Inject constructor(
     private val mediaDao: MediaDao,
-    private val mediaTagRefDao: MediaTagRefDao
+    private val mediaTagRefDao: MediaTagRefDao,
+    private val mediaFtsDao: MediaFtsDao
 ) {
     companion object {
         private const val PAGE_SIZE = 30
@@ -48,26 +50,51 @@ class MediaRepository @Inject constructor(
 
     // ── CRUD ──
 
-    suspend fun insert(media: MediaEntity): Long =
-        mediaDao.insert(media)
+    suspend fun insert(media: MediaEntity): Long {
+        val id = mediaDao.insert(media)
+        syncFts(id, media.name, media.description ?: "")
+        return id
+    }
 
-    suspend fun update(media: MediaEntity) =
+    suspend fun update(media: MediaEntity) {
         mediaDao.update(media)
+        syncFts(media.id, media.name, media.description ?: "")
+    }
 
-    suspend fun delete(media: MediaEntity) =
+    suspend fun delete(media: MediaEntity) {
         mediaDao.delete(media)
+        mediaFtsDao.delete(media.id)
+    }
 
-    suspend fun deleteById(id: Long) =
+    suspend fun deleteById(id: Long) {
         mediaDao.deleteById(id)
+        mediaFtsDao.delete(id)
+    }
 
     // ── 回收站 ──
 
     suspend fun softDelete(id: Long) {
         mediaDao.softDelete(id, System.currentTimeMillis())
+        mediaFtsDao.delete(id)  // 软删也从 FTS 中移除
     }
 
     suspend fun restore(id: Long) {
         mediaDao.restore(id)
+        // 恢复时重建 FTS 条目
+        val media = mediaDao.getByIdSuspend(id) ?: return
+        syncFts(media.id, media.name, media.description ?: "")
+    }
+
+    // ── FTS 同步 ──
+
+    private suspend fun syncFts(id: Long, name: String, description: String) {
+        val tokenizedName = com.mememanager.util.JiebaTokenizer.toFtsContent(name)
+        val tokenizedDesc = com.mememanager.util.JiebaTokenizer.toFtsContent(description)
+        try {
+            mediaFtsDao.insert(id, tokenizedName, tokenizedDesc)
+        } catch (_: Exception) {
+            mediaFtsDao.update(id, tokenizedName, tokenizedDesc)
+        }
     }
 
     suspend fun purgeDeletedBefore(cutoffTime: Long): Int =

@@ -39,45 +39,21 @@ object DatabaseModule {
             "meme_manager.db"
         )
             .openHelperFactory(RequerySQLiteOpenHelperFactory())
-            .addMigrations(AppDatabase.MIGRATION_2_3)
+            .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    createFts(db)
-                    db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
-                }
-                override fun onOpen(db: SupportSQLiteDatabase) {
-                    createFts(db)
-                    // 兜底：FTS 表为空时全量重建（覆盖老数据未进索引的场景）
-                    try {
-                        val c = db.query("SELECT count(*) FROM media_fts")
-                        val empty = !c.moveToFirst() || c.getInt(0) == 0
-                        c.close()
-                        if (empty) db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
-                    } catch (_: Exception) {
-                        db.execSQL("INSERT INTO media_fts(media_fts) VALUES('rebuild')")
-                    }
-                }
-                private fun createFts(db: SupportSQLiteDatabase) {
                     db.execSQL("""
                         CREATE VIRTUAL TABLE IF NOT EXISTS media_fts USING fts5(
-                            name, description, content='media', content_rowid='id', tokenize='unicode61'
+                            name, description, tokenize='ascii'
                         )
                     """)
+                    // 存量填充——由 Repository 层调用（不在这里）
+                }
+                override fun onOpen(db: SupportSQLiteDatabase) {
                     db.execSQL("""
-                        CREATE TRIGGER IF NOT EXISTS media_fts_ai AFTER INSERT ON media BEGIN
-                            INSERT INTO media_fts(rowid, name, description)
-                            VALUES (new.id, new.name, new.description);
-                        END;
-                        CREATE TRIGGER IF NOT EXISTS media_fts_ad AFTER DELETE ON media BEGIN
-                            INSERT INTO media_fts(media_fts, rowid, name, description)
-                            VALUES ('delete', old.id, old.name, old.description);
-                        END;
-                        CREATE TRIGGER IF NOT EXISTS media_fts_au AFTER UPDATE ON media BEGIN
-                            INSERT INTO media_fts(media_fts, rowid, name, description)
-                            VALUES ('delete', old.id, old.name, old.description);
-                            INSERT INTO media_fts(rowid, name, description)
-                            VALUES (new.id, new.name, new.description);
-                        END;
+                        CREATE VIRTUAL TABLE IF NOT EXISTS media_fts USING fts5(
+                            name, description, tokenize='ascii'
+                        )
                     """)
                 }
             })
