@@ -30,14 +30,18 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.ripple.ripple
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Dialog
+import androidx.compose.material3.DialogProperties
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberRipple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -57,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -138,9 +144,9 @@ fun TagsScreen(
     showEditDialog?.let { tag ->
         var editName by remember(tag) { mutableStateOf(tag.name) }
         var editColor by remember(tag) { mutableIntStateOf(tag.bgColor) }
-        androidx.compose.material3.Dialog(
+        Dialog(
             onDismissRequest = { showEditDialog = null },
-            properties = androidx.compose.material3.DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -191,7 +197,7 @@ private fun ColorChip(color: Int, selected: Boolean, onClick: () -> Unit) {
             .background(Color.White, shape = shape)
             .then(if (selected) Modifier.border(2.dp, Color(0xFF1976D2), shape) else Modifier)
             .clip(shape)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple()) { onClick() }
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = rememberRipple()) { onClick() }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {

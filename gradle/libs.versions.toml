@@ -21,6 +21,7 @@ espressoCore = "3.7.0"
 foundation = "1.11.3"
 foundationLayout = "1.11.4"
 remoteCreationCore = "1.0.0-alpha15"
+ui = "1.11.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -58,6 +59,7 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 androidx-compose-remote-creation-core = { group = "androidx.compose.remote", name = "remote-creation-core", version.ref = "remoteCreationCore" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
