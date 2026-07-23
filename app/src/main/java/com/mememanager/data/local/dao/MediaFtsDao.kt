@@ -9,9 +9,7 @@ import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaWithTags
 
 /**
- * FTS5 全文搜索 DAO
- *
- * 使用 @RawQuery 绕过 Room 列名校验（FTS5 的 rank 不是实体列）。
+ * FTS5 全文搜索 DAO — 全部 @RawQuery（media_fts 不是 Room Entity）
  */
 @Dao
 interface MediaFtsDao {
@@ -20,12 +18,12 @@ interface MediaFtsDao {
     @RawQuery(observedEntities = [MediaEntity::class])
     fun search(query: SupportSQLiteQuery): PagingSource<Int, MediaWithTags>
 
-    @androidx.room.Query("INSERT INTO media_fts(rowid, name, description) VALUES (:id, :name, :desc)")
-    suspend fun insert(id: Long, name: String, desc: String)
+    @RawQuery
+    suspend fun insertFts(query: SupportSQLiteQuery): Long
 
-    @androidx.room.Query("UPDATE media_fts SET name = :name, description = :desc WHERE rowid = :id")
-    suspend fun update(id: Long, name: String, desc: String)
+    @RawQuery
+    suspend fun updateFts(query: SupportSQLiteQuery): Int
 
-    @androidx.room.Query("DELETE FROM media_fts WHERE rowid = :id")
-    suspend fun delete(id: Long)
+    @RawQuery
+    suspend fun deleteFts(query: SupportSQLiteQuery): Int
 }

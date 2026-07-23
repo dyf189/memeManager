@@ -3,6 +3,7 @@ package com.mememanager.data.repository
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.mememanager.data.local.dao.MediaDao
 import com.mememanager.data.local.dao.MediaFtsDao
 import com.mememanager.data.local.dao.MediaTagRefDao
@@ -63,19 +64,19 @@ class MediaRepository @Inject constructor(
 
     suspend fun delete(media: MediaEntity) {
         mediaDao.delete(media)
-        mediaFtsDao.delete(media.id)
+        mediaFtsDao.deleteFts(SimpleSQLiteQuery("DELETE FROM media_fts WHERE rowid = ?", arrayOf(media.id)))
     }
 
     suspend fun deleteById(id: Long) {
         mediaDao.deleteById(id)
-        mediaFtsDao.delete(id)
+        mediaFtsDao.deleteFts(SimpleSQLiteQuery("DELETE FROM media_fts WHERE rowid = ?", arrayOf(id)))
     }
 
     // ── 回收站 ──
 
     suspend fun softDelete(id: Long) {
         mediaDao.softDelete(id, System.currentTimeMillis())
-        mediaFtsDao.delete(id)  // 软删也从 FTS 中移除
+        mediaFtsDao.deleteFts(SimpleSQLiteQuery("DELETE FROM media_fts WHERE rowid = ?", arrayOf(id)))
     }
 
     suspend fun restore(id: Long) {
@@ -91,9 +92,19 @@ class MediaRepository @Inject constructor(
         val tokenizedName = com.mememanager.util.JiebaTokenizer.toFtsContent(name)
         val tokenizedDesc = com.mememanager.util.JiebaTokenizer.toFtsContent(description)
         try {
-            mediaFtsDao.insert(id, tokenizedName, tokenizedDesc)
+            mediaFtsDao.insertFts(
+                SimpleSQLiteQuery(
+                    "INSERT INTO media_fts(rowid, name, description) VALUES (?, ?, ?)",
+                    arrayOf(id, tokenizedName, tokenizedDesc)
+                )
+            )
         } catch (_: Exception) {
-            mediaFtsDao.update(id, tokenizedName, tokenizedDesc)
+            mediaFtsDao.updateFts(
+                SimpleSQLiteQuery(
+                    "UPDATE media_fts SET name = ?, description = ? WHERE rowid = ?",
+                    arrayOf(tokenizedName, tokenizedDesc, id)
+                )
+            )
         }
     }
 
