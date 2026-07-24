@@ -344,8 +344,7 @@ private fun ReorderableTagList(
             .fillMaxSize()
             .then(if (sortMode) Modifier.reorderable(state).detectReorderAfterLongPress(state) else Modifier)
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        userScrollEnabled = !sortMode || true // 库会自动处理
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         itemsIndexed(tags, key = { _, t -> t.id }) { _, tag ->
             ReorderableItem(state, key = tag.id) { isDragging ->
