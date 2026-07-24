@@ -1,5 +1,6 @@
 package com.mememanager.ui.screen.tags
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -50,6 +51,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -322,6 +324,7 @@ private fun EditTagDialog(
 
 // ── 拖拽排序 ──
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReorderableTagList(
     tags: List<TagEntity>,
@@ -330,8 +333,9 @@ private fun ReorderableTagList(
     onEdit: (TagEntity) -> Unit,
     onDelete: (TagEntity?) -> Unit
 ) {
+    val currentTags by rememberUpdatedState(tags)
     val state = rememberReorderableLazyListState(
-        onMove = { from, to -> onReorder(tags.toMutableList().apply { add(to.index, removeAt(from.index)) }) }
+        onMove = { from, to -> onReorder(currentTags.toMutableList().apply { add(to.index, removeAt(from.index)) }) }
     )
 
     LazyColumn(
