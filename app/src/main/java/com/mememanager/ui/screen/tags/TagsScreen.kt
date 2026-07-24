@@ -67,6 +67,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
+import org.burnoutcrew.reorderable.ReorderableItem
+import org.burnoutcrew.reorderable.detectReorderAfterLongPress
+import org.burnoutcrew.reorderable.rememberReorderableLazyListState
+import org.burnoutcrew.reorderable.reorderable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mememanager.data.local.entity.TagEntity
@@ -326,48 +330,27 @@ private fun ReorderableTagList(
     onEdit: (TagEntity) -> Unit,
     onDelete: (TagEntity?) -> Unit
 ) {
-    var dragIndex by remember { mutableIntStateOf(-1) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var itemHeightPx by remember { mutableIntStateOf(80) }
-    val scrollState = rememberScrollState()
+    val state = rememberReorderableLazyListState(
+        onMove = { from, to -> onReorder(tags.toMutableList().apply { add(to.index, removeAt(from.index)) }) }
+    )
 
-    Column(
+    LazyColumn(
+        state = state.listState,
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState, enabled = !sortMode)
+            .then(if (sortMode) Modifier.reorderable(state).detectReorderAfterLongPress(state) else Modifier)
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        userScrollEnabled = !sortMode || true // 库会自动处理
     ) {
-        tags.forEachIndexed { index, tag ->
-            val dragging = index == dragIndex && sortMode
-            Box(
-                modifier = Modifier
-                    .zIndex(if (dragging) 1f else 0f)
-                    .offset { IntOffset(0, if (dragging) dragOffset.roundToInt() else 0) }
-                    .onSizeChanged { if (index == dragIndex) itemHeightPx = it.height }
-                    .shadow(if (dragging) 12.dp else 0.dp, RoundedCornerShape(14.dp))
-            ) {
+        itemsIndexed(tags, key = { _, t -> t.id }) { _, tag ->
+            ReorderableItem(state, key = tag.id) { isDragging ->
                 TagCard(
                     tag = tag,
                     sortMode = sortMode,
-                    dragging = dragging,
+                    dragging = isDragging,
                     onEdit = { onEdit(tag) },
-                    onDelete = if (tag.isReserved) null else { { onDelete(tag) } },
-                    onDragStart = { if (sortMode) { dragIndex = index; dragOffset = 0f } },
-                    onDrag = { delta ->
-                        if (!sortMode) return@TagCard
-                        dragOffset += delta
-                        val target = (index + (dragOffset / itemHeightPx.coerceAtLeast(1)).roundToInt())
-                            .coerceIn(0, tags.size - 1)
-                        if (target != index && target != dragIndex) {
-                            val reordered = tags.toMutableList()
-                            reordered.removeAt(index)
-                            reordered.add(target, tag)
-                            onReorder(reordered)
-                            dragOffset = 0f
-                        }
-                    },
-                    onDragEnd = { dragIndex = -1; dragOffset = 0f }
+                    onDelete = if (tag.isReserved) null else { { onDelete(tag) } }
                 )
             }
         }
@@ -381,9 +364,6 @@ private fun TagCard(
     dragging: Boolean,
     onEdit: () -> Unit,
     onDelete: (() -> Unit)?,
-    onDragStart: () -> Unit,
-    onDrag: (Float) -> Unit,
-    onDragEnd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -396,22 +376,9 @@ private fun TagCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 拖拽手柄 — 仅在排序模式下显示
+            // 拖拽手柄 — 排序模式下显示，库自动处理长按拖拽
             if (sortMode) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .padding(end = 10.dp)
-                        .pointerInput(Unit) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { onDragStart() },
-                                onDrag = { change, dragAmount -> change.consume(); onDrag(dragAmount.y) },
-                                onDragEnd = { onDragEnd() },
-                                onDragCancel = { onDragEnd() }
-                            )
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(modifier = Modifier.size(36.dp).padding(end = 10.dp), contentAlignment = Alignment.Center) {
                     Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 }
             }

@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.jieba.analysis)
     implementation(libs.requery.sqlite)
+    implementation(libs.reorderable)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
