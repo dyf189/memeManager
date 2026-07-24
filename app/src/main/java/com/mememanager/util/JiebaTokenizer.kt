@@ -1,7 +1,6 @@
 package com.mememanager.util
 
 import com.huaban.analysis.jieba.JiebaSegmenter
-import com.huaban.analysis.jieba.SegToken
 
 /**
  * 结巴分词 + FTS5 MATCH 查询构建
@@ -31,29 +30,41 @@ object JiebaTokenizer {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return ""
 
-        val tokens: List<SegToken> = segmenter.process(trimmed, JiebaSegmenter.SegMode.SEARCH)
+        // 单字（只有 1 个 Unicode 字符）→ 直接匹配，不调 Jieba
+        val codePoints = trimmed.codePointCount(0, trimmed.length)
+        if (codePoints == 1) return "\"$trimmed\""
 
-        val words = tokens
+        // 包含空格 → 按空格拆开，各自分词后 OR 合并
+        if (trimmed.contains(" ")) {
+            val parts = trimmed.split(" ").filter { it.isNotBlank() }
+            if (parts.size > 1) {
+                return parts.joinToString(" OR ") { part ->
+                    val words = segmentRaw(part)
+                    if (words.isEmpty()) "\"$part\""
+                    else words.joinToString(" OR ") { "\"$it\"" }
+                }
+            }
+        }
+
+        // 常规多字词 → Jieba 分词 + phrase 查询
+        val words = segmentRaw(trimmed)
+        if (words.isEmpty()) return "\"$trimmed\""
+        return words.joinToString(" OR ") { "\"$it\"" }
+    }
+
+    /** 内部分词：去重 + 过滤 */ 
+    private fun segmentRaw(text: String): List<String> {
+        return segmenter.process(text, JiebaSegmenter.SegMode.SEARCH)
             .filter { it.word.isNotBlank() }
             .map { it.word.trim() }
             .filter { w -> w.length >= 2 || w.any { it.code > 127 } }
-
-        if (words.isEmpty()) return "\"$trimmed\""
-
-        return words.distinct().joinToString(" OR ") { "\"$it\"" }
+            .distinct()
     }
 
     /**
      * 用户输入 → 分词列表（用于 UI 高亮）
      */
-    fun segment(query: String): List<String> {
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) return emptyList()
-        return segmenter.process(trimmed, JiebaSegmenter.SegMode.SEARCH)
-            .filter { it.word.isNotBlank() }
-            .map { it.word.trim() }
-            .distinct()
-    }
+    fun segment(query: String): List<String> = segmentRaw(query)
 
     /**
      * 文本 → FTS 存储内容（Jieba 分词后用空格拼接）

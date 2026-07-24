@@ -27,13 +27,10 @@ data class TimeGroup(
  */
 object TimeGroupUtil {
 
-    private const val MINUTE_MS = 60_000L
-    private const val HOUR_MS = 3600_000L
     private const val DAY_MS = 86_400_000L
 
     fun getGroup(timestamp: Long): TimeGroup {
         val now = System.currentTimeMillis()
-        val diff = now - timestamp
 
         val todayStart = getDayStart(now)
         val yesterdayStart = todayStart - DAY_MS
@@ -42,9 +39,7 @@ object TimeGroupUtil {
         val yearStart = getYearStart(now)
 
         return when {
-            diff < MINUTE_MS -> TimeGroup("刚刚", todayStart + 100)
-            diff < HOUR_MS -> TimeGroup("${diff / MINUTE_MS}分钟前", todayStart + 90)
-            timestamp >= todayStart -> TimeGroup("${diff / HOUR_MS}小时前", todayStart + 80)
+            timestamp >= todayStart -> TimeGroup("今天", todayStart + 100)
             timestamp >= yesterdayStart -> TimeGroup("昨天", yesterdayStart + 70)
             timestamp >= dayBeforeYesterdayStart -> TimeGroup("前天", dayBeforeYesterdayStart + 60)
             timestamp >= threeDaysAgoStart -> TimeGroup("三天前", threeDaysAgoStart + 50)
