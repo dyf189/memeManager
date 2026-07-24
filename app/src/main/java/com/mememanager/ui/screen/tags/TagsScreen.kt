@@ -60,6 +60,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -69,9 +71,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mememanager.data.local.entity.TagEntity
@@ -323,7 +322,6 @@ private fun EditTagDialog(
 
 // ── 拖拽排序 ──
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReorderableTagList(
     tags: List<TagEntity>,
@@ -332,25 +330,50 @@ private fun ReorderableTagList(
     onEdit: (TagEntity) -> Unit,
     onDelete: (TagEntity?) -> Unit
 ) {
-    val currentTags by rememberUpdatedState(tags)
-    val state = rememberReorderableLazyListState(
-        onMove = { from, to -> onReorder(currentTags.toMutableList().apply { add(to.index, removeAt(from.index)) }) }
-    )
+    val listState = rememberLazyListState()
+    var dragIndex by remember { mutableIntStateOf(-1) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
 
     LazyColumn(
-        state = state.listState,
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (sortMode) Modifier.reorderable(state) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+        state = listState,
+        userScrollEnabled = dragIndex < 0 || !sortMode,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        itemsIndexed(tags, key = { _, t -> t.id }) { _, tag ->
-            ReorderableItem(state, key = tag.id) { isDragging ->
+        itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
+            val dragging = index == dragIndex && sortMode
+            Box(
+                modifier = Modifier
+                    .zIndex(if (dragging) 1f else 0f)
+                    .graphicsLayer {
+                        translationY = if (dragging) dragOffset else 0f
+                        scaleX = if (dragging) 1.03f else 1f
+                        scaleY = if (dragging) 1.03f else 1f
+                        shadowElevation = if (dragging) 16f else 0f
+                    }
+                    .then(
+                        if (sortMode) Modifier.pointerInput(tag.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { dragIndex = index; dragOffset = 0f },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    dragOffset += amount.y
+                                    val itemH = with(density) { 80.dp.toPx() }
+                                    val target = (index + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
+                                    if (target != index) {
+                                        onReorder(tags.toMutableList().apply { add(target, removeAt(index)) })
+                                        dragOffset = 0f; dragIndex = target
+                                    }
+                                },
+                                onDragEnd = { dragIndex = -1; dragOffset = 0f },
+                                onDragCancel = { dragIndex = -1; dragOffset = 0f }
+                            )
+                        } else Modifier
+                    )
+            ) {
                 TagCard(
-                    tag = tag,
-                    sortMode = sortMode,
-                    dragging = isDragging,
+                    tag = tag, sortMode = sortMode,
                     onEdit = { onEdit(tag) },
                     onDelete = if (tag.isReserved) null else { { onDelete(tag) } }
                 )
@@ -363,7 +386,6 @@ private fun ReorderableTagList(
 private fun TagCard(
     tag: TagEntity,
     sortMode: Boolean,
-    dragging: Boolean,
     onEdit: () -> Unit,
     onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier
@@ -372,7 +394,7 @@ private fun TagCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (dragging) 0.dp else 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
