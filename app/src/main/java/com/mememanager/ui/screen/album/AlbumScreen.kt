@@ -89,22 +89,11 @@ fun AlbumScreen(
     val tags by viewModel.tags.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // ── 图片选择器 ──
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
-    ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            viewModel.importMedia(uris)
-        }
-    }
-
-    // ── 文件选择器（SAF） ──
-    val filePickerLauncher = rememberLauncherForActivityResult(
+    // ── 媒体选择器（OpenMultipleDocuments，兼容所有 ROM）──
+    val mediaPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            viewModel.importMedia(uris)
-        }
+        if (uris.isNotEmpty()) viewModel.importMedia(uris)
     }
 
     var showImportMenu by remember { mutableStateOf(false) }
@@ -268,19 +257,10 @@ fun AlbumScreen(
                     onDismissRequest = { showImportMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("从相册导入") },
+                        text = { Text("导入媒体") },
                         onClick = {
                             showImportMenu = false
-                            imagePickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
-                            )
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("从文件导入") },
-                        onClick = {
-                            showImportMenu = false
-                            filePickerLauncher.launch(arrayOf("image/*", "video/*"))
+                            mediaPickerLauncher.launch(arrayOf("image/*", "video/*"))
                         }
                     )
                 }
