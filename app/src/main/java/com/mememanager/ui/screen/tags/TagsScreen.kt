@@ -70,7 +70,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
 import org.burnoutcrew.reorderable.reorderable
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -342,7 +341,7 @@ private fun ReorderableTagList(
         state = state.listState,
         modifier = Modifier
             .fillMaxSize()
-            .then(if (sortMode) Modifier.reorderable(state).detectReorderAfterLongPress(state) else Modifier)
+            .then(if (sortMode) Modifier.reorderable(state) else Modifier)
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
