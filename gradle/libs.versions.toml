@@ -2,7 +2,7 @@
 agp = "9.2.1"
 kotlin = "2.2.10"
 ksp = "2.3.9"
-composeBom = "2026.06.00"
+composeBom = "2026.06.01"
 coreKtx = "1.19.0"
 lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
@@ -38,7 +38,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 jieba-analysis = { group = "com.huaban", name = "jieba-analysis", version = "1.0.2" }
-reorderable = { group = "org.burnoutcrew.composereorderable", name = "reorderable", version = "0.9.4" }
+reorderable = { group = "org.burnoutcrew.composereorderable", name = "reorderable", version = "0.9.6" }
 requery-sqlite = { group = "com.github.requery", name = "sqlite-android", version = "3.43.0" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
