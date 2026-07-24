@@ -85,6 +85,7 @@ fun TagsScreen(
     var showDeleteConfirm by remember { mutableStateOf<TagEntity?>(null) }
     var showEditDialog by remember { mutableStateOf<TagEntity?>(null) }
     var newName by remember { mutableStateOf("") }
+    var sortMode by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -101,6 +102,9 @@ fun TagsScreen(
                 Icon(Icons.Default.Add, null, Modifier.size(20.dp))
                 Text("新建")
             }
+            TextButton(onClick = { sortMode = !sortMode }) {
+                Text(if (sortMode) "完成" else "排序", fontSize = 14.sp)
+            }
         }
 
         if (tags.isEmpty()) {
@@ -114,6 +118,7 @@ fun TagsScreen(
         } else {
             ReorderableTagList(
                 tags = tags,
+                sortMode = sortMode,
                 onReorder = { viewModel.updateSortOrder(it) },
                 onEdit = { showEditDialog = it },
                 onDelete = { showDeleteConfirm = it }
@@ -316,6 +321,7 @@ private fun EditTagDialog(
 @Composable
 private fun ReorderableTagList(
     tags: List<TagEntity>,
+    sortMode: Boolean,
     onReorder: (List<TagEntity>) -> Unit,
     onEdit: (TagEntity) -> Unit,
     onDelete: (TagEntity?) -> Unit
@@ -328,12 +334,12 @@ private fun ReorderableTagList(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(scrollState, enabled = dragIndex < 0)
+            .verticalScroll(scrollState, enabled = !sortMode)
             .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         tags.forEachIndexed { index, tag ->
-            val dragging = index == dragIndex
+            val dragging = index == dragIndex && sortMode
             Box(
                 modifier = Modifier
                     .zIndex(if (dragging) 1f else 0f)
@@ -343,11 +349,13 @@ private fun ReorderableTagList(
             ) {
                 TagCard(
                     tag = tag,
+                    sortMode = sortMode,
                     dragging = dragging,
                     onEdit = { onEdit(tag) },
                     onDelete = if (tag.isReserved) null else { { onDelete(tag) } },
-                    onDragStart = { dragIndex = index; dragOffset = 0f },
+                    onDragStart = { if (sortMode) { dragIndex = index; dragOffset = 0f } },
                     onDrag = { delta ->
+                        if (!sortMode) return@TagCard
                         dragOffset += delta
                         val target = (index + (dragOffset / itemHeightPx.coerceAtLeast(1)).roundToInt())
                             .coerceIn(0, tags.size - 1)
@@ -369,6 +377,7 @@ private fun ReorderableTagList(
 @Composable
 private fun TagCard(
     tag: TagEntity,
+    sortMode: Boolean,
     dragging: Boolean,
     onEdit: () -> Unit,
     onDelete: (() -> Unit)?,
@@ -387,22 +396,24 @@ private fun TagCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 拖拽手柄 — 足够大的触摸面积
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .padding(end = 10.dp)
-                    .pointerInput(Unit) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { onDragStart() },
-                            onDrag = { change, dragAmount -> change.consume(); onDrag(dragAmount.y) },
-                            onDragEnd = { onDragEnd() },
-                            onDragCancel = { onDragEnd() }
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+            // 拖拽手柄 — 仅在排序模式下显示
+            if (sortMode) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .padding(end = 10.dp)
+                        .pointerInput(Unit) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { onDragStart() },
+                                onDrag = { change, dragAmount -> change.consume(); onDrag(dragAmount.y) },
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragEnd() }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                }
             }
             Box(Modifier.size(32.dp).clip(CircleShape).background(Color(tag.bgColor)))
             Spacer(Modifier.width(14.dp))
