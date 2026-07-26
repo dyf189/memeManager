@@ -443,21 +443,7 @@ private fun ReorderableTagList(
                     tag = tag, sortMode = sortMode,
                     dragging = isDragged,
                     onEdit = { onEdit(tag) },
-                    onDelete = if (tag.isReserved) null else { { onDelete(tag) } },
-                    onDragStart = {
-                        dragIndex = index; dragOffset = 0f
-                        scope.launch { scaleAnim.animateTo(1.03f, liftSpec); shadowAnim.animateTo(16f, liftSpec) }
-                    },
-                    onDrag = { delta, pointerY -> dragOffset += delta; dragPointerY = pointerY },
-                    onDragEnd = {
-                        val finalTarget = (dragIndex + (dragOffset / itemH).roundToInt())
-                            .coerceIn(0, tags.size - 1)
-                        if (finalTarget != dragIndex) {
-                            onReorder(tags.toMutableList().apply { add(finalTarget, removeAt(dragIndex)) })
-                        }
-                        dragIndex = -1; dragOffset = 0f
-                        scope.launch { scaleAnim.animateTo(1f, spring()); shadowAnim.animateTo(0f, spring()) }
-                    }
+                    onDelete = if (tag.isReserved) null else { { onDelete(tag) } }
                 )
             }
         }
@@ -471,9 +457,6 @@ private fun TagCard(
     dragging: Boolean,
     onEdit: () -> Unit,
     onDelete: (() -> Unit)?,
-    onDragStart: () -> Unit = {},
-    onDrag: (Float, Float) -> Unit = { _, _ -> },
-    onDragEnd: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
