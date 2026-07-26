@@ -384,14 +384,14 @@ private fun ReorderableTagList(
 
     // 松手后先动画回落，再真正重置（避免 snap + reorder 同时导致视觉跳动）
     fun endDrag() {
-        if (targetIndex != dragIndex && dragIndex >= 0) {
-            onReorder(tags.toMutableList().apply { add(targetIndex, removeAt(dragIndex)) })
+        val finalTarget = (dragIndex + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
+        if (finalTarget != dragIndex && dragIndex >= 0) {
+            onReorder(tags.toMutableList().apply { add(finalTarget, removeAt(dragIndex)) })
         }
         scope.launch {
             scaleAnim.animateTo(1f, spring())
             shadowAnim.animateTo(0f, spring())
         }
-        // 延迟重置让动画播完
         scope.launch {
             kotlinx.coroutines.delay(200)
             dragIndex = -1; dragOffset = 0f
