@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -367,7 +369,7 @@ private fun ReorderableTagList(
         val info = listState.layoutInfo
         val viewportTop = info.viewportStartOffset
         val viewportBottom = viewportTop + info.viewportEndOffset
-        val zone = 80.dp.toPx()
+        val zone = with(density) { 80.dp.toPx() }
         while (dragIndex >= 0) {
             val pointer = dragPointerY
             val speed = when {
