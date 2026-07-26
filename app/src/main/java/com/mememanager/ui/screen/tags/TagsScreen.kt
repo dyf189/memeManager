@@ -345,18 +345,20 @@ private fun ReorderableTagList(
     onDelete: (TagEntity?) -> Unit
 ) {
     val listState = rememberLazyListState()
-    var draggingTags by remember(tags) { mutableStateOf(tags) }
     var dragIndex by remember { mutableIntStateOf(-1) }
-    var originalDragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
-    // lift 动画
     val scaleAnim = remember { Animatable(1f) }
     val shadowAnim = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val liftSpec = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
+
+    val itemH = if (itemHeightPx > 0f) itemHeightPx else with(density) { 90.dp.toPx() }
+    val targetIndex = if (dragIndex >= 0) {
+        (dragIndex + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
+    } else -1
 
     LazyColumn(
         state = listState,
@@ -364,45 +366,42 @@ private fun ReorderableTagList(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        itemsIndexed(draggingTags, key = { _, t -> t.id }) { index, tag ->
-            val dragging = index == dragIndex
+        itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
+            // 纯视觉偏移，不改变列表顺序
+            val visualOffset = when {
+                dragIndex < 0 -> 0f
+                index == dragIndex -> dragOffset
+                targetIndex > dragIndex && index in (dragIndex + 1)..targetIndex -> -itemH
+                targetIndex < dragIndex && index in targetIndex..<dragIndex -> itemH
+                else -> 0f
+            }
+            val isDragged = index == dragIndex
             Box(
                 modifier = Modifier
-                    .zIndex(if (dragging) 1f else 0f)
+                    .zIndex(if (isDragged) 1f else 0f)
                     .onSizeChanged { if (itemHeightPx == 0f) itemHeightPx = it.height.toFloat() }
                     .graphicsLayer {
-                        translationY = if (dragging) dragOffset else 0f
-                        scaleX = scaleAnim.value; scaleY = scaleAnim.value
-                        shadowElevation = shadowAnim.value
+                        translationY = visualOffset
+                        scaleX = if (isDragged) scaleAnim.value else 1f
+                        scaleY = if (isDragged) scaleAnim.value else 1f
+                        shadowElevation = if (isDragged) shadowAnim.value else 0f
                         clip = false
                     }
             ) {
                 TagCard(
                     tag = tag, sortMode = sortMode,
-                    dragging = dragging,
+                    dragging = isDragged,
                     onEdit = { onEdit(tag) },
                     onDelete = if (tag.isReserved) null else { { onDelete(tag) } },
                     onDragStart = {
-                        dragIndex = index; originalDragIndex = index; dragOffset = 0f
-                        draggingTags = tags
-                        scope.launch {
-                            scaleAnim.animateTo(1.03f, liftSpec)
-                            shadowAnim.animateTo(16f, liftSpec)
-                        }
+                        dragIndex = index; dragOffset = 0f
+                        scope.launch { scaleAnim.animateTo(1.03f, liftSpec); shadowAnim.animateTo(16f, liftSpec) }
                     },
-                    onDrag = { amount ->
-                        dragOffset += amount
-                        val itemH = if (itemHeightPx > 0f) itemHeightPx else with(density) { 90.dp.toPx() }
-                        val target = (originalDragIndex + (dragOffset / itemH).roundToInt())
-                            .coerceIn(0, draggingTags.size - 1)
-                        if (target != dragIndex) {
-                            draggingTags = draggingTags.toMutableList().apply { add(target, removeAt(dragIndex)) }
-                            dragOffset += if (target < dragIndex) itemH else -itemH
-                            dragIndex = target
-                        }
-                    },
+                    onDrag = { amount -> dragOffset += amount },
                     onDragEnd = {
-                        onReorder(draggingTags)
+                        if (targetIndex != dragIndex) {
+                            onReorder(tags.toMutableList().apply { add(targetIndex, removeAt(dragIndex)) })
+                        }
                         dragIndex = -1; dragOffset = 0f
                         scope.launch { scaleAnim.animateTo(1f, spring()); shadowAnim.animateTo(0f, spring()) }
                     }
