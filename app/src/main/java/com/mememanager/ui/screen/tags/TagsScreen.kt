@@ -1,10 +1,13 @@
 package com.mememanager.ui.screen.tags
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -331,51 +334,60 @@ private fun ReorderableTagList(
     onDelete: (TagEntity?) -> Unit
 ) {
     val listState = rememberLazyListState()
+    var draggingTags by remember(tags) { mutableStateOf(tags) }
     var dragIndex by remember { mutableIntStateOf(-1) }
+    var originalDragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
+    // lift 动画
+    val scaleAnim = remember { Animatable(1f) }
+    val shadowAnim = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
     LazyColumn(
         state = listState,
-        userScrollEnabled = dragIndex < 0 || !sortMode,
+        userScrollEnabled = dragIndex < 0,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
-            val dragging = index == dragIndex && sortMode
+        itemsIndexed(draggingTags, key = { _, t -> t.id }) { index, tag ->
+            val dragging = index == dragIndex
             Box(
                 modifier = Modifier
                     .zIndex(if (dragging) 1f else 0f)
                     .graphicsLayer {
                         translationY = if (dragging) dragOffset else 0f
-                        scaleX = if (dragging) 1.03f else 1f
-                        scaleY = if (dragging) 1.03f else 1f
-                        shadowElevation = if (dragging) 16f else 0f
+                        scaleX = scaleAnim.value; scaleY = scaleAnim.value
+                        shadowElevation = shadowAnim.value
+                        clip = false
                     }
-                    .then(
-                        if (sortMode) Modifier.pointerInput(tag.id) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { dragIndex = index; dragOffset = 0f },
-                                onDrag = { change, amount ->
-                                    change.consume()
-                                    dragOffset += amount.y
-                                    val itemH = with(density) { 80.dp.toPx() }
-                                    val target = (index + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
-                                    if (target != index) {
-                                        onReorder(tags.toMutableList().apply { add(target, removeAt(index)) })
-                                        dragOffset = 0f; dragIndex = target
-                                    }
-                                },
-                                onDragEnd = { dragIndex = -1; dragOffset = 0f },
-                                onDragCancel = { dragIndex = -1; dragOffset = 0f }
-                            )
-                        } else Modifier
-                    )
             ) {
                 TagCard(
                     tag = tag, sortMode = sortMode,
+                    dragging = dragging,
                     onEdit = { onEdit(tag) },
-                    onDelete = if (tag.isReserved) null else { { onDelete(tag) } }
+                    onDelete = if (tag.isReserved) null else { { onDelete(tag) } },
+                    onDragStart = {
+                        dragIndex = index; originalDragIndex = index; dragOffset = 0f
+                        draggingTags = tags
+                        scope.launch { scaleAnim.snapTo(1.03f); shadowAnim.snapTo(16f) }
+                    },
+                    onDrag = { amount ->
+                        dragOffset += amount
+                        val itemH = with(density) { 80.dp.toPx() }
+                        val target = (originalDragIndex + (dragOffset / itemH).roundToInt())
+                            .coerceIn(0, draggingTags.size - 1)
+                        if (target != dragIndex) {
+                            draggingTags = draggingTags.toMutableList().apply { add(target, removeAt(dragIndex)) }
+                            dragIndex = target
+                        }
+                    },
+                    onDragEnd = {
+                        onReorder(draggingTags)
+                        dragIndex = -1; dragOffset = 0f
+                        scope.launch { scaleAnim.animateTo(1f, spring()); shadowAnim.animateTo(0f, spring()) }
+                    }
                 )
             }
         }
@@ -386,8 +398,12 @@ private fun ReorderableTagList(
 private fun TagCard(
     tag: TagEntity,
     sortMode: Boolean,
+    dragging: Boolean,
     onEdit: () -> Unit,
     onDelete: (() -> Unit)?,
+    onDragStart: () -> Unit = {},
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -400,13 +416,27 @@ private fun TagCard(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 拖拽手柄 — 排序模式下显示，库自动处理长按拖拽
-            if (sortMode) {
-                Box(modifier = Modifier.size(36.dp).padding(end = 10.dp), contentAlignment = Alignment.Center) {
-                    Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+            // 拖拽手柄 + 色块 — 按下即触发拖拽
+            Box(
+                modifier = Modifier
+                    .then(
+                        if (sortMode) Modifier.pointerInput(tag.id) {
+                            detectDragGestures(
+                                onDragStart = { onDragStart() },
+                                onDrag = { change, amount -> change.consume(); onDrag(amount.y) },
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragEnd() }
+                            )
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (sortMode) 0.5f else 0f),
+                        modifier = Modifier.padding(end = 10.dp))
+                    Box(Modifier.size(32.dp).clip(CircleShape).background(Color(tag.bgColor)))
                 }
             }
-            Box(Modifier.size(32.dp).clip(CircleShape).background(Color(tag.bgColor)))
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(tag.name, fontSize = 16.sp, fontWeight = FontWeight.Medium)
