@@ -171,8 +171,7 @@ fun TagsScreen(
                 TextButton(onClick = {
                     viewModel.deleteTag(tag); showDeleteConfirm = null
                 }) { Text(
-                    text = "重置",
-                    fontSize = 12.sp,
+                    text = "删除",
                     color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold
                 ) }
@@ -348,6 +347,7 @@ private fun ReorderableTagList(
     val listState = rememberLazyListState()
     var dragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragPointerY by remember { mutableFloatStateOf(0f) }
     var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
@@ -360,6 +360,25 @@ private fun ReorderableTagList(
     val targetIndex = if (dragIndex >= 0) {
         (dragIndex + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
     } else -1
+
+    // 边缘自动滚动
+    LaunchedEffect(dragIndex, dragPointerY) {
+        if (dragIndex < 0) return@LaunchedEffect
+        val info = listState.layoutInfo
+        val viewportTop = info.viewportStartOffset
+        val viewportBottom = viewportTop + info.viewportEndOffset
+        val zone = 80.dp.toPx()
+        while (dragIndex >= 0) {
+            val pointer = dragPointerY
+            val speed = when {
+                pointer > 0f && pointer < viewportTop + zone -> ((viewportTop + zone - pointer) / zone * 8f).roundToInt()
+                pointer < viewportBottom && pointer > viewportBottom - zone -> -((pointer - viewportBottom + zone) / zone * 8f).roundToInt()
+                else -> 0
+            }
+            if (speed != 0) listState.scrollBy(speed.toFloat())
+            kotlinx.coroutines.delay(16) // ~60fps
+        }
+    }
 
     LazyColumn(
         state = listState,
@@ -398,7 +417,7 @@ private fun ReorderableTagList(
                         dragIndex = index; dragOffset = 0f
                         scope.launch { scaleAnim.animateTo(1.03f, liftSpec); shadowAnim.animateTo(16f, liftSpec) }
                     },
-                    onDrag = { amount -> dragOffset += amount },
+                    onDrag = { delta, pointerY -> dragOffset += delta; dragPointerY = pointerY },
                     onDragEnd = {
                         val finalTarget = (dragIndex + (dragOffset / itemH).roundToInt())
                             .coerceIn(0, tags.size - 1)
@@ -422,7 +441,7 @@ private fun TagCard(
     onEdit: () -> Unit,
     onDelete: (() -> Unit)?,
     onDragStart: () -> Unit = {},
-    onDrag: (Float) -> Unit = {},
+    onDrag: (Float, Float) -> Unit = { _, _ -> },
     onDragEnd: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -443,7 +462,7 @@ private fun TagCard(
                         if (sortMode) Modifier.pointerInput(tag.id) {
                             detectDragGestures(
                                 onDragStart = { onDragStart() },
-                                onDrag = { change, amount -> change.consume(); onDrag(amount.y) },
+                                onDrag = { change, amount -> change.consume(); onDrag(amount.y, change.position.y) },
                                 onDragEnd = { onDragEnd() },
                                 onDragCancel = { onDragEnd() }
                             )
