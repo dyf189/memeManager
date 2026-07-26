@@ -349,6 +349,7 @@ private fun ReorderableTagList(
     val listState = rememberLazyListState()
     var dragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragOffsetAnim by remember { mutableFloatStateOf(0f) }
     var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
@@ -362,19 +363,15 @@ private fun ReorderableTagList(
         (dragIndex + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
     } else -1
 
-    // 边缘自动滚动
-    LaunchedEffect(dragIndex, dragOffset) {
+    // 边缘自动滚动 — 只监听 dragIndex 启停，不因 dragOffset 变化重启
+    LaunchedEffect(dragIndex) {
         if (dragIndex < 0) return@LaunchedEffect
         while (dragIndex >= 0) {
             val info = listState.layoutInfo.visibleItemsInfo
             val first = info.firstOrNull()?.index ?: 0
             val last = info.lastOrNull()?.index ?: 0
-            val topEdge = first + 1
-            val bottomEdge = last - 1
-            when {
-                dragIndex <= topEdge -> listState.scrollBy(-itemH * 0.3f)
-                dragIndex >= bottomEdge -> listState.scrollBy(itemH * 0.3f)
-            }
+            if (dragIndex <= first + 1) listState.scrollBy(-itemH * 0.3f)
+            else if (dragIndex >= last - 1) listState.scrollBy(itemH * 0.3f)
             kotlinx.coroutines.delay(16)
         }
     }
@@ -385,13 +382,20 @@ private fun ReorderableTagList(
         if (finalTarget != dragIndex && dragIndex >= 0) {
             onReorder(tags.toMutableList().apply { add(finalTarget, removeAt(dragIndex)) })
         }
+        // 弹簧回弹拖拽位移
+        scope.launch {
+            val start = dragOffset
+            dragOffset = 0f
+            val bounce = Animatable(start)
+            bounce.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 300f)) { value, _ -> dragOffsetAnim = value }
+        }
         scope.launch {
             scaleAnim.animateTo(1f, spring())
             shadowAnim.animateTo(0f, spring())
         }
         scope.launch {
             kotlinx.coroutines.delay(200)
-            dragIndex = -1; dragOffset = 0f
+            dragIndex = -1; dragOffset = 0f; dragOffsetAnim = 0f
         }
     }
 
@@ -403,7 +407,7 @@ private fun ReorderableTagList(
     ) {
         itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
             val isDragged = index == dragIndex
-            val visualOffset = if (isDragged) dragOffset else {
+            val visualOffset = if (isDragged) dragOffsetAnim else {
                 val raw = when {
                     targetIndex > dragIndex && index in (dragIndex + 1)..targetIndex -> -itemH
                     targetIndex < dragIndex && index in targetIndex..<dragIndex -> itemH
@@ -421,11 +425,12 @@ private fun ReorderableTagList(
                             detectDragGestures(
                                 onDragStart = {
                                     dragIndex = index; dragOffset = 0f
+                                    dragOffsetAnim = 0f
                                     scope.launch { scaleAnim.animateTo(1.03f, liftSpec); shadowAnim.animateTo(16f, liftSpec) }
                                 },
-                                onDrag = { change, amount -> change.consume(); dragOffset += amount.y },
+                                onDrag = { change, amount -> change.consume(); dragOffset += amount.y; dragOffsetAnim = dragOffset },
                                 onDragEnd = { endDrag() },
-                                onDragCancel = { dragIndex = -1; dragOffset = 0f }
+                                onDragCancel = { dragIndex = -1; dragOffset = 0f; dragOffsetAnim = 0f }
                             )
                         } else Modifier
                     )
