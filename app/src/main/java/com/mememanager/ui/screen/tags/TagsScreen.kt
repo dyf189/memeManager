@@ -414,6 +414,7 @@ private fun ReorderableTagList(
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragged) 1f else 0f)
+                    .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else visualOffset.roundToInt()) }
                     .onSizeChanged { if (itemHeightPx == 0f) itemHeightPx = it.height.toFloat() }
                     .then(
                         if (sortMode) Modifier.pointerInput(tag.id) {
@@ -429,7 +430,6 @@ private fun ReorderableTagList(
                         } else Modifier
                     )
                     .graphicsLayer {
-                        translationY = visualOffset
                         scaleX = if (isDragged) scaleAnim.value else 1f
                         scaleY = if (isDragged) scaleAnim.value else 1f
                         shadowElevation = if (isDragged) shadowAnim.value else 0f
