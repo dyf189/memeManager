@@ -349,6 +349,7 @@ private fun ReorderableTagList(
     var dragIndex by remember { mutableIntStateOf(-1) }
     var originalDragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
     // lift 动画
@@ -368,6 +369,7 @@ private fun ReorderableTagList(
             Box(
                 modifier = Modifier
                     .zIndex(if (dragging) 1f else 0f)
+                    .onSizeChanged { if (itemHeightPx == 0f) itemHeightPx = it.height.toFloat() }
                     .graphicsLayer {
                         translationY = if (dragging) dragOffset else 0f
                         scaleX = scaleAnim.value; scaleY = scaleAnim.value
@@ -390,12 +392,11 @@ private fun ReorderableTagList(
                     },
                     onDrag = { amount ->
                         dragOffset += amount
-                        val itemH = with(density) { 80.dp.toPx() }
+                        val itemH = if (itemHeightPx > 0f) itemHeightPx else with(density) { 90.dp.toPx() }
                         val target = (originalDragIndex + (dragOffset / itemH).roundToInt())
                             .coerceIn(0, draggingTags.size - 1)
                         if (target != dragIndex) {
                             draggingTags = draggingTags.toMutableList().apply { add(target, removeAt(dragIndex)) }
-                            // 补偿位移：item 已在列表中移动了一个位置，抵消掉这部分位移
                             dragOffset += if (target < dragIndex) itemH else -itemH
                             dragIndex = target
                         }
