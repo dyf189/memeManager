@@ -95,7 +95,7 @@ fun TagsScreen(
     var showEditDialog by remember { mutableStateOf<TagEntity?>(null) }
     var newName by remember { mutableStateOf("") }
     var sortMode by remember { mutableStateOf(false) }
-    var customColors by remember { mutableStateOf(PRESET_COLORS.toMutableList()) }
+    var customColors by remember { mutableStateOf<List<Int>>(PRESET_COLORS.toMutableList()) }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
