@@ -368,6 +368,7 @@ private fun ReorderableTagList(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
+            val isDragged = index == dragIndex
             val visualOffset = if (isDragged) dragOffset else {
                 val raw = when {
                     targetIndex > dragIndex && index in (dragIndex + 1)..targetIndex -> -itemH
@@ -376,7 +377,6 @@ private fun ReorderableTagList(
                 }
                 animateFloatAsState(raw, spring(dampingRatio = 0.7f, stiffness = 300f), label = "avoid").value
             }
-            val isDragged = index == dragIndex
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragged) 1f else 0f)
