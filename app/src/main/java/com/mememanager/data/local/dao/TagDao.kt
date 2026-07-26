@@ -25,6 +25,7 @@ interface TagDao {
     fun getById(id: Long): Flow<TagEntity?>
 
     @Query("SELECT * FROM tags ORDER BY name ASC")
+    @Query("SELECT * FROM tags ORDER BY sortOrder ASC")
     fun getAll(): Flow<List<TagEntity>>
 
     @Query("SELECT * FROM tags WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
