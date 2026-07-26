@@ -1,6 +1,7 @@
 package com.mememanager.ui.screen.tags
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -367,13 +368,13 @@ private fun ReorderableTagList(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
-            // 纯视觉偏移，不改变列表顺序
-            val visualOffset = when {
-                dragIndex < 0 -> 0f
-                index == dragIndex -> dragOffset
-                targetIndex > dragIndex && index in (dragIndex + 1)..targetIndex -> -itemH
-                targetIndex < dragIndex && index in targetIndex..<dragIndex -> itemH
-                else -> 0f
+            val visualOffset = if (isDragged) dragOffset else {
+                val raw = when {
+                    targetIndex > dragIndex && index in (dragIndex + 1)..targetIndex -> -itemH
+                    targetIndex < dragIndex && index in targetIndex..<dragIndex -> itemH
+                    else -> 0f
+                }
+                animateFloatAsState(raw, spring(dampingRatio = 0.7f, stiffness = 300f), label = "avoid").value
             }
             val isDragged = index == dragIndex
             Box(
@@ -399,8 +400,10 @@ private fun ReorderableTagList(
                     },
                     onDrag = { amount -> dragOffset += amount },
                     onDragEnd = {
-                        if (targetIndex != dragIndex) {
-                            onReorder(tags.toMutableList().apply { add(targetIndex, removeAt(dragIndex)) })
+                        val finalTarget = (dragIndex + (dragOffset / itemH).roundToInt())
+                            .coerceIn(0, tags.size - 1)
+                        if (finalTarget != dragIndex) {
+                            onReorder(tags.toMutableList().apply { add(finalTarget, removeAt(dragIndex)) })
                         }
                         dragIndex = -1; dragOffset = 0f
                         scope.launch { scaleAnim.animateTo(1f, spring()); shadowAnim.animateTo(0f, spring()) }
