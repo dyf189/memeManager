@@ -349,7 +349,6 @@ private fun ReorderableTagList(
     val listState = rememberLazyListState()
     var dragIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    var dragPointerY by remember { mutableFloatStateOf(0f) }
     var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
@@ -363,21 +362,19 @@ private fun ReorderableTagList(
         (dragIndex + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
     } else -1
 
-    // 边缘自动滚动 — 只依赖 dragIndex，避免每帧重启 LaunchedEffect
-    LaunchedEffect(dragIndex) {
+    // 边缘自动滚动
+    LaunchedEffect(dragIndex, dragOffset) {
         if (dragIndex < 0) return@LaunchedEffect
-        val info = listState.layoutInfo
-        val viewportTop = info.viewportStartOffset
-        val viewportBottom = viewportTop + info.viewportEndOffset
-        val zone = with(density) { 80.dp.toPx() }
         while (dragIndex >= 0) {
-            val pointer = dragPointerY
-            val speed = when {
-                pointer > 0f && pointer < viewportTop + zone -> ((viewportTop + zone - pointer) / zone * 8f).roundToInt()
-                pointer < viewportBottom && pointer > viewportBottom - zone -> -((pointer - viewportBottom + zone) / zone * 8f).roundToInt()
-                else -> 0
+            val info = listState.layoutInfo.visibleItemsInfo
+            val first = info.firstOrNull()?.index ?: 0
+            val last = info.lastOrNull()?.index ?: 0
+            val topEdge = first + 1
+            val bottomEdge = last - 1
+            when {
+                dragIndex <= topEdge -> listState.scrollBy(-itemH * 0.3f)
+                dragIndex >= bottomEdge -> listState.scrollBy(itemH * 0.3f)
             }
-            if (speed != 0) listState.scrollBy(speed.toFloat())
             kotlinx.coroutines.delay(16)
         }
     }
@@ -425,7 +422,7 @@ private fun ReorderableTagList(
                                     dragIndex = index; dragOffset = 0f
                                     scope.launch { scaleAnim.animateTo(1.03f, liftSpec); shadowAnim.animateTo(16f, liftSpec) }
                                 },
-                                onDrag = { change, amount -> change.consume(); dragOffset += amount.y; dragPointerY = change.position.y },
+                                onDrag = { change, amount -> change.consume(); dragOffset += amount.y },
                                 onDragEnd = { endDrag() },
                                 onDragCancel = { dragIndex = -1; dragOffset = 0f }
                             )
