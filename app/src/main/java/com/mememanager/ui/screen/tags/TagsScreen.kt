@@ -62,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -79,6 +80,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mememanager.data.local.entity.TagEntity
 import com.mememanager.ui.viewmodel.PRESET_COLORS
 import com.mememanager.ui.viewmodel.TagsViewModel
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
@@ -93,6 +95,7 @@ fun TagsScreen(
     var showEditDialog by remember { mutableStateOf<TagEntity?>(null) }
     var newName by remember { mutableStateOf("") }
     var sortMode by remember { mutableStateOf(false) }
+    var customColors by remember { mutableStateOf(PRESET_COLORS.toMutableList()) }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(
@@ -166,7 +169,12 @@ fun TagsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteTag(tag); showDeleteConfirm = null
-                }) { Text("删除") }
+                }) { Text(
+                    text = "重置",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                ) }
             },
             dismissButton = { TextButton(onClick = { showDeleteConfirm = null }) { Text("取消") } }
         )
@@ -176,6 +184,8 @@ fun TagsScreen(
     if (showEditDialog != null) {
         EditTagDialog(
             tag = showEditDialog!!,
+            colors = customColors,
+            onColorsChange = { customColors = it },
             onDismiss = { showEditDialog = null },
             onConfirm = { updated -> viewModel.updateTag(updated); showEditDialog = null }
         )
@@ -201,12 +211,13 @@ private fun ColorChip(color: Int, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun EditTagDialog(
     tag: TagEntity,
+    colors: List<Int>,
+    onColorsChange: (List<Int>) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (TagEntity) -> Unit
 ) {
     var editName by remember(tag) { mutableStateOf(tag.name) }
     var editColor by remember(tag) { mutableIntStateOf(tag.bgColor) }
-    var colors by remember { mutableStateOf(PRESET_COLORS.toMutableList()) }
     var deleteMode by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
@@ -217,7 +228,7 @@ private fun EditTagDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text("重置配色") },
             text = { Text("恢复出厂预设颜色？已添加的颜色将丢失。") },
-            confirmButton = { TextButton(onClick = { colors = PRESET_COLORS.toMutableList(); showResetConfirm = false }) { Text(
+            confirmButton = { TextButton(onClick = { onColorsChange(PRESET_COLORS.toList()); showResetConfirm = false }) { Text(
                 text = "重置",
                 color = MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.Bold
@@ -247,7 +258,7 @@ private fun EditTagDialog(
             confirmButton = {
                 TextButton(onClick = {
                     try { val v = newColorHex.removePrefix("#").toLong(16).toInt()
-                        if (v !in colors) colors = (colors + v).toMutableList()
+                        if (v !in colors) onColorsChange(colors + v)
                     } catch (_: Exception) {}
                     showAddDialog = false
                 }) { Text("添加") }
@@ -311,7 +322,7 @@ private fun EditTagDialog(
                                     modifier = Modifier
                                         .align(Alignment.TopEnd)
                                         .size(16.dp).clip(CircleShape).background(Color.Red)
-                                        .clickable { colors = colors.toMutableList().also { it.remove(c) } },
+                                        .clickable { onColorsChange(colors.toMutableList().also { it.remove(c) }) },
                                     contentAlignment = Alignment.Center
                                 ) { Text("✕", fontSize = 9.sp, color = Color.White) }
                             }
@@ -344,6 +355,7 @@ private fun ReorderableTagList(
     val scaleAnim = remember { Animatable(1f) }
     val shadowAnim = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    val liftSpec = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
 
     LazyColumn(
         state = listState,
@@ -371,7 +383,10 @@ private fun ReorderableTagList(
                     onDragStart = {
                         dragIndex = index; originalDragIndex = index; dragOffset = 0f
                         draggingTags = tags
-                        scope.launch { scaleAnim.snapTo(1.03f); shadowAnim.snapTo(16f) }
+                        scope.launch {
+                            scaleAnim.animateTo(1.03f, liftSpec)
+                            shadowAnim.animateTo(16f, liftSpec)
+                        }
                     },
                     onDrag = { amount ->
                         dragOffset += amount
@@ -380,6 +395,8 @@ private fun ReorderableTagList(
                             .coerceIn(0, draggingTags.size - 1)
                         if (target != dragIndex) {
                             draggingTags = draggingTags.toMutableList().apply { add(target, removeAt(dragIndex)) }
+                            // 补偿位移：item 已在列表中移动了一个位置，抵消掉这部分位移
+                            dragOffset += if (target < dragIndex) itemH else -itemH
                             dragIndex = target
                         }
                     },
@@ -410,7 +427,7 @@ private fun TagCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (dragging) 0.dp else 1.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
