@@ -470,25 +470,10 @@ private fun TagCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 拖拽手柄 + 色块 — 按下即触发拖拽
-            Box(
-                modifier = Modifier
-                    .then(
-                        if (sortMode) Modifier.pointerInput(tag.id) {
-                            detectDragGestures(
-                                onDragStart = { onDragStart() },
-                                onDrag = { change, amount -> change.consume(); onDrag(amount.y, change.position.y) },
-                                onDragEnd = { onDragEnd() },
-                                onDragCancel = { onDragEnd() }
-                            )
-                        } else Modifier
-                    ),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (sortMode) 0.5f else 0f),
-                        modifier = Modifier.padding(end = 10.dp))
-                    Box(Modifier.size(32.dp).clip(CircleShape).background(Color(tag.bgColor)))
-                }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (sortMode) 0.5f else 0f),
+                    modifier = Modifier.padding(end = 10.dp))
+                Box(Modifier.size(32.dp).clip(CircleShape).background(Color(tag.bgColor)))
             }
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
