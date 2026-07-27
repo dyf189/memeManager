@@ -50,7 +50,7 @@ class AlbumViewModel @Inject constructor(
 
     val pagingDataFlow: Flow<PagingData<MediaWithTags>> = _filterState
         .flatMapLatest { filters ->
-            mediaRepository.getAlbumFlow(type = filters.type)
+            mediaRepository.getAlbumFlow(type = filters.type, tagIds = filters.tagIds)
         }
         .cachedIn(viewModelScope)
 

@@ -31,8 +31,8 @@ import com.mememanager.data.local.entity.TagEntity
 @Composable
 fun TagChipRow(
     tags: List<TagEntity>,
-    selectedTagId: Long? = null,
-    onTagSelected: (Long?) -> Unit,
+    selectedTagIds: Set<Long> = emptySet(),
+    onTagSelected: (Set<Long>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -43,33 +43,40 @@ fun TagChipRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // "全部" 胶囊
+        // "全部" 胶囊 — 选中时连 primary 色都不占
+        val allSelected = selectedTagIds.isEmpty()
         TagChip(
             label = "全部",
-            backgroundColor = if (selectedTagId == null)
+            backgroundColor = if (allSelected)
                 MaterialTheme.colorScheme.primary
             else
                 MaterialTheme.colorScheme.surfaceVariant,
-            textColor = if (selectedTagId == null)
+            textColor = if (allSelected)
                 MaterialTheme.colorScheme.onPrimary
             else
                 MaterialTheme.colorScheme.onSurfaceVariant,
-            onClick = { onTagSelected(null) }
+            onClick = { onTagSelected(emptySet()) }
         )
 
-        // 各标签胶囊
+        // 各标签胶囊 — 多选切换
         tags.forEach { tag ->
+            val isSelected = tag.id in selectedTagIds
             TagChip(
                 label = tag.name,
-                backgroundColor = if (selectedTagId == tag.id)
+                backgroundColor = if (isSelected)
                     Color(tag.bgColor)
                 else
                     Color(tag.bgColor).copy(alpha = 0.3f),
-                textColor = if (selectedTagId == tag.id)
+                textColor = if (isSelected)
                     Color.White
                 else
                     Color(tag.bgColor),
-                onClick = { onTagSelected(tag.id) }
+                onClick = {
+                    onTagSelected(
+                        if (isSelected) selectedTagIds - tag.id
+                        else selectedTagIds + tag.id
+                    )
+                }
             )
         }
     }

@@ -112,7 +112,7 @@ fun AlbumScreen(
     // ── 纯 UI 状态（不进入 ViewModel） ──
     var isFilterPanelVisible by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf<MediaType?>(null) }
-    var selectedTagId by remember { mutableStateOf<Long?>(null) }
+    var selectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -177,8 +177,11 @@ fun AlbumScreen(
             // ── 标签胶囊栏 ──
             TagChipRow(
                 tags = tags,
-                selectedTagId = selectedTagId,
-                onTagSelected = { selectedTagId = it }
+                selectedTagIds = selectedTagIds,
+                onTagSelected = { ids ->
+                    selectedTagIds = ids
+                    viewModel.setTagFilter(ids)
+                }
             )
 
             // ── 网格 + 筛选覆盖层 ──

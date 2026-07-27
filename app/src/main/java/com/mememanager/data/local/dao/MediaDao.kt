@@ -56,6 +56,32 @@ interface MediaDao {
     @Query("SELECT * FROM media WHERE isDeleted = 0 AND type = :type ORDER BY createdAt DESC")
     fun getAlbumPagingSourceByType(type: MediaType): PagingSource<Int, MediaWithTags>
 
+    @Transaction
+    @Query("""
+        SELECT * FROM media WHERE isDeleted = 0 
+        AND id IN (
+            SELECT r.mediaId FROM media_tag_ref r 
+            WHERE r.tagId IN (:tagIds) 
+            GROUP BY r.mediaId 
+            HAVING COUNT(DISTINCT r.tagId) = :tagCount
+        )
+        ORDER BY createdAt DESC
+    """)
+    fun getAlbumPagingSourceByTags(tagIds: Set<Long>, tagCount: Int): PagingSource<Int, MediaWithTags>
+
+    @Transaction
+    @Query("""
+        SELECT * FROM media WHERE isDeleted = 0 AND type = :type
+        AND id IN (
+            SELECT r.mediaId FROM media_tag_ref r 
+            WHERE r.tagId IN (:tagIds) 
+            GROUP BY r.mediaId 
+            HAVING COUNT(DISTINCT r.tagId) = :tagCount
+        )
+        ORDER BY createdAt DESC
+    """)
+    fun getAlbumPagingSourceByTypeAndTags(type: MediaType, tagIds: Set<Long>, tagCount: Int): PagingSource<Int, MediaWithTags>
+
     // ── 回收站 ──
 
     @Query("UPDATE media SET isDeleted = 1, deletedTime = :deletedTime WHERE id = :id")
