@@ -33,9 +33,9 @@ class MediaRepository @Inject constructor(
     fun getAlbumFlow(type: MediaType? = null, tagIds: Set<Long> = emptySet()): Flow<PagingData<MediaWithTags>> {
         return Pager(PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false)) {
             when {
-                type != null && tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTypeAndTags(type, tagIds, tagIds.size)
+                type != null && tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTypeAndTags(type, tagIds)
                 type != null -> mediaDao.getAlbumPagingSourceByType(type)
-                tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTags(tagIds, tagIds.size)
+                tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTags(tagIds)
                 else -> mediaDao.getAlbumPagingSource()
             }
         }.flow
