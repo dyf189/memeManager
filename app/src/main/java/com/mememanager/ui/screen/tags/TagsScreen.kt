@@ -384,10 +384,9 @@ private fun ReorderableTagList(
         }
         // 弹簧回弹拖拽位移
         scope.launch {
-            val start = dragOffset
-            dragOffset = 0f
-            val bounce = Animatable(start)
-            bounce.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 300f)) { value, _ -> dragOffsetAnim = value }
+            val bounce = Animatable(dragOffset)
+            bounce.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 300f))
+            dragOffsetAnim = 0f
         }
         scope.launch {
             scaleAnim.animateTo(1f, spring())
