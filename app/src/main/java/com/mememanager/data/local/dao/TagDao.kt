@@ -24,10 +24,10 @@ interface TagDao {
     @Query("SELECT * FROM tags WHERE id = :id")
     fun getById(id: Long): Flow<TagEntity?>
 
-    @Query("SELECT * FROM tags ORDER BY name ASC")
+    @Query("SELECT * FROM tags ORDER BY sortOrder ASC, name ASC")
     fun getAll(): Flow<List<TagEntity>>
 
-    @Query("SELECT * FROM tags WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
+    @Query("SELECT * FROM tags WHERE name LIKE '%' || :query || '%' ORDER BY sortOrder ASC, name ASC")
     fun search(query: String): Flow<List<TagEntity>>
 
     @Query("SELECT * FROM tags WHERE name = :name LIMIT 1")
