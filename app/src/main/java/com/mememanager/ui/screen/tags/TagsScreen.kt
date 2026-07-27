@@ -69,9 +69,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mememanager.data.local.entity.TagEntity
@@ -321,9 +318,8 @@ private fun EditTagDialog(
     )
 }
 
-// ── 拖拽排序 ──
+// ── 排序 ──
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReorderableTagList(
     tags: List<TagEntity>,
@@ -332,29 +328,23 @@ private fun ReorderableTagList(
     onEdit: (TagEntity) -> Unit,
     onDelete: (TagEntity?) -> Unit
 ) {
-    val currentTags by rememberUpdatedState(tags)
-    val state = rememberReorderableLazyListState(
-        onMove = { from, to -> onReorder(currentTags.toMutableList().apply { add(to.index, removeAt(from.index)) }) }
-    )
-
     LazyColumn(
-        state = state.listState,
-        modifier = Modifier
-            .fillMaxSize()
-            .then(if (sortMode) Modifier.reorderable(state) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        itemsIndexed(tags, key = { _, t -> t.id }) { _, tag ->
-            ReorderableItem(state, key = tag.id) { isDragging ->
-                TagCard(
-                    tag = tag,
-                    sortMode = sortMode,
-                    dragging = isDragging,
-                    onEdit = { onEdit(tag) },
-                    onDelete = if (tag.isReserved) null else { { onDelete(tag) } }
-                )
-            }
+        itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
+            TagCard(
+                tag = tag,
+                sortMode = sortMode,
+                onEdit = { onEdit(tag) },
+                onDelete = if (tag.isReserved) null else { { onDelete(tag) } },
+                onMoveUp = if (index > 0) { {
+                    onReorder(tags.toMutableList().apply { add(index - 1, removeAt(index)) })
+                } } else null,
+                onMoveDown = if (index < tags.lastIndex) { {
+                    onReorder(tags.toMutableList().apply { add(index + 1, removeAt(index)) })
+                } } else null
+            )
         }
     }
 }
@@ -363,22 +353,22 @@ private fun ReorderableTagList(
 private fun TagCard(
     tag: TagEntity,
     sortMode: Boolean,
-    dragging: Boolean,
     onEdit: () -> Unit,
     onDelete: (() -> Unit)?,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (dragging) 0.dp else 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 拖拽手柄 — 排序模式下显示，库自动处理长按拖拽
             if (sortMode) {
                 Box(modifier = Modifier.size(36.dp).padding(end = 10.dp), contentAlignment = Alignment.Center) {
                     Text("≡", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
@@ -389,6 +379,16 @@ private fun TagCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(tag.name, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 if (tag.isReserved) Text("系统保留", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+            }
+            if (sortMode) {
+                Column {
+                    if (onMoveUp != null) IconButton(onClick = onMoveUp, modifier = Modifier.size(28.dp)) {
+                        Text("▲", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else Spacer(Modifier.size(28.dp))
+                    if (onMoveDown != null) IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp)) {
+                        Text("▼", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else Spacer(Modifier.size(28.dp))
+                }
             }
             IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
                 Icon(Icons.Default.Edit, "编辑", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
