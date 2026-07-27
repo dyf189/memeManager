@@ -33,6 +33,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -381,13 +383,17 @@ private fun TagCard(
                 if (tag.isReserved) Text("系统保留", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
             }
             if (sortMode) {
-                Column {
-                    if (onMoveUp != null) IconButton(onClick = onMoveUp, modifier = Modifier.size(28.dp)) {
-                        Text("▲", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else Spacer(Modifier.size(28.dp))
-                    if (onMoveDown != null) IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp)) {
-                        Text("▼", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else Spacer(Modifier.size(28.dp))
+                IconButton(onClick = onMoveUp ?: {}, enabled = onMoveUp != null, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.KeyboardArrowUp, "上移",
+                        tint = if (onMoveUp != null) MaterialTheme.colorScheme.onSurfaceVariant
+                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                        modifier = Modifier.size(20.dp))
+                }
+                IconButton(onClick = onMoveDown ?: {}, enabled = onMoveDown != null, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.KeyboardArrowDown, "下移",
+                        tint = if (onMoveDown != null) MaterialTheme.colorScheme.onSurfaceVariant
+                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
+                        modifier = Modifier.size(20.dp))
                 }
             }
             IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
