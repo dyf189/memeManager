@@ -60,7 +60,7 @@ interface MediaDao {
     @Query("""
         SELECT * FROM media WHERE isDeleted = 0 
         AND id IN (
-            SELECT r.mediaId FROM media_tag_ref r 
+            SELECT r.mediaId FROM media_tag_cross_ref r 
             WHERE r.tagId IN (:tagIds) 
             GROUP BY r.mediaId 
             HAVING COUNT(DISTINCT r.tagId) = :tagCount
@@ -73,7 +73,7 @@ interface MediaDao {
     @Query("""
         SELECT * FROM media WHERE isDeleted = 0 AND type = :type
         AND id IN (
-            SELECT r.mediaId FROM media_tag_ref r 
+            SELECT r.mediaId FROM media_tag_cross_ref r 
             WHERE r.tagId IN (:tagIds) 
             GROUP BY r.mediaId 
             HAVING COUNT(DISTINCT r.tagId) = :tagCount
