@@ -60,27 +60,23 @@ interface MediaDao {
     @Query("""
         SELECT * FROM media WHERE isDeleted = 0 
         AND id IN (
-            SELECT r.mediaId FROM media_tag_cross_ref r 
-            WHERE r.tagId IN (:tagIds) 
-            GROUP BY r.mediaId 
-            HAVING COUNT(DISTINCT r.tagId) = :tagCount
+            SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r 
+            WHERE r.tagId IN (:tagIds)
         )
         ORDER BY createdAt DESC
     """)
-    fun getAlbumPagingSourceByTags(tagIds: Set<Long>, tagCount: Int): PagingSource<Int, MediaWithTags>
+    fun getAlbumPagingSourceByTags(tagIds: Set<Long>): PagingSource<Int, MediaWithTags>
 
     @Transaction
     @Query("""
         SELECT * FROM media WHERE isDeleted = 0 AND type = :type
         AND id IN (
-            SELECT r.mediaId FROM media_tag_cross_ref r 
-            WHERE r.tagId IN (:tagIds) 
-            GROUP BY r.mediaId 
-            HAVING COUNT(DISTINCT r.tagId) = :tagCount
+            SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r 
+            WHERE r.tagId IN (:tagIds)
         )
         ORDER BY createdAt DESC
     """)
-    fun getAlbumPagingSourceByTypeAndTags(type: MediaType, tagIds: Set<Long>, tagCount: Int): PagingSource<Int, MediaWithTags>
+    fun getAlbumPagingSourceByTypeAndTags(type: MediaType, tagIds: Set<Long>): PagingSource<Int, MediaWithTags>
 
     // ── 回收站 ──
 
