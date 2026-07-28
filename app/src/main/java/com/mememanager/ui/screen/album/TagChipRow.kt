@@ -94,7 +94,7 @@ private fun TagChip(
             .clip(RoundedCornerShape(20.dp))
             .background(backgroundColor)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 4.dp),
+            .padding(horizontal = 14.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
