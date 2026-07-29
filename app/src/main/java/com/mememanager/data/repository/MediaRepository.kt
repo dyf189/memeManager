@@ -74,6 +74,11 @@ class MediaRepository @Inject constructor(
     }
 
     suspend fun deleteById(id: Long) {
+        val entity = mediaDao.getByIdSuspend(id)
+        if (entity != null) {
+            val file = java.io.File(entity.filePath)
+            if (file.exists()) file.delete()
+        }
         mediaDao.deleteById(id)
         mediaFtsDao.deleteFts(SimpleSQLiteQuery("DELETE FROM media_fts WHERE rowid = ?", arrayOf(id)))
     }
@@ -87,12 +92,19 @@ class MediaRepository @Inject constructor(
 
     suspend fun restore(id: Long) {
         mediaDao.restore(id)
-        // 恢复时重建 FTS 条目
         val media = mediaDao.getByIdSuspend(id) ?: return
         syncFts(media.id, media.name, media.description ?: "")
     }
 
-    // ── FTS 同步 ──
+    suspend fun purgeDeletedBefore(cutoffTime: Long): Int {
+        // 先拿到所有要清掉的实体，删除对应文件
+        val toPurge = mediaDao.getAll().first().filter { it.isDeleted && (it.deletedTime ?: 0) < cutoffTime }
+        toPurge.forEach { entity ->
+            val file = java.io.File(entity.filePath)
+            if (file.exists()) file.delete()
+        }
+        return mediaDao.purgeDeletedBefore(cutoffTime)
+    }
 
     private suspend fun syncFts(id: Long, name: String, description: String) {
         val tokenizedName = com.mememanager.util.JiebaTokenizer.toFtsContent(name)

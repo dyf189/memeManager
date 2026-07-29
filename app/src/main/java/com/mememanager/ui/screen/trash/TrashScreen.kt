@@ -70,17 +70,17 @@ fun TrashScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("回收站", fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("回收站", fontSize = 22.sp, fontWeight = FontWeight.Bold, lineHeight = 22.sp,modifier = Modifier.weight(1f))
         }
 
         // 操作栏 — N 项 + 立即清空
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 4.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
