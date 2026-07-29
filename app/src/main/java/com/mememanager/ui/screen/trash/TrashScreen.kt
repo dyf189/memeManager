@@ -57,6 +57,7 @@ import java.io.File
 @Composable
 fun TrashScreen(
     modifier: Modifier = Modifier,
+    onNavigateToDetail: (List<MediaWithTags>, Int) -> Unit = { _, _ -> },
     viewModel: TrashViewModel = hiltViewModel()
 ) {
     val lazyItems = viewModel.deletedItems.collectAsLazyPagingItems()
@@ -88,6 +89,11 @@ fun TrashScreen(
                     lazyItems[index]?.let { media ->
                         TrashGridItem(
                             mediaWithTags = media,
+                            onClick = {
+                                val snapshot = lazyItems.itemSnapshotList.filterNotNull()
+                                val idx = snapshot.indexOf(media)
+                                if (idx >= 0) onNavigateToDetail(snapshot, idx)
+                            },
                             onRestore = { viewModel.restore(media.media.id) },
                             onDelete = { itemToDelete = media }
                         )
@@ -120,10 +126,12 @@ fun TrashScreen(
 @Composable
 private fun TrashGridItem(
     mediaWithTags: MediaWithTags,
+    onClick: () -> Unit = {},
     onRestore: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
+        modifier = Modifier.combinedClickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
     ) {

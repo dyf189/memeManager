@@ -202,7 +202,15 @@ fun AppContent(
                 )
             }
             composable(Screen.Tags.route) { TagsScreen(modifier = Modifier.padding(innerPadding)) }
-            composable(Screen.Trash.route) { TrashScreen(modifier = Modifier.padding(innerPadding)) }
+            composable(Screen.Trash.route) {
+                TrashScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    onNavigateToDetail = { items, index ->
+                        sharedAlbumViewModel.setCurrentItemsFromTrash(items)
+                        navController.navigate("detail/$index")
+                    }
+                )
+            }
             composable(Screen.Settings.route) { SettingsScreen(modifier = Modifier.padding(innerPadding)) }
         }
     }
