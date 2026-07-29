@@ -97,7 +97,7 @@ fun SearchScreen(
     Column(modifier = modifier.fillMaxSize()) {
         // 搜索栏
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 3.dp, end = 15.dp, top = 6.dp, bottom = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 3.dp, end = 15.dp, top = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { if (!hasNavigatedBack) { hasNavigatedBack = true; onBack() } }) {
