@@ -68,6 +68,10 @@ class AlbumViewModel @Inject constructor(
         _currentItems.value = items
     }
 
+    fun setCurrentItemsFromTrash(items: List<MediaWithTags>) {
+        _currentItems.value = items
+    }
+
     // ── 操作 ──
 
     fun setTypeFilter(type: MediaType?) {
