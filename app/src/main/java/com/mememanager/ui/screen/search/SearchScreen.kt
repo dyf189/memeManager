@@ -118,6 +118,8 @@ fun SearchScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(8.dp))
+
         // 智能搜索开关
         Row(
             modifier = Modifier.fillMaxWidth().height(32.dp).padding(horizontal = 16.dp),
@@ -142,7 +144,7 @@ fun SearchScreen(
                 if (history.isNotEmpty()) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Row(
-                            Modifier.fillMaxWidth(),
+                            Modifier.fillMaxWidth().height(28.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
