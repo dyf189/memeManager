@@ -120,7 +120,7 @@ fun SearchScreen(
 
         // 智能搜索开关
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().height(32.dp).padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -135,7 +135,6 @@ fun SearchScreen(
             )
         }
 
-        Spacer(Modifier.height(4.dp))
 
         when {
             localQuery.isBlank() -> {
