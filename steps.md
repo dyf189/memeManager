@@ -452,7 +452,7 @@ AlbumViewModel 新增三个方法：
 - 空状态/加载态
 - 简单高亮工具 `highlightText()`
 
-### 8.5 导航集成
+### 8.5 导航集成 ✅
 
 | 文件 | 操作 | 说明 |
 |------|------|------|
@@ -467,6 +467,25 @@ AlbumViewModel 新增三个方法：
 | `MainActivity.kt` | 修改 | 添加 search 路由 + 底部导航隐藏 |
 | `di/DatabaseModule.kt` | 修改 | 添加 MediaFtsDao provider + MIGRATION_2_3 |
 | `ui/screen/album/AlbumScreen.kt` | 修改 | onSearchClick 回调 + readOnly 搜索栏可点击 |
+
+### 8.6 搜索增强 ✅
+- **点击结果跳详情**：收集懒加载快照 → `sharedAlbumViewModel.setCurrentItems()` → navigate detail
+- **搜索历史**：DataStore `stringSetPreferencesKey`，进入过详情的词自动记录，FilterChip 复用，"清空历史"一键清零
+- **智能搜索开关**：ON → Jieba FTS 分词搜索，OFF → SQL LIKE 普通匹配
+- MediaDao 新增 `getAlbumPagingSourceByLike`
+- SearchRepository 新增 `searchPlain`
+- SearchViewModel 注入 DataStore，新增 `recordHistory()` / `clearHistory()` / `history StateFlow`
+
+**完成文件：**
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `data/settings/AppSettings.kt` | 修改 | 新增 SEARCH_HISTORY Key |
+| `data/local/dao/MediaDao.kt` | 修改 | 新增 getAlbumPagingSourceByLike |
+| `data/repository/SearchRepository.kt` | 修改 | 注入 MediaDao + searchPlain |
+| `ui/viewmodel/SearchViewModel.kt` | 重写 | 智能模式 + 历史管理 + 普通搜索 |
+| `ui/screen/search/SearchScreen.kt` | 重写 | 跳转详情 + 历史 UI + 智能开关 |
+| `MainActivity.kt` | 修改 | 搜索 onNavigateToDetail 接线 |
 
 ---
 
