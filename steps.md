@@ -489,3 +489,18 @@ AlbumViewModel 新增三个方法：
 |------|------|------|
 | `ui/viewmodel/SettingsViewModel.kt` | 修改 | 注入 MediaRepository，新增 deletedCount + emptyTrash() |
 | `ui/screen/settings/SettingsScreen.kt` | 修改 | 回收站卡片显示条数 + 确认弹窗 + 按钮 disable |
+
+### 9.3 回收站浏览页面
+- `TrashViewModel`：注入 MediaRepository，`deletedItems` 分页流 + `restore()` + `permanentDelete()`
+- `TrashScreen`：3 列网格，缩略图底部半透明操作条（恢复 ↻ / 彻底删除 🗑️）
+- 永久删除弹出确认弹窗
+- 底部导航栏新增回收站 Tab（Delete 图标）
+- NavHost 新增 `trash` 路由
+
+**完成文件：**
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `ui/viewmodel/TrashViewModel.kt` | 新建 | 回收站分页 + 恢复 + 永久删除 + 清空 |
+| `ui/screen/trash/TrashScreen.kt` | 新建 | 3 列网格 + 操作条 + 删除确认弹窗 |
+| `MainActivity.kt` | 修改 | Screen.Trash + trash 路由 + 底部 Tab |
