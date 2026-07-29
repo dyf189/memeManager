@@ -504,3 +504,31 @@ AlbumViewModel 新增三个方法：
 | `ui/viewmodel/TrashViewModel.kt` | 新建 | 回收站分页 + 恢复 + 永久删除 + 清空 |
 | `ui/screen/trash/TrashScreen.kt` | 新建 | 3 列网格 + 操作条 + 删除确认弹窗 |
 | `MainActivity.kt` | 修改 | Screen.Trash + trash 路由 + 底部 Tab |
+
+---
+
+## 第十步：待规划 — 数据导入导出
+
+**现状**：
+- 设置页的"同步维护 JSON 数据文件"开关**只存了 DataStore 值**，没有任何实际导出逻辑。自动在公共目录生成 JSON 也不直观——用户不知道备份存在哪、何时生成。
+
+**建议方案：显式导出/导入按钮**：
+- 设置页"数据"卡片：一个"导出数据"按钮 + 一个"导入数据"按钮
+- 导出：将 Room 中所有媒体、标签、关联关系序列化为单个 JSON 文件，通过系统文件选择器让用户选保存位置
+- 导入：用户选择一个之前导出的 JSON，反序列化后合并/恢复数据
+- 优势：用户完全掌控备份时机和位置，JSON 可跨设备传输
+
+### 10.1 JSON 导出
+- 读取所有 MediaEntity、TagEntity、MediaTagCrossRef
+- 序列化为 JSON 数组（三个顶层 key：`media`、`tags`、`crossRefs`）
+- `ActivityResultContracts.CreateDocument("application/json")` 让用户选择保存位置
+- 写入 JSON 文件
+
+### 10.2 JSON 导入
+- `ActivityResultContracts.OpenDocument` 选择 JSON 文件
+- 解析 JSON → 去重策略（按 filePath + name 判断已存在则跳过）
+- 写入 Room → Paging 自动刷新
+- 导入前弹出确认："将合并 N 条媒体、M 个标签"
+
+### 10.3 保留现状的开关
+- 移除或标记为"预留"，因为自动同步不直观，显式导出更好
