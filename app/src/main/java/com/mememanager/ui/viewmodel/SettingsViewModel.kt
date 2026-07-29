@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mememanager.data.settings.AppSettings
 import com.mememanager.data.settings.SettingsKeys
+import com.mememanager.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +18,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val mediaRepository: MediaRepository
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = dataStore.data
@@ -32,6 +34,9 @@ class SettingsViewModel @Inject constructor(
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
+
+    val deletedCount: StateFlow<Int> = mediaRepository.getDeletedCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     fun setStorageType(value: String) {
         viewModelScope.launch {
@@ -66,6 +71,12 @@ class SettingsViewModel @Inject constructor(
     fun setJsonSyncEnabled(value: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.JSON_SYNC_ENABLED] = value }
+        }
+    }
+
+    fun emptyTrash() {
+        viewModelScope.launch {
+            mediaRepository.purgeDeletedBefore(System.currentTimeMillis())
         }
     }
 }

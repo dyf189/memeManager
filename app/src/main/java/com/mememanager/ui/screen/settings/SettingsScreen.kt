@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -29,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -115,6 +117,8 @@ fun SettingsScreen(
 
             // ── 回收站 ──
             item {
+                val deletedCount by viewModel.deletedCount.collectAsStateWithLifecycle()
+                var showEmptyConfirm by remember { mutableStateOf(false) }
                 SettingsCard(title = "回收站") {
                     SliderRow(
                         label = "保留天数",
@@ -131,15 +135,38 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("清空回收站", fontSize = 15.sp)
+                        Column {
+                            Text("清空回收站", fontSize = 15.sp)
+                            if (deletedCount > 0) {
+                                Text(
+                                    "${deletedCount} 项",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                         Button(
-                            onClick = { /* TODO: 调用回收站清理 */ },
+                            onClick = { if (deletedCount > 0) showEmptyConfirm = true },
+                            enabled = deletedCount > 0,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error
                             )
                         ) {
                             Text("立即清空")
                         }
+                    }
+                    if (showEmptyConfirm) {
+                        AlertDialog(
+                            onDismissRequest = { showEmptyConfirm = false },
+                            title = { Text("清空回收站") },
+                            text = { Text("确定永久删除回收站中的 ${deletedCount} 项？此操作不可撤销。") },
+                            confirmButton = {
+                                TextButton(onClick = { viewModel.emptyTrash(); showEmptyConfirm = false }) {
+                                    Text("清空", color = MaterialTheme.colorScheme.error)
+                                }
+                            },
+                            dismissButton = { TextButton(onClick = { showEmptyConfirm = false }) { Text("取消") } }
+                        )
                     }
                 }
             }
