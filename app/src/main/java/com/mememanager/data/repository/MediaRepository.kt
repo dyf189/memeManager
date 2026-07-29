@@ -134,9 +134,6 @@ class MediaRepository @Inject constructor(
         }
     }
 
-    suspend fun purgeDeletedBefore(cutoffTime: Long): Int =
-        mediaDao.purgeDeletedBefore(cutoffTime)
-
     fun getDeletedCount(): Flow<Int> = mediaDao.getDeletedCount()
 
     fun getActiveCount(): Flow<Int> = mediaDao.getActiveCount()
