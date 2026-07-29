@@ -61,7 +61,9 @@ fun TrashScreen(
     viewModel: TrashViewModel = hiltViewModel()
 ) {
     val lazyItems = viewModel.deletedItems.collectAsLazyPagingItems()
+    val deletedCount by viewModel.deletedCount.collectAsStateWithLifecycle()
     var itemToDelete by remember { mutableStateOf<MediaWithTags?>(null) }
+    var showEmptyConfirm by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
         // 标题栏
@@ -72,6 +74,27 @@ fun TrashScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("回收站", fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        }
+
+        // 操作栏 — N 项 + 立即清空
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "$deletedCount 项",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(
+                onClick = { if (deletedCount > 0) showEmptyConfirm = true },
+                enabled = deletedCount > 0
+            ) {
+                Text("立即清空", color = MaterialTheme.colorScheme.error)
+            }
         }
 
         if (lazyItems.itemCount == 0 && lazyItems.loadState.isIdle) {
@@ -101,6 +124,21 @@ fun TrashScreen(
                 }
             }
         }
+    }
+
+    // 清空确认
+    if (showEmptyConfirm) {
+        AlertDialog(
+            onDismissRequest = { showEmptyConfirm = false },
+            title = { Text("清空回收站") },
+            text = { Text("确定永久删除回收站中的 ${deletedCount} 项？此操作不可撤销。") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.emptyTrash(); showEmptyConfirm = false }) {
+                    Text("清空", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showEmptyConfirm = false }) { Text("取消") } }
+        )
     }
 
     // 彻底删除确认

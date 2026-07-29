@@ -9,6 +9,9 @@ import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.repository.MediaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,6 +22,9 @@ class TrashViewModel @Inject constructor(
 
     val deletedItems: Flow<PagingData<MediaWithTags>> = mediaRepository.getDeletedFlow()
         .cachedIn(viewModelScope)
+
+    val deletedCount: StateFlow<Int> = mediaRepository.getDeletedCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     fun restore(id: Long) {
         viewModelScope.launch {
