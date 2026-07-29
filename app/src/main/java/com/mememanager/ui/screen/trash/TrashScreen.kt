@@ -59,7 +59,6 @@ fun TrashScreen(
     viewModel: TrashViewModel = hiltViewModel()
 ) {
     val lazyItems = viewModel.deletedItems.collectAsLazyPagingItems()
-    val deletedCount by viewModel.deletedItems.collectAsStateWithLifecycle()
     var itemToDelete by remember { mutableStateOf<MediaWithTags?>(null) }
 
     Column(modifier = modifier.fillMaxSize()) {
