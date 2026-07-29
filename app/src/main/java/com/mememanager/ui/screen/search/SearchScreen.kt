@@ -120,7 +120,7 @@ fun SearchScreen(
 
         // 智能搜索开关
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 0.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -128,7 +128,10 @@ fun SearchScreen(
             Switch(
                 checked = smartMode,
                 onCheckedChange = { viewModel.smartMode.value = it },
-                colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                )
             )
         }
 
