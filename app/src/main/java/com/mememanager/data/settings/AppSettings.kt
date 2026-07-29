@@ -4,6 +4,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -26,4 +27,5 @@ object SettingsKeys {
     val GRID_COLUMNS = intPreferencesKey("grid_columns")
     val TRASH_DAYS = intPreferencesKey("trash_days")
     val JSON_SYNC_ENABLED = booleanPreferencesKey("json_sync_enabled")
+    val SEARCH_HISTORY = stringSetPreferencesKey("search_history")
 }

@@ -78,6 +78,10 @@ interface MediaDao {
     """)
     fun getAlbumPagingSourceByTypeAndTags(type: MediaType, tagIds: Set<Long>): PagingSource<Int, MediaWithTags>
 
+    @Transaction
+    @Query("SELECT * FROM media WHERE isDeleted = 0 AND (name LIKE :q OR description LIKE :q) ORDER BY createdAt DESC")
+    fun getAlbumPagingSourceByLike(q: String): PagingSource<Int, MediaWithTags>
+
     // ── 回收站 ──
 
     @Query("UPDATE media SET isDeleted = 1, deletedTime = :deletedTime WHERE id = :id")

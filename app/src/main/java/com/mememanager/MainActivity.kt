@@ -213,7 +213,10 @@ fun AppContent(
                             navController.popBackStack()
                         }
                     },
-                    onNavigateToDetail = { /* TODO */ }
+                    onNavigateToDetail = { items, index ->
+                        sharedAlbumViewModel.setCurrentItems(items)
+                        navController.navigate("detail/$index")
+                    }
                 )
             }
             composable(Screen.Tags.route) { TagsScreen(modifier = Modifier.padding(innerPadding)) }

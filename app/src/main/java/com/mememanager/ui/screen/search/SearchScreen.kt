@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,10 +26,15 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -52,6 +59,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.SubcomposeAsyncImage
@@ -63,11 +71,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
     onBack: () -> Unit = {},
-    onNavigateToDetail: (index: Int) -> Unit = {},
+    onNavigateToDetail: (List<com.mememanager.data.local.entity.MediaWithTags>, Int) -> Unit = { _, _ -> },
     viewModel: SearchViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -83,8 +91,11 @@ fun SearchScreen(
     }
 
     val lazyItems = viewModel.searchResults.collectAsLazyPagingItems()
+    val history by viewModel.history.collectAsStateWithLifecycle()
+    val smartMode by viewModel.smartMode.collectAsStateWithLifecycle()
 
     Column(modifier = modifier.fillMaxSize()) {
+        // 搜索栏
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 3.dp, end = 15.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -107,9 +118,51 @@ fun SearchScreen(
             )
         }
 
+        // 智能搜索开关
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("智能搜索", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Switch(
+                checked = smartMode,
+                onCheckedChange = { viewModel.smartMode.value = it },
+                colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
+            )
+        }
+
         when {
-            localQuery.isBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("输入关键词开始搜索", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            localQuery.isBlank() -> {
+                // 搜索历史
+                if (history.isNotEmpty()) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("搜索历史", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            TextButton(onClick = { viewModel.clearHistory() }) {
+                                Text("清空历史", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            history.forEach { h ->
+                                FilterChip(
+                                    selected = false,
+                                    onClick = { localQuery = h },
+                                    label = { Text(h, fontSize = 12.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("输入关键词开始搜索", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
             lazyItems.loadState.refresh is LoadState.Loading && lazyItems.itemCount == 0 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -118,7 +171,18 @@ fun SearchScreen(
                 Text("无匹配结果", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             else -> LazyColumn(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                items(lazyItems.itemCount) { index -> lazyItems[index]?.let { SearchResultRow(item = it, onClick = { }) } }
+                items(lazyItems.itemCount) { index ->
+                    lazyItems[index]?.let { result ->
+                        SearchResultRow(item = result, onClick = {
+                            val snapshot = lazyItems.itemSnapshotList.filterNotNull()
+                            val idx = snapshot.indexOf(result)
+                            if (idx >= 0) {
+                                viewModel.recordHistory(localQuery.trim())
+                                onNavigateToDetail(snapshot.map { it.mediaWithTags }, idx)
+                            }
+                        })
+                    }
+                }
             }
         }
     }
@@ -230,12 +294,22 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.appendWindow(
     if (right) append("…")
 }
 
-private fun formatSize(bytes: Long): String {
-    if (bytes < 1024) return "${bytes}B"
-    val kb = bytes / 1024.0
-    if (kb < 1024) return "%.1fKB".format(kb)
-    return "%.1fMB".format(kb / 1024.0)
+// ── 工具函数 ──
+
+private fun formatSize(bytes: Long): String = when {
+    bytes < 1024 -> "$bytes B"
+    bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+    bytes < 1024 * 1024 * 1024 -> "${"%.1f".format(bytes / (1024.0 * 1024))} MB"
+    else -> "${"%.1f".format(bytes / (1024.0 * 1024 * 1024))} GB"
 }
 
-private fun formatDate(timestamp: Long): String =
-    SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
+private fun formatDate(timestamp: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = now - timestamp
+    return when {
+        diff < 60_000 -> "刚刚"
+        diff < 3_600_000 -> "${diff / 60_000}分钟前"
+        diff < 86_400_000 -> "${diff / 3_600_000}小时前"
+        else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(timestamp))
+    }
+}
