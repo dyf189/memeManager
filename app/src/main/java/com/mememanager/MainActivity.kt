@@ -46,6 +46,7 @@ import com.mememanager.ui.screen.trash.TrashScreen
 import com.mememanager.ui.screen.tags.TagsScreen
 import com.mememanager.ui.theme.MemeManagerTheme
 import com.mememanager.ui.viewmodel.AlbumViewModel
+import com.mememanager.ui.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -58,7 +59,14 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         enableEdgeToEdge()
         setContent {
-            MemeManagerTheme {
+            val settingsViewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+            val forceDark = when (settings.themeMode) {
+                "浅色" -> false
+                "深色" -> true
+                else -> null
+            }
+            MemeManagerTheme(forceDark = forceDark) {
                 AppContent(
                     shareUris = pendingShareUris.toList(),
                     onShareConsumed = { pendingShareUris.clear() }
@@ -71,7 +79,14 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         handleIntent(intent)
         setContent {
-            MemeManagerTheme {
+            val settingsViewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+            val forceDark = when (settings.themeMode) {
+                "浅色" -> false
+                "深色" -> true
+                else -> null
+            }
+            MemeManagerTheme(forceDark = forceDark) {
                 AppContent(
                     shareUris = pendingShareUris.toList(),
                     onShareConsumed = { pendingShareUris.clear() }
