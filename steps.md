@@ -467,3 +467,25 @@ AlbumViewModel 新增三个方法：
 | `MainActivity.kt` | 修改 | 添加 search 路由 + 底部导航隐藏 |
 | `di/DatabaseModule.kt` | 修改 | 添加 MediaFtsDao provider + MIGRATION_2_3 |
 | `ui/screen/album/AlbumScreen.kt` | 修改 | onSearchClick 回调 + readOnly 搜索栏可点击 |
+
+---
+
+## 第九步：回收站功能 ✅
+
+### 9.1 SettingsViewModel 接入 Repository
+- 构造函数新增 `MediaRepository` 注入
+- `deletedCount: StateFlow<Int>` — 实时已删除条数
+- `emptyTrash()` — 调用 `mediaRepository.purgeDeletedBefore(now)`
+
+### 9.2 Settings「清空回收站」完善
+- 显示当前回收站条数（`${deletedCount} 项`）
+- 回收站为空时"立即清空"按钮禁用
+- 点击弹出 `AlertDialog` 确认："确定永久删除回收站中的 N 项？此操作不可撤销。"
+- 确认后调用 `viewModel.emptyTrash()`
+
+**完成文件：**
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `ui/viewmodel/SettingsViewModel.kt` | 修改 | 注入 MediaRepository，新增 deletedCount + emptyTrash() |
+| `ui/screen/settings/SettingsScreen.kt` | 修改 | 回收站卡片显示条数 + 确认弹窗 + 按钮 disable |
