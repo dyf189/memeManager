@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,11 +47,11 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.ui.viewmodel.TrashViewModel
+import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -128,9 +129,9 @@ private fun TrashGridItem(
     ) {
         Box {
             // 缩略图
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                    .data(mediaWithTags.media)
+                    .data(File(mediaWithTags.media.filePath))
                     .crossfade(true)
                     .build(),
                 contentDescription = mediaWithTags.media.name,
@@ -138,7 +139,13 @@ private fun TrashGridItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
-                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)),
+                loading = {
+                    Box(Modifier.fillMaxSize().background(Color(0xFFEEEEEE)))
+                },
+                error = {
+                    Box(Modifier.fillMaxSize().background(Color(0xFFEEEEEE)))
+                }
             )
             // 操作按钮 — 底部半透明条
             Row(
