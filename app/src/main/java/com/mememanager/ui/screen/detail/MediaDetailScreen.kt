@@ -833,7 +833,9 @@ fun TagItem(
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(16.dp)
-    val isDark = isSystemInDarkTheme()
+    // 从实际渲染主题色判断暗/亮（与设置页强制覆盖一致）
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val isDark = surfaceColor.red < 0.5f && surfaceColor.green < 0.5f && surfaceColor.blue < 0.5f
 
     // 深色模式选中时外层辉光（手绘环，不依赖 shadow API 自定义色）
     if (isSelected && isDark) {
