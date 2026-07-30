@@ -835,12 +835,24 @@ fun TagItem(
     val shape = RoundedCornerShape(16.dp)
     val isDark = isSystemInDarkTheme()
 
-    // 深色模式选中时外层辉光
+    // 深色模式选中时外层辉光（手绘环，不依赖 shadow API 自定义色）
     if (isSelected && isDark) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(14.dp, shape, clip = false, ambientColor = Color.White.copy(alpha = 0.35f), spotColor = Color.White.copy(alpha = 0.5f))
+                .drawBehind {
+                    val steps = 4
+                    for (i in steps downTo 1) {
+                        val a = 0.06f * (steps - i + 1)
+                        val expand = (i * 4).dp.toPx()
+                        drawRoundRect(
+                            Color.White.copy(alpha = a),
+                            topLeft = Offset(-expand, -expand),
+                            size = Size(size.width + 2 * expand, size.height + 2 * expand),
+                            cornerRadius = CornerRadius(16.dp.toPx() + expand)
+                        )
+                    }
+                }
         ) {
             TagItemCard(tag, isSelected, onClick)
         }
