@@ -27,6 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -39,6 +42,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.room.util.copy
 import com.mememanager.ui.screen.album.AlbumScreen
+import com.mememanager.data.repository.MediaRepository
+import com.mememanager.data.settings.SettingsKeys
 import com.mememanager.ui.screen.detail.MediaDetailScreen
 import com.mememanager.ui.screen.settings.SettingsScreen
 import com.mememanager.ui.screen.search.SearchScreen
@@ -48,6 +53,11 @@ import com.mememanager.ui.theme.MemeManagerTheme
 import com.mememanager.ui.viewmodel.AlbumViewModel
 import com.mememanager.ui.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
