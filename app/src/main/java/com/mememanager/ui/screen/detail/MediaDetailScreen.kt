@@ -841,9 +841,9 @@ fun TagItem(
             .shadow(
                 elevation = if (isSelected) 7.dp else 2.dp,
                 shape = shape,
-                clip = false,
-                ambientColor = if (isSelected && isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.15f),
-                spotColor = if (isSelected && isDark) Color.White.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.2f)
+                clip = true,
+                ambientColor = if (isSelected && isDark) Color.White.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.15f),
+                spotColor = if (isSelected && isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.2f)
             )
             .background(
                 color = MaterialTheme.colorScheme.surface,
