@@ -368,7 +368,8 @@ private fun HsvColorPickerDialog(
                                 hsv
                             )
                             hue = hsv[0]; saturation = hsv[1]; value = hsv[2]
-                        } catch (_: Exception) {}
+                        } catch (_: Exception) {
+                        }
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -382,7 +383,17 @@ private fun HsvColorPickerDialog(
                         .fillMaxWidth()
                         .height(40.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))))
+                        .background(
+                            Color(
+                                android.graphics.Color.HSVToColor(
+                                    floatArrayOf(
+                                        hue,
+                                        saturation,
+                                        value
+                                    )
+                                )
+                            )
+                        )
                 )
 
                 Spacer(Modifier.height(12.dp))
@@ -394,7 +405,7 @@ private fun HsvColorPickerDialog(
                         .fillMaxWidth()
                         .height(180.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .pointerInput(hue) {
+                        .pointerInput(Unit) {
                             awaitEachGesture {
                                 val down = awaitFirstDown()
                                 saturation = (down.position.x / size.width).coerceIn(0f, 1f)
@@ -412,13 +423,21 @@ private fun HsvColorPickerDialog(
                     // 水平渐变：白 → 纯色相
                     drawRect(Brush.horizontalGradient(0f to Color.White, 1f to hueColor))
                     // 垂直渐变：透明 → 黑（multiply）
-                    drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black), blendMode = BlendMode.Multiply)
+                    drawRect(
+                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black),
+                        blendMode = BlendMode.Multiply
+                    )
                     // 选中点 — 空心：外白圈 + 内部与方格同色
                     val dotX = saturation * size.width
                     val dotY = (1f - value) * size.height
                     val pickedColor = Color.hsv(hue, saturation, value)
                     drawCircle(pickedColor, 7.dp.toPx(), center = Offset(dotX, dotY))
-                    drawCircle(Color.White, 8.dp.toPx(), center = Offset(dotX, dotY), style = Stroke(1.5.dp.toPx()))
+                    drawCircle(
+                        Color.White,
+                        8.dp.toPx(),
+                        center = Offset(dotX, dotY),
+                        style = Stroke(1.5.dp.toPx())
+                    )
                 }
 
                 Spacer(Modifier.height(10.dp))
@@ -428,7 +447,7 @@ private fun HsvColorPickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp)
-                        .pointerInput(hue) {
+                        .pointerInput(Unit) {
                             awaitEachGesture {
                                 val down = awaitFirstDown()
                                 hue = (down.position.x / size.width * 360f).coerceIn(0f, 360f)
@@ -449,17 +468,27 @@ private fun HsvColorPickerDialog(
                             .clip(RoundedCornerShape(4.dp))
                     ) {
                         drawRect(
-                        Brush.horizontalGradient(
-                            0f to Color.Red, 1f / 6 to Color.Yellow,
-                            2f / 6 to Color.Green, 3f / 6 to Color.Cyan,
-                            4f / 6 to Color.Blue, 5f / 6 to Color.Magenta,
-                            1f to Color.Red
+                            Brush.horizontalGradient(
+                                0f to Color.Red, 1f / 6 to Color.Yellow,
+                                2f / 6 to Color.Green, 3f / 6 to Color.Cyan,
+                                4f / 6 to Color.Blue, 5f / 6 to Color.Magenta,
+                                1f to Color.Red
+                            )
                         )
-                    )
-                    val dotX = hue / 360f * size.width
-                    val activeColor = Color.hsv(hue, 1f, 1f)
-                    drawCircle(activeColor, 6.dp.toPx(), center = Offset(dotX, size.height / 2f))
-                    drawCircle(Color.White, 7.dp.toPx(), center = Offset(dotX, size.height / 2f), style = Stroke(2.dp.toPx()))
+                        val dotX = hue / 360f * size.width
+                        val activeColor = Color.hsv(hue, 1f, 1f)
+                        drawCircle(
+                            activeColor,
+                            6.dp.toPx(),
+                            center = Offset(dotX, size.height / 2f)
+                        )
+                        drawCircle(
+                            Color.White,
+                            7.dp.toPx(),
+                            center = Offset(dotX, size.height / 2f),
+                            style = Stroke(2.dp.toPx())
+                        )
+                    }
                 }
             }
         }
