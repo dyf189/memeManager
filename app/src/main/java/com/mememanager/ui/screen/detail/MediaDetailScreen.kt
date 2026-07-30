@@ -173,7 +173,6 @@ fun MediaDetailScreen(
     var showTagPicker by remember { mutableStateOf(false) }
     var editingDescription by remember(currentMedia) { mutableStateOf(currentMedia.media.description ?: "") }
     var showBottomSheet by remember { mutableStateOf(true) }
-    var isTagDeleteMode by remember { mutableStateOf(false) }
 
     val sheetState = rememberBottomSheetScaffoldState()
     LaunchedEffect(Unit) { sheetState.bottomSheetState.expand() }
@@ -187,11 +186,8 @@ fun MediaDetailScreen(
         sheetContent = {
             MediaBottomSheetContent(
                 media = currentMedia,
-                isTagDeleteMode = isTagDeleteMode,
-                onEnterTagDeleteMode = { isTagDeleteMode = true },
-                onExitTagDeleteMode = { isTagDeleteMode = false },
                 onEditDescription = { showDescriptionDialog = true },
-                onAddTagClick = { showTagPicker = true },
+                onEditTagsClick = { showTagPicker = true },
                 onRemoveTag = { tag -> onRemoveTag(currentMedia, tag) }
             )
         }
@@ -377,7 +373,7 @@ fun MediaDetailScreen(
                                     modifier = Modifier.fillMaxWidth().padding(32.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("所有标签已添加", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("暂无可用标签", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             } else {
                                 key(forceRefresh) {
@@ -417,8 +413,12 @@ fun MediaDetailScreen(
 
                             FilledTonalButton(
                                 onClick = {
-                                    val toAdd = filtered.filter { it.id in selectedIds }
-                                    toAdd.forEach { tag -> onAddTag(currentMedia, tag) }
+                                    // 新增的
+                                    filtered.filter { it.id in selectedIds && it.id !in currentTagIds }
+                                        .forEach { tag -> onAddTag(currentMedia, tag) }
+                                    // 移除的
+                                    availableTags.filter { it.id in currentTagIds && it.id !in selectedIds }
+                                        .forEach { tag -> onRemoveTag(currentMedia, tag) }
                                     dismiss()
                                 },
                                 colors = ButtonDefaults.filledTonalButtonColors(
@@ -650,11 +650,8 @@ private fun MediaDisplay(media: MediaWithTags) {
 @Composable
 fun MediaBottomSheetContent(
     media: MediaWithTags,
-    isTagDeleteMode: Boolean,
-    onEnterTagDeleteMode: () -> Unit,
-    onExitTagDeleteMode: () -> Unit,
     onEditDescription: () -> Unit,
-    onAddTagClick: () -> Unit,
+    onEditTagsClick: () -> Unit,
     onRemoveTag: (TagEntity) -> Unit
 ) {
     val maxSheetHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 2 / 3
@@ -795,51 +792,16 @@ fun MediaBottomSheetContent(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
-                        if (isTagDeleteMode) {
-                            Spacer(Modifier.width(4.dp))
-                            IconButton(
-                                onClick = { onRemoveTag(tag) },
-                                modifier = Modifier.size(20.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "删除",
-                                    modifier = Modifier.size(14.dp),
-                                    tint = tagColor.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
                     }
                 }
             }
 
-            if (isTagDeleteMode) {
-                FilledTonalIconButton(
-                    onClick = onExitTagDeleteMode,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Default.Check, "完成", modifier = Modifier.size(18.dp))
-                }
-            } else {
-                FilledTonalIconButton(
-                    onClick = onAddTagClick,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(Icons.Default.Add, "添加标签", modifier = Modifier.size(22.dp))
-                }
-                if (!media.tags.isEmpty()) {
-                    FilledTonalIconButton(
-                        onClick = onEnterTagDeleteMode,
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Text(
-                            "−",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+            // 编辑标签按钮 — 单按钮替代之前的 +/−
+            FilledTonalIconButton(
+                onClick = onEditTagsClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Edit, "编辑标签", modifier = Modifier.size(18.dp))
             }
         }
 
