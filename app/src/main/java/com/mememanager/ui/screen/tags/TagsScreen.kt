@@ -424,11 +424,10 @@ private fun HsvColorPickerDialog(
                 Spacer(Modifier.height(10.dp))
 
                 // 色相条
-                Canvas(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(24.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .height(44.dp)
                         .pointerInput(hue) {
                             awaitEachGesture {
                                 val down = awaitFirstDown()
@@ -440,9 +439,16 @@ private fun HsvColorPickerDialog(
                                     updateHex()
                                 }
                             }
-                        }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    drawRect(
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    ) {
+                        drawRect(
                         Brush.horizontalGradient(
                             0f to Color.Red, 1f / 6 to Color.Yellow,
                             2f / 6 to Color.Green, 3f / 6 to Color.Cyan,
