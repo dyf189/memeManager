@@ -363,7 +363,7 @@ private fun SliderRow(
             } // Row
         }
         Slider(
-            value = if (dragging) dragValue else value,
+            value = if (dragging || justCommitted) dragValue else value,
             onValueChange = {
                 dragValue = it
                 textValue = it.toInt().toString()
