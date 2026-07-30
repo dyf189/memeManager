@@ -392,12 +392,19 @@ private fun HsvColorPickerDialog(
                         .height(180.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .pointerInput(hue) {
-                            detectDragGestures { change, _ ->
-                                change.consume()
-                                saturation = (change.position.x / size.width).coerceIn(0f, 1f)
-                                value = (1f - change.position.y / size.height).coerceIn(0f, 1f)
-                                updateHex()
-                            }
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    saturation = (offset.x / size.width).coerceIn(0f, 1f)
+                                    value = (1f - offset.y / size.height).coerceIn(0f, 1f)
+                                    updateHex()
+                                },
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    saturation = (change.position.x / size.width).coerceIn(0f, 1f)
+                                    value = (1f - change.position.y / size.height).coerceIn(0f, 1f)
+                                    updateHex()
+                                }
+                            )
                         }
                 ) {
                     // 水平渐变：白 → 纯色相
@@ -421,11 +428,17 @@ private fun HsvColorPickerDialog(
                         .height(24.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .pointerInput(hue) {
-                            detectDragGestures { change, _ ->
-                                change.consume()
-                                hue = (change.position.x / size.width * 360f).coerceIn(0f, 360f)
-                                updateHex()
-                            }
+                            detectDragGestures(
+                                onDragStart = { offset ->
+                                    hue = (offset.x / size.width * 360f).coerceIn(0f, 360f)
+                                    updateHex()
+                                },
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    hue = (change.position.x / size.width * 360f).coerceIn(0f, 360f)
+                                    updateHex()
+                                }
+                            )
                         }
                 ) {
                     drawRect(
