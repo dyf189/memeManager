@@ -235,6 +235,7 @@ private fun EditTagDialog(
     var deleteMode by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
+    var editError by remember { mutableStateOf<String?>(null) }
 
     // 合并预设 + 自定义颜色
     LaunchedEffect(customHexes) {
@@ -274,7 +275,13 @@ private fun EditTagDialog(
         title = { Text("编辑标签") },
         confirmButton = {
             FilledTonalButton(onClick = {
-                if (editName.isNotBlank()) onConfirm(tag.copy(name = editName.trim(), bgColor = editColor))
+                val trimmed = editName.trim()
+                if (trimmed.isBlank()) return@FilledTonalButton
+                if (trimmed != tag.name && viewModel.tagExists(trimmed)) {
+                    editError = "标签「$trimmed」已存在"
+                    return@FilledTonalButton
+                }
+                onConfirm(tag.copy(name = trimmed, bgColor = editColor))
             },colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -288,8 +295,13 @@ private fun EditTagDialog(
         ) { Text("取消") }},
         text = {
             Column {
-                OutlinedTextField(value = editName, onValueChange = { editName = it },
-                    label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = editName, onValueChange = { editName = it; editError = null },
+                    label = { Text("名称") }, singleLine = true,
+                    isError = editError != null,
+                    modifier = Modifier.fillMaxWidth())
+                if (editError != null) {
+                    Text(editError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("颜色", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
