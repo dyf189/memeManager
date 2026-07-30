@@ -3,6 +3,7 @@ package com.mememanager.data.settings
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -29,4 +30,5 @@ object SettingsKeys {
     val JSON_SYNC_ENABLED = booleanPreferencesKey("json_sync_enabled")
     val SEARCH_HISTORY = stringSetPreferencesKey("search_history")
     val CUSTOM_COLORS = stringSetPreferencesKey("custom_colors")
+    val LAST_TRASH_CLEAN = longPreferencesKey("last_trash_clean")
 }
