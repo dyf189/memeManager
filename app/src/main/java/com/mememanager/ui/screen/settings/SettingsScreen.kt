@@ -125,7 +125,8 @@ fun SettingsScreen(
                         value = settings.trashDays.toFloat(),
                         onValueChange = { viewModel.setTrashDays(it.toInt()) },
                         valueRange = 0f..90f,
-                        unit = "天"
+                        unit = if (settings.trashDays == 0) "" else "天",
+                        unitOverride = if (settings.trashDays == 0) "永不清理" else null
                     )
                     Divider()
                     Row(
@@ -275,7 +276,8 @@ private fun SliderRow(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int = 0,
-    unit: String
+    unit: String,
+    unitOverride: String? = null
 ) {
     var textValue by remember { mutableStateOf(value.toInt().toString()) }
     var dragging by remember { mutableStateOf(false) }
@@ -294,7 +296,10 @@ private fun SliderRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (unitOverride != null) {
+                Text(unitOverride, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary)
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .width(58.dp)
@@ -333,6 +338,7 @@ private fun SliderRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            } // Row
         }
         Slider(
             value = if (dragging) dragValue else value,
