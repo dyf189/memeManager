@@ -249,7 +249,11 @@ private fun EditTagDialog(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    try { val v = newColorHex.removePrefix("#").toLong(16).toInt()
+                    try {
+                        val raw = newColorHex.removePrefix("#").trim()
+                        var v = raw.toLong(16).toInt()
+                        // 无 Alpha 通道时补上 FF（不透明）
+                        if (raw.length <= 6) v = v or 0xFF000000.toInt()
                         if (v !in colors) colors = (colors + v).toMutableList()
                     } catch (_: Exception) {}
                     showAddDialog = false
