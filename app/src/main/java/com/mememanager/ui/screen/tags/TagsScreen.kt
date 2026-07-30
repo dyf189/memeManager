@@ -5,8 +5,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +50,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -79,6 +80,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mememanager.data.local.entity.TagEntity
 import com.mememanager.ui.viewmodel.PRESET_COLORS
@@ -206,14 +208,24 @@ private fun ColorChip(color: Int, selected: Boolean, onClick: () -> Unit) {
 private fun EditTagDialog(
     tag: TagEntity,
     onDismiss: () -> Unit,
-    onConfirm: (TagEntity) -> Unit
+    onConfirm: (TagEntity) -> Unit,
+    viewModel: TagsViewModel = hiltViewModel()
 ) {
     var editName by remember(tag) { mutableStateOf(tag.name) }
     var editColor by remember(tag) { mutableIntStateOf(tag.bgColor) }
+    val customHexes by viewModel.customColors.collectAsStateWithLifecycle()
     var colors by remember { mutableStateOf(PRESET_COLORS.toMutableList()) }
     var deleteMode by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
+
+    // 合并预设 + 自定义颜色
+    LaunchedEffect(customHexes) {
+        val custom = customHexes.mapNotNull { hex ->
+            try { hex.toLong(16).toInt() or 0xFF000000.toInt() } catch (_: Exception) { null }
+        }
+        colors = (PRESET_COLORS + custom).toMutableList()
+    }
     var newColorHex by remember { mutableStateOf("") }
 
     if (showResetConfirm) {
@@ -221,7 +233,7 @@ private fun EditTagDialog(
             onDismissRequest = { showResetConfirm = false },
             title = { Text("重置配色") },
             text = { Text("恢复出厂预设颜色？已添加的颜色将丢失。") },
-            confirmButton = { TextButton(onClick = { colors = PRESET_COLORS.toMutableList(); showResetConfirm = false }) { Text(
+            confirmButton = { TextButton(onClick = { viewModel.resetCustomColors(); showResetConfirm = false }) { Text(
                 text = "重置",
                 color = MaterialTheme.colorScheme.error,
                 fontWeight = FontWeight.Bold
@@ -234,7 +246,7 @@ private fun EditTagDialog(
         HsvColorPickerDialog(
             onDismiss = { showAddDialog = false },
             onColorPicked = { color ->
-                if (color !in colors) colors = (colors + color).toMutableList()
+                viewModel.addCustomColor(color)
                 showAddDialog = false
             }
         )
@@ -380,9 +392,10 @@ private fun HsvColorPickerDialog(
                         .height(180.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .pointerInput(hue) {
-                            detectTapGestures { pos ->
-                                saturation = (pos.x / size.width).coerceIn(0f, 1f)
-                                value = (1f - pos.y / size.height).coerceIn(0f, 1f)
+                            detectDragGestures { change, _ ->
+                                change.consume()
+                                saturation = (change.position.x / size.width).coerceIn(0f, 1f)
+                                value = (1f - change.position.y / size.height).coerceIn(0f, 1f)
                                 updateHex()
                             }
                         }
@@ -391,11 +404,12 @@ private fun HsvColorPickerDialog(
                     drawRect(Brush.horizontalGradient(0f to Color.White, 1f to hueColor))
                     // 垂直渐变：透明 → 黑（multiply）
                     drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black), blendMode = BlendMode.Multiply)
-                    // 选中点
+                    // 选中点 — 空心：外白圈 + 内部与方格同色
                     val dotX = saturation * size.width
                     val dotY = (1f - value) * size.height
-                    drawCircle(Color.White, 6.dp.toPx(), center = Offset(dotX, dotY))
-                    drawCircle(Color.Black, 4.dp.toPx(), center = Offset(dotX, dotY))
+                    val pickedColor = Color.hsv(hue, saturation, value)
+                    drawCircle(pickedColor, 7.dp.toPx(), center = Offset(dotX, dotY))
+                    drawCircle(Color.White, 8.dp.toPx(), center = Offset(dotX, dotY), style = Stroke(1.5.dp.toPx()))
                 }
 
                 Spacer(Modifier.height(10.dp))
@@ -407,8 +421,9 @@ private fun HsvColorPickerDialog(
                         .height(24.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .pointerInput(hue) {
-                            detectTapGestures { pos ->
-                                hue = (pos.x / size.width * 360f).coerceIn(0f, 360f)
+                            detectDragGestures { change, _ ->
+                                change.consume()
+                                hue = (change.position.x / size.width * 360f).coerceIn(0f, 360f)
                                 updateHex()
                             }
                         }
@@ -422,7 +437,9 @@ private fun HsvColorPickerDialog(
                         )
                     )
                     val dotX = hue / 360f * size.width
-                    drawCircle(Color.White, radius = 10.dp.toPx(), center = Offset(dotX, size.height / 2f), style = Stroke(2.dp.toPx()))
+                    val activeColor = Color.hsv(hue, 1f, 1f)
+                    drawCircle(activeColor, 6.dp.toPx(), center = Offset(dotX, size.height / 2f))
+                    drawCircle(Color.White, 7.dp.toPx(), center = Offset(dotX, size.height / 2f), style = Stroke(2.dp.toPx()))
                 }
             }
         }

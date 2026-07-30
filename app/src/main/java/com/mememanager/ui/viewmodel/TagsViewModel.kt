@@ -1,12 +1,17 @@
 package com.mememanager.ui.viewmodel
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mememanager.data.local.entity.TagEntity
 import com.mememanager.data.repository.TagRepository
+import com.mememanager.data.settings.SettingsKeys
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,11 +32,33 @@ val PRESET_COLORS = listOf(
 
 @HiltViewModel
 class TagsViewModel @Inject constructor(
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val dataStore: DataStore<Preferences>
 ) : ViewModel() {
 
     val tags: StateFlow<List<TagEntity>> = tagRepository.getAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** 自定义颜色（持久化到 DataStore） */
+    val customColors: StateFlow<Set<String>> = dataStore.data
+        .map { it[SettingsKeys.CUSTOM_COLORS] ?: emptySet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun addCustomColor(color: Int) {
+        viewModelScope.launch {
+            val hex = String.format("%06X", color and 0xFFFFFF)
+            dataStore.edit { prefs ->
+                val existing = prefs[SettingsKeys.CUSTOM_COLORS] ?: emptySet()
+                prefs[SettingsKeys.CUSTOM_COLORS] = existing + hex
+            }
+        }
+    }
+
+    fun resetCustomColors() {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.CUSTOM_COLORS] = emptySet() }
+        }
+    }
 
     /** 下一个预设颜色索引（排除保留标签占用的颜色） */
     fun nextPresetColor(existingTags: List<TagEntity>): Int {

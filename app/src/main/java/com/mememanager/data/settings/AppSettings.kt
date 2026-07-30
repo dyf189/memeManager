@@ -28,4 +28,5 @@ object SettingsKeys {
     val TRASH_DAYS = intPreferencesKey("trash_days")
     val JSON_SYNC_ENABLED = booleanPreferencesKey("json_sync_enabled")
     val SEARCH_HISTORY = stringSetPreferencesKey("search_history")
+    val CUSTOM_COLORS = stringSetPreferencesKey("custom_colors")
 }
