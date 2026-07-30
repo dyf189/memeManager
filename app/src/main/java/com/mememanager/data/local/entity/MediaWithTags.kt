@@ -14,7 +14,8 @@ data class MediaWithTags(
             value = MediaTagCrossRef::class,
             parentColumn = "mediaId",
             entityColumn = "tagId"
-        )
+        ),
+        orderBy = "sortOrder ASC"
     )
     val tags: List<TagEntity> = emptyList()
 )
