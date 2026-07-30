@@ -839,11 +839,11 @@ fun TagItem(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(
-                elevation = if (isSelected) 7.dp else 2.dp,
+                elevation = if (isSelected) 10.dp else 2.dp,
                 shape = shape,
-                clip = true,
-                ambientColor = if (isSelected && isDark) Color.White.copy(alpha = 0.4f) else Color.Black.copy(alpha = 0.15f),
-                spotColor = if (isSelected && isDark) Color.White.copy(alpha = 0.5f) else Color.Black.copy(alpha = 0.2f)
+                clip = false,
+                ambientColor = if (isSelected && isDark) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.15f),
+                spotColor = if (isSelected && isDark) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.2f)
             )
             .background(
                 color = MaterialTheme.colorScheme.surface,
@@ -853,7 +853,6 @@ fun TagItem(
                 if (isSelected) Modifier.border(2.dp, Color(0xFF1976D2), shape)
                 else Modifier
             )
-            .clip(shape)
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
