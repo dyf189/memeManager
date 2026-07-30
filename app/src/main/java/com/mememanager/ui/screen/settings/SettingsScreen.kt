@@ -42,10 +42,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -290,10 +290,10 @@ private fun SliderRow(
     var dragValue by remember { mutableStateOf(value) }
     var isOverride by remember { mutableStateOf(unitOverride != null) }
     val focusManager = LocalFocusManager.current
-    val focusRequester = remember { FocusRequester() }
+    var isFocused by remember { mutableStateOf(false) }
 
     // 外部值变化且不在拖拽 + 未聚焦 → 同步本地状态
-    if (!dragging && !focusRequester.isFocused) {
+    if (!dragging && !isFocused) {
         textValue = value.toInt().toString()
         dragValue = value
     }
@@ -337,7 +337,7 @@ private fun SliderRow(
                             }
                         },
                         singleLine = true,
-                        modifier = Modifier.focusRequester(focusRequester),
+                        modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
                         textStyle = MaterialTheme.typography.bodySmall.copy(
                             textAlign = TextAlign.Center,
                             fontSize = 13.sp,
