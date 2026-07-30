@@ -198,7 +198,7 @@ private fun ColorChip(color: Int, selected: Boolean, onClick: () -> Unit) {
             .size(36.dp)
             .shadow(elevation = if (selected) 4.dp else 1.dp, shape = CircleShape, clip = false)
             .background(Color(color), CircleShape)
-            .then(if (selected) Modifier.border(2.dp, Color(0xFF1976D2), CircleShape).border(4.dp,Color(0xFFFFFFFF), CircleShape) else Modifier.border(2.dp,Color(0xFFFFFFFF), CircleShape))
+            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape).border(4.dp, MaterialTheme.colorScheme.outline, CircleShape) else Modifier.border(2.dp, MaterialTheme.colorScheme.outline, CircleShape))
             .clip(CircleShape)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() }
     )
