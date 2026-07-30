@@ -8,9 +8,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Deselect
-import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -18,6 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,11 +59,17 @@ fun BatchActionBar(
             }
             Row {
                 if (onSelectAll != null) {
-                    IconButton(onClick = onSelectAll) {
+                    TextButton(onClick = onSelectAll) {
                         Icon(
-                            if (allSelected) Icons.Filled.Deselect else Icons.Filled.SelectAll,
-                            contentDescription = if (allSelected) "取消全选" else "全选",
-                            modifier = Modifier.size(22.dp)
+                            Icons.Default.Check,
+                            contentDescription = "全选",
+                            modifier = Modifier.size(18.dp),
+                            tint = if (allSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            if (allSelected) "取消全选" else "全选",
+                            fontSize = 13.sp,
+                            color = if (allSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
