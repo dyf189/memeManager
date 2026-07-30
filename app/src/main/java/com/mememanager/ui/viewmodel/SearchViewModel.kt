@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
@@ -53,11 +54,11 @@ class SearchViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(FlowPreview::class)
-    val searchResults: Flow<PagingData<SearchResultItem>> = _query
-        .debounce(300)
-        .filter { it.isNotBlank() }
-        .flatMapLatest { rawQuery ->
-            val useSmart = smartMode.value
+    val searchResults: Flow<PagingData<SearchResultItem>> = combine(
+            _query.debounce(300).filter { it.isNotBlank() },
+            smartMode.debounce(0)
+        ) { rawQuery, useSmart -> rawQuery to useSmart }
+        .flatMapLatest { (rawQuery, useSmart) ->
             if (useSmart) {
                 searchRepository.search(rawQuery).map { pagingData ->
                     val segments = JiebaTokenizer.segment(rawQuery)
@@ -65,7 +66,6 @@ class SearchViewModel @Inject constructor(
                 }
             } else {
                 searchRepository.searchPlain(rawQuery).map { pagingData ->
-                    // 普通模式：用原始查询词做简单高亮
                     val segments = if (rawQuery.isNotBlank()) listOf(rawQuery) else emptyList()
                     pagingData.map { SearchResultItem(it, segments) }
                 }
