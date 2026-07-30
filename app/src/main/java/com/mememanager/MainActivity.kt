@@ -61,7 +61,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
         enableEdgeToEdge()
-        triggerAutoClean()
         setContent {
             val settingsViewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
