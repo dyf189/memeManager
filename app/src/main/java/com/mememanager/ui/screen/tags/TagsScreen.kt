@@ -1,10 +1,12 @@
 package com.mememanager.ui.screen.tags
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +64,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -224,42 +231,12 @@ private fun EditTagDialog(
     }
 
     if (showAddDialog) {
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text("添加颜色") },
-            text = {
-                Column {
-                    OutlinedTextField(value = newColorHex, onValueChange = { newColorHex = it },
-                        placeholder = { Text("#FF5733") }, singleLine = true, label = { Text("十六进制颜色值") })
-                    Spacer(Modifier.height(10.dp))
-                    Text("或从色板选取", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(6.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        val palette = listOf(
-                            0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7, 0xFF3F51B5,
-                            0xFF2196F3, 0xFF03A9F4, 0xFF00BCD4, 0xFF009688, 0xFF4CAF50,
-                            0xFF8BC34A, 0xFFCDDC39, 0xFFFFEB3B, 0xFFFFC107, 0xFFFF9800,
-                            0xFFFF5722, 0xFF795548, 0xFF607D8B, 0xFF9E9E9E, 0xFF000000
-                        )
-                        palette.forEach { c ->
-                            ColorChip(c.toInt(), selected = false, onClick = { newColorHex = String.format("#%06X", c and 0xFFFFFF) })
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    try {
-                        val raw = newColorHex.removePrefix("#").trim()
-                        var v = raw.toLong(16).toInt()
-                        // 无 Alpha 通道时补上 FF（不透明）
-                        if (raw.length <= 6) v = v or 0xFF000000.toInt()
-                        if (v !in colors) colors = (colors + v).toMutableList()
-                    } catch (_: Exception) {}
-                    showAddDialog = false
-                }) { Text("添加") }
-            },
-            dismissButton = { TextButton(onClick = { showAddDialog = false }) { Text("取消") } }
+        HsvColorPickerDialog(
+            onDismiss = { showAddDialog = false },
+            onColorPicked = { color ->
+                if (color !in colors) colors = (colors + color).toMutableList()
+                showAddDialog = false
+            }
         )
     }
 
@@ -324,6 +301,128 @@ private fun EditTagDialog(
                             }
                         }
                     }
+                }
+            }
+        }
+    )
+}
+
+// ── 排序 ──
+
+@Composable
+private fun HsvColorPickerDialog(
+    onDismiss: () -> Unit,
+    onColorPicked: (Int) -> Unit
+) {
+    var hue by remember { mutableFloatStateOf(0f) }
+    var saturation by remember { mutableFloatStateOf(1f) }
+    var value by remember { mutableFloatStateOf(1f) }
+    var hexText by remember { mutableStateOf("FF0000") }
+
+    fun updateHex() {
+        val c = android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))
+        hexText = String.format("%06X", c and 0xFFFFFF)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("添加颜色") },
+        confirmButton = {
+            TextButton(onClick = {
+                val c = android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))
+                onColorPicked(c)
+            }) { Text("添加") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // 十六进制输入
+                OutlinedTextField(
+                    value = hexText,
+                    onValueChange = { txt ->
+                        hexText = txt
+                        try {
+                            val raw = txt.removePrefix("#").trim()
+                            var c = raw.toLong(16).toInt()
+                            if (raw.length <= 6) c = c or 0xFF000000.toInt()
+                            val hsv = FloatArray(3)
+                            android.graphics.Color.RGBToHSV(
+                                android.graphics.Color.red(c),
+                                android.graphics.Color.green(c),
+                                android.graphics.Color.blue(c),
+                                hsv
+                            )
+                            hue = hsv[0]; saturation = hsv[1]; value = hsv[2]
+                        } catch (_: Exception) {}
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // 预览色块
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))))
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // SV 方块
+                val hueColor = Color.hsv(hue, 1f, 1f)
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .pointerInput(hue) {
+                            detectTapGestures { pos ->
+                                saturation = (pos.x / size.width).coerceIn(0f, 1f)
+                                value = (1f - pos.y / size.height).coerceIn(0f, 1f)
+                                updateHex()
+                            }
+                        }
+                ) {
+                    // 水平渐变：白 → 纯色相
+                    drawRect(Brush.horizontalGradient(0f to Color.White, 1f to hueColor))
+                    // 垂直渐变：透明 → 黑（multiply）
+                    drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black), blendMode = BlendMode.Multiply)
+                    // 选中点
+                    val dotX = saturation * size.width
+                    val dotY = (1f - value) * size.height
+                    drawCircle(Color.White, 6.dp.toPx(), center = Offset(dotX, dotY))
+                    drawCircle(Color.Black, 4.dp.toPx(), center = Offset(dotX, dotY))
+                }
+
+                Spacer(Modifier.height(10.dp))
+
+                // 色相条
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .pointerInput(hue) {
+                            detectTapGestures { pos ->
+                                hue = (pos.x / size.width * 360f).coerceIn(0f, 360f)
+                                updateHex()
+                            }
+                        }
+                ) {
+                    drawRect(
+                        Brush.horizontalGradient(
+                            0f to Color.Red, 1f / 6 to Color.Yellow,
+                            2f / 6 to Color.Green, 3f / 6 to Color.Cyan,
+                            4f / 6 to Color.Blue, 5f / 6 to Color.Magenta,
+                            1f to Color.Red
+                        )
+                    )
+                    val dotX = hue / 360f * size.width
+                    drawCircle(Color.White, radius = 10.dp.toPx(), center = Offset(dotX, size.height / 2f), style = Stroke(2.dp.toPx()))
                 }
             }
         }
