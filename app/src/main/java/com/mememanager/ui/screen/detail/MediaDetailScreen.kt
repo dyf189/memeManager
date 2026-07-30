@@ -781,7 +781,7 @@ fun MediaBottomSheetContent(
                 ) {
                     Row(
                         modifier = Modifier.padding(
-                            start = 12.dp, end = if (isTagDeleteMode) 4.dp else 12.dp,
+                            start = 12.dp, end = 12.dp,
                             top = 4.dp, bottom = 4.dp
                         ),
                         verticalAlignment = Alignment.CenterVertically
