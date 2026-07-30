@@ -18,6 +18,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -832,6 +833,7 @@ fun TagItem(
     onClick: () -> Unit
 ) {
     val shape = RoundedCornerShape(16.dp)
+    val isDark = isSystemInDarkTheme()
 
     Box(
         modifier = Modifier
@@ -839,7 +841,9 @@ fun TagItem(
             .shadow(
                 elevation = if (isSelected) 7.dp else 2.dp,
                 shape = shape,
-                clip = false
+                clip = false,
+                ambientColor = if (isSelected && isDark) Color.White.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.15f),
+                spotColor = if (isSelected && isDark) Color.White.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.2f)
             )
             .background(
                 color = MaterialTheme.colorScheme.surface,
