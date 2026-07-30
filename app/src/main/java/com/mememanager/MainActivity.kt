@@ -54,10 +54,14 @@ class MainActivity : ComponentActivity() {
 
     private var pendingShareUris = mutableListOf<Uri>()
 
+    @Inject lateinit var mediaRepository: MediaRepository
+    @Inject lateinit var dataStore: DataStore<Preferences>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
         enableEdgeToEdge()
+        triggerAutoClean()
         setContent {
             val settingsViewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
@@ -72,6 +76,24 @@ class MainActivity : ComponentActivity() {
                     onShareConsumed = { pendingShareUris.clear() }
                 )
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        triggerAutoClean()
+    }
+
+    private fun triggerAutoClean() {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val trashDays = dataStore.data.first()[SettingsKeys.TRASH_DAYS] ?: 30
+            if (trashDays >= 90) return@launch
+            val lastClean = dataStore.data.first()[SettingsKeys.LAST_TRASH_CLEAN] ?: 0L
+            val now = System.currentTimeMillis()
+            if (now - lastClean < 86_400_000L) return@launch
+            val cutoff = now - trashDays * 86_400_000L
+            mediaRepository.purgeDeletedBefore(cutoff)
+            dataStore.edit { it[SettingsKeys.LAST_TRASH_CLEAN] = now }
         }
     }
 
