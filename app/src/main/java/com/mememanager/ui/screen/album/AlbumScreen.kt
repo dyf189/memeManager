@@ -119,9 +119,16 @@ fun AlbumScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             // ── 批量操作栏 ──
             if (uiState.isMultiSelectMode) {
+                val allIds = items.mapNotNull { it?.media?.id }.toSet()
+                val allSelected = uiState.selectedMediaIds.containsAll(allIds)
                 BatchActionBar(
                     selectedCount = uiState.selectedMediaIds.size,
+                    totalCount = allIds.size,
                     onCancel = { viewModel.exitMultiSelectMode() },
+                    onSelectAll = {
+                        if (allSelected) viewModel.unselectGroup(allIds)
+                        else viewModel.selectAll(allIds)
+                    },
                     onDelete = { viewModel.softDeleteSelected() },
                     onTag = {},
                     onExport = {},
@@ -215,7 +222,21 @@ fun AlbumScreen(
                         val prevGroup = prevItem?.let { TimeGroupUtil.getGroup(it.media.createdAt) }
                         if (prevGroup == null || group.sortKey != prevGroup.sortKey) {
                             stickyHeader(key = "header_${group.sortKey}") {
-                                TimeGroupHeader(group = group)
+                                val groupIds = items.drop(i).mapNotNull { item ->
+                                    val m = item ?: return@mapNotNull null
+                                    val g = TimeGroupUtil.getGroup(m.media.createdAt)
+                                    if (g.sortKey == group.sortKey) m.media.id else null
+                                }.takeWhile { it != null }.map { it!! }.toSet()
+                                val allGroupSelected = groupIds.isNotEmpty() && groupIds.all { it in uiState.selectedMediaIds }
+                                TimeGroupHeader(
+                                    group = group,
+                                    isMultiSelectMode = uiState.isMultiSelectMode,
+                                    isGroupSelected = allGroupSelected,
+                                    onGroupToggle = {
+                                        if (allGroupSelected) viewModel.unselectGroup(groupIds)
+                                        else viewModel.selectGroup(groupIds)
+                                    }
+                                )
                             }
                         }
 

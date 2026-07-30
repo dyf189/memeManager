@@ -141,6 +141,26 @@ class AlbumViewModel @Inject constructor(
         }
     }
 
+    fun selectAll(ids: Set<Long>) {
+        _uiState.update {
+            it.copy(isMultiSelectMode = true, selectedMediaIds = ids)
+        }
+    }
+
+    fun selectGroup(ids: Set<Long>) {
+        _uiState.update { state ->
+            val merged = state.selectedMediaIds + ids
+            state.copy(selectedMediaIds = merged, isMultiSelectMode = merged.isNotEmpty())
+        }
+    }
+
+    fun unselectGroup(ids: Set<Long>) {
+        _uiState.update { state ->
+            val remaining = state.selectedMediaIds - ids
+            state.copy(selectedMediaIds = remaining, isMultiSelectMode = remaining.isNotEmpty())
+        }
+    }
+
     // ── 批量操作 ──
 
     fun softDeleteSelected() {

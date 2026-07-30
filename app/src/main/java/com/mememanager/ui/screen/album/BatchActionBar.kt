@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -30,22 +32,22 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun BatchActionBar(
     selectedCount: Int,
+    totalCount: Int = 0,
     onCancel: () -> Unit,
+    onSelectAll: (() -> Unit)? = null,
     onTag: () -> Unit = {},
     onExport: () -> Unit = {},
     onDelete: () -> Unit = {},
     onShare: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val allSelected = selectedCount >= totalCount && totalCount > 0
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .padding(horizontal = 4.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -56,6 +58,15 @@ fun BatchActionBar(
                 Text("已选 $selectedCount 项", fontSize = 16.sp)
             }
             Row {
+                if (onSelectAll != null) {
+                    IconButton(onClick = onSelectAll) {
+                        Icon(
+                            if (allSelected) Icons.Filled.Deselect else Icons.Filled.SelectAll,
+                            contentDescription = if (allSelected) "取消全选" else "全选",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
                 IconButton(onClick = onTag) {
                     Icon(Icons.Default.Star, "打标签", modifier = Modifier.size(22.dp))
                 }
