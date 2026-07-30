@@ -835,33 +835,35 @@ fun TagItem(
     val shape = RoundedCornerShape(16.dp)
     val isDark = isSystemInDarkTheme()
 
+    // 深色模式选中时外层辉光
+    if (isSelected && isDark) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(14.dp, shape, clip = false, ambientColor = Color.White.copy(alpha = 0.35f), spotColor = Color.White.copy(alpha = 0.5f))
+        ) {
+            TagItemCard(tag, isSelected, onClick)
+        }
+    } else {
+        TagItemCard(tag, isSelected, onClick)
+    }
+}
+
+@Composable
+private fun TagItemCard(
+    tag: TagEntity,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (isSelected && isDark) Modifier.drawBehind {
-                    // 白辉光扩散环
-                    drawRoundRect(Color.White.copy(alpha = 0.3f), cornerRadius = CornerRadius(16.dp.toPx()))
-                } else Modifier
-            )
-            .shadow(
-                elevation = if (isSelected) 8.dp else 2.dp,
-                shape = shape,
-                clip = false
-            )
-            .background(
-                color = MaterialTheme.colorScheme.surface,
-                shape = shape
-            )
-            .then(
-                if (isSelected) Modifier.border(2.dp, Color(0xFF1976D2), shape)
-                else Modifier
-            )
+            .shadow(elevation = if (isSelected) 8.dp else 2.dp, shape = shape, clip = false)
+            .background(color = MaterialTheme.colorScheme.surface, shape = shape)
+            .then(if (isSelected) Modifier.border(2.dp, Color(0xFF1976D2), shape) else Modifier)
             .clip(shape)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() }
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
