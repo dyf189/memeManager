@@ -124,9 +124,9 @@ fun SettingsScreen(
                         label = "保留天数",
                         value = settings.trashDays.toFloat(),
                         onValueChange = { viewModel.setTrashDays(it.toInt()) },
-                        valueRange = 0f..90f,
-                        unit = if (settings.trashDays == 0) "" else "天",
-                        unitOverride = if (settings.trashDays == 0) "永不清理" else null
+                        valueRange = 2f..90f,
+                        unit = if (settings.trashDays >= 90) "" else "天",
+                        unitOverride = if (settings.trashDays >= 90) "永不清理" else null
                     )
                     Divider()
                     Row(

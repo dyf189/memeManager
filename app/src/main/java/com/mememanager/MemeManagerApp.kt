@@ -31,7 +31,7 @@ class MemeManagerApp : Application() {
 
     private suspend fun autoCleanTrash() {
         val trashDays = dataStore.data.first()[SettingsKeys.TRASH_DAYS] ?: 30
-        if (trashDays <= 0) return // 0 或负数 = 永不清理
+        if (trashDays >= 90) return // 90 = 永不清理
         val cutoff = System.currentTimeMillis() - trashDays * 86_400_000L
         mediaRepository.purgeDeletedBefore(cutoff)
     }
