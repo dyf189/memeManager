@@ -145,24 +145,36 @@ fun TagsScreen(
     // 新建 — 自动分配颜色
     if (showNewDialog) {
         val nextColor = viewModel.nextPresetColor(tags)
+        var nameError by remember { mutableStateOf<String?>(null) }
         AlertDialog(
-            onDismissRequest = { showNewDialog = false },
+            onDismissRequest = { showNewDialog = false; nameError = null },
             title = { Text("新建标签") },
             text = {
-                OutlinedTextField(
-                    value = newName, onValueChange = { newName = it },
-                    placeholder = { Text("标签名称") }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column {
+                    OutlinedTextField(
+                        value = newName, onValueChange = { newName = it; nameError = null },
+                        placeholder = { Text("标签名称") }, singleLine = true,
+                        isError = nameError != null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (nameError != null) {
+                        Text(nameError!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (newName.isNotBlank()) {
-                        viewModel.addTag(newName.trim(), nextColor); showNewDialog = false
+                    if (newName.isBlank()) return@TextButton
+                    if (viewModel.tagExists(newName.trim())) {
+                        nameError = "标签「${newName.trim()}」已存在"
+                        return@TextButton
                     }
+                    viewModel.addTag(newName.trim(), nextColor)
+                    showNewDialog = false
+                    nameError = null
                 }) { Text("确定") }
             },
-            dismissButton = { TextButton(onClick = { showNewDialog = false }) { Text("取消") } }
+            dismissButton = { TextButton(onClick = { showNewDialog = false; nameError = null }) { Text("取消") } }
         )
     }
 

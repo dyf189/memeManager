@@ -72,9 +72,15 @@ class TagsViewModel @Inject constructor(
 
     fun addTag(name: String, bgColor: Int) {
         viewModelScope.launch {
+            val existing = tagRepository.getByName(name)
+            if (existing != null) return@launch // 重名，UI 层弹窗处理
             val sortOrder = tags.value.size
             tagRepository.save(TagEntity(name = name, bgColor = bgColor, sortOrder = sortOrder))
         }
+    }
+
+    fun tagExists(name: String): Boolean {
+        return tags.value.any { it.name.equals(name, ignoreCase = true) }
     }
 
     fun updateTag(tag: TagEntity) {
