@@ -54,7 +54,7 @@ fun AlbumGridItem(
     modifier: Modifier = Modifier
 ) {
     val media = mediaWithTags.media
-    val tags = mediaWithTags.tags
+    val tags = mediaWithTags.tags.sortedBy { it.sortOrder }
 
     Card(
         modifier = modifier

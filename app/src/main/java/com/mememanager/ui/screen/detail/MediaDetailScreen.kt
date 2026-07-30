@@ -771,7 +771,7 @@ fun MediaBottomSheetContent(
                 }
             }
             */
-            media.tags.forEach { tag ->
+            media.tags.sortedBy { it.sortOrder }.forEach { tag ->
                 val tagColor = Color(tag.bgColor)
                 Surface(
                     shape = RoundedCornerShape(16.dp),
