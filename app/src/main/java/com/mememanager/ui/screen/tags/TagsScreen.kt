@@ -231,13 +231,19 @@ private fun EditTagDialog(
                 Column {
                     OutlinedTextField(value = newColorHex, onValueChange = { newColorHex = it },
                         placeholder = { Text("#FF5733") }, singleLine = true, label = { Text("十六进制颜色值") })
-                    Spacer(Modifier.height(8.dp))
-                    Text("快速选择", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(4.dp))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        val qc = listOf(0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7, 0xFF3F51B5,
-                            0xFF2196F3, 0xFF00BCD4, 0xFF4CAF50, 0xFFFFC107, 0xFFFF9800)
-                        qc.forEach { c -> ColorChip(c.toInt(), selected = false, onClick = { newColorHex = String.format("#%06X", c and 0xFFFFFF) }) }
+                    Spacer(Modifier.height(10.dp))
+                    Text("或从色板选取", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(6.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val palette = listOf(
+                            0xFFF44336, 0xFFE91E63, 0xFF9C27B0, 0xFF673AB7, 0xFF3F51B5,
+                            0xFF2196F3, 0xFF03A9F4, 0xFF00BCD4, 0xFF009688, 0xFF4CAF50,
+                            0xFF8BC34A, 0xFFCDDC39, 0xFFFFEB3B, 0xFFFFC107, 0xFFFF9800,
+                            0xFFFF5722, 0xFF795548, 0xFF607D8B, 0xFF9E9E9E, 0xFF000000
+                        )
+                        palette.forEach { c ->
+                            ColorChip(c.toInt(), selected = false, onClick = { newColorHex = String.format("#%06X", c and 0xFFFFFF) })
+                        }
                     }
                 }
             },

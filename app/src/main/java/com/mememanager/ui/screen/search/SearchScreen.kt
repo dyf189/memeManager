@@ -137,6 +137,7 @@ fun SearchScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(4.dp))
 
         when {
             localQuery.isBlank() -> {
@@ -144,13 +145,13 @@ fun SearchScreen(
                 if (history.isNotEmpty()) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         Row(
-                            Modifier.fillMaxWidth().height(28.dp),
+                            Modifier.fillMaxWidth().height(32.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("搜索历史", fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             TextButton(onClick = { viewModel.clearHistory() }) {
-                                Text("清空历史", fontSize = 12.sp, color = MaterialTheme.colorScheme.error)
+                                Text("清空历史", fontSize = 12.sp, lineHeight = 12.sp, color = MaterialTheme.colorScheme.error)
                             }
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
