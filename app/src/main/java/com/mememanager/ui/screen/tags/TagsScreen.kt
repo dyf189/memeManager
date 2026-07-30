@@ -5,8 +5,11 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -392,19 +395,18 @@ private fun HsvColorPickerDialog(
                         .height(180.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .pointerInput(hue) {
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    saturation = (offset.x / size.width).coerceIn(0f, 1f)
-                                    value = (1f - offset.y / size.height).coerceIn(0f, 1f)
-                                    updateHex()
-                                },
-                                onDrag = { change, _ ->
+                            awaitEachGesture {
+                                val down = awaitFirstDown()
+                                saturation = (down.position.x / size.width).coerceIn(0f, 1f)
+                                value = (1f - down.position.y / size.height).coerceIn(0f, 1f)
+                                updateHex()
+                                drag(down.id) { change ->
                                     change.consume()
                                     saturation = (change.position.x / size.width).coerceIn(0f, 1f)
                                     value = (1f - change.position.y / size.height).coerceIn(0f, 1f)
                                     updateHex()
                                 }
-                            )
+                            }
                         }
                 ) {
                     // 水平渐变：白 → 纯色相
@@ -428,17 +430,16 @@ private fun HsvColorPickerDialog(
                         .height(24.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .pointerInput(hue) {
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    hue = (offset.x / size.width * 360f).coerceIn(0f, 360f)
-                                    updateHex()
-                                },
-                                onDrag = { change, _ ->
+                            awaitEachGesture {
+                                val down = awaitFirstDown()
+                                hue = (down.position.x / size.width * 360f).coerceIn(0f, 360f)
+                                updateHex()
+                                drag(down.id) { change ->
                                     change.consume()
                                     hue = (change.position.x / size.width * 360f).coerceIn(0f, 360f)
                                     updateHex()
                                 }
-                            )
+                            }
                         }
                 ) {
                     drawRect(
