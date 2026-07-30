@@ -155,11 +155,15 @@ fun SearchScreen(
                             }
                         }
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            history.forEach { h ->
+                            history.forEach { raw ->
+                                val (queryText, isSmart) = viewModel.parseHistoryEntry(raw)
                                 FilterChip(
                                     selected = false,
-                                    onClick = { localQuery = h },
-                                    label = { Text(h, fontSize = 12.sp) },
+                                    onClick = {
+                                        localQuery = queryText
+                                        viewModel.smartMode.value = isSmart
+                                    },
+                                    label = { Text(queryText, fontSize = 12.sp) },
                                     colors = FilterChipDefaults.filterChipColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                                 )
                             }

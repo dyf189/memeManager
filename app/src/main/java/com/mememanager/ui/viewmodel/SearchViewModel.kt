@@ -53,6 +53,15 @@ class SearchViewModel @Inject constructor(
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** 解析历史条目：query|smartMode → query, 纯文本 → mode=true */
+    fun parseHistoryEntry(entry: String): Pair<String, Boolean> {
+        if (entry.endsWith("|false")) {
+            return entry.removeSuffix("|false") to false
+        }
+        val clean = if (entry.endsWith("|true")) entry.removeSuffix("|true") else entry
+        return clean to true
+    }
+
     @OptIn(FlowPreview::class)
     val searchResults: Flow<PagingData<SearchResultItem>> = combine(
             _query.debounce(300).filter { it.isNotBlank() },
@@ -81,9 +90,16 @@ class SearchViewModel @Inject constructor(
     fun recordHistory(query: String) {
         if (query.isBlank()) return
         viewModelScope.launch {
+            val suffix = if (smartMode.value) "|true" else "|false"
             dataStore.edit { prefs ->
                 val existing = prefs[SettingsKeys.SEARCH_HISTORY] ?: emptySet()
-                prefs[SettingsKeys.SEARCH_HISTORY] = existing + query
+                // 先删旧条目（同 query 不同 mode），再插入新条目
+                val clean = existing.filter { e ->
+                    val q = e.removeSuffix("|true").removeSuffix("|false")
+                    q != query
+                }.toMutableSet()
+                clean.add(query + suffix)
+                prefs[SettingsKeys.SEARCH_HISTORY] = clean
             }
         }
     }
