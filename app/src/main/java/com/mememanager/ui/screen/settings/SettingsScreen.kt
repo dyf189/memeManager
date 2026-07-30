@@ -314,46 +314,47 @@ private fun SliderRow(
             if (unitOverride != null && isOverride) {
                 Text(unitOverride, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, lineHeight = 34.sp)
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .width(58.dp)
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    BasicTextField(
-                        value = textValue,
-                        onValueChange = { raw ->
-                            val filtered = raw.filter { it.isDigit() }
-                            textValue = filtered
-                            val num = filtered.toIntOrNull()
-                            if (num != null) {
-                                val coerced = num.toFloat().coerceIn(valueRange)
-                                dragValue = coerced
-                                onValueChange(coerced) // 打字直接提交
-                            }
-                        },
-                        singleLine = true,
-                        modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
-                        textStyle = MaterialTheme.typography.bodySmall.copy(
-                            textAlign = TextAlign.Center,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .width(58.dp)
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BasicTextField(
+                            value = textValue,
+                            onValueChange = { raw ->
+                                val filtered = raw.filter { it.isDigit() }
+                                textValue = filtered
+                                val num = filtered.toIntOrNull()
+                                if (num != null) {
+                                    val coerced = num.toFloat().coerceIn(valueRange)
+                                    dragValue = coerced
+                                    onValueChange(coerced)
+                                isOverride = unitOverride != null && coerced >= valueRange.endInclusive
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
+                            textStyle = MaterialTheme.typography.bodySmall.copy(
+                                textAlign = TextAlign.Center,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = unit,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    text = unit,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
             } // Row
         }
         Slider(
