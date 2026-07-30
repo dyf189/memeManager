@@ -842,7 +842,7 @@ fun TagItem(
                 clip = false
             )
             .background(
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shape = shape
             )
             .then(
@@ -851,7 +851,7 @@ fun TagItem(
             )
             .clip(shape)
             .clickable(
-                indication = ripple(),
+                indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp)
