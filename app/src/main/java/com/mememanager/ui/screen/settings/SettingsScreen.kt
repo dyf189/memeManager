@@ -291,11 +291,16 @@ private fun SliderRow(
     var isOverride by remember { mutableStateOf(unitOverride != null) }
     val focusManager = LocalFocusManager.current
     var isFocused by remember { mutableStateOf(false) }
+    var justCommitted by remember { mutableStateOf(false) }
 
-    // 外部值变化且不在拖拽 + 未聚焦 → 同步本地状态
-    if (!dragging && !isFocused) {
+    // 外部值变化且不在拖拽 + 未聚焦 + 刚未提交 → 同步本地状态
+    if (!dragging && !isFocused && !justCommitted) {
         textValue = value.toInt().toString()
         dragValue = value
+    }
+    // 外部值已追上 → 解除防弹
+    if (justCommitted && dragValue == value) {
+        justCommitted = false
     }
 
     Column(
@@ -370,8 +375,9 @@ private fun SliderRow(
                 }
             },
             onValueChangeFinished = {
+                onValueChange(dragValue)
+                justCommitted = true // 防回弹：本帧不覆盖 dragValue
                 dragging = false
-                onValueChange(dragValue) // 松手才提交
                 focusManager.clearFocus()
             },
             valueRange = valueRange,
