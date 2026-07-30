@@ -193,12 +193,14 @@ fun TagsScreen(
 // 圆形颜色色块 — 选中时 2dp 蓝色边框
 @Composable
 private fun ColorChip(color: Int, selected: Boolean, onClick: () -> Unit) {
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val isDark = surfaceColor.red < 0.5f && surfaceColor.green < 0.5f && surfaceColor.blue < 0.5f
     Box(
         modifier = Modifier
             .size(36.dp)
             .shadow(elevation = if (selected) 4.dp else 1.dp, shape = CircleShape, clip = false)
             .background(Color(color), CircleShape)
-            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape).border(4.dp, MaterialTheme.colorScheme.outline, CircleShape) else Modifier.border(2.dp, MaterialTheme.colorScheme.outline, CircleShape))
+            .then(if (selected) Modifier.border(2.dp, if (!isDark) Color(0xFF1976D2) else Color(0xFF4A90FF), CircleShape).border(4.dp, Color(0xFFFFFFFF), CircleShape) else Modifier.border(2.dp, Color(0xFFFFFFFF), CircleShape))
             .clip(CircleShape)
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() }
     )

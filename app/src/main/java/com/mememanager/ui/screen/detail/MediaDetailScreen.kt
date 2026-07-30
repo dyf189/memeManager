@@ -18,7 +18,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -836,38 +836,16 @@ fun TagItem(
     // 从实际渲染主题色判断暗/亮（与设置页强制覆盖一致）
     val surfaceColor = MaterialTheme.colorScheme.surface
     val isDark = surfaceColor.red < 0.5f && surfaceColor.green < 0.5f && surfaceColor.blue < 0.5f
+    TagItemCard(tag, isSelected, onClick, isDark)
 
-    // 深色模式选中时外层辉光（手绘环，不依赖 shadow API 自定义色）
-    if (isSelected && isDark) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .drawBehind {
-                    val steps = 4
-                    for (i in steps downTo 1) {
-                        val a = 0.06f * (steps - i + 1)
-                        val expand = (i * 4).dp.toPx()
-                        drawRoundRect(
-                            Color.White.copy(alpha = a),
-                            topLeft = Offset(-expand, -expand),
-                            size = Size(size.width + 2 * expand, size.height + 2 * expand),
-                            cornerRadius = CornerRadius(16.dp.toPx() + expand)
-                        )
-                    }
-                }
-        ) {
-            TagItemCard(tag, isSelected, onClick)
-        }
-    } else {
-        TagItemCard(tag, isSelected, onClick)
-    }
 }
 
 @Composable
 private fun TagItemCard(
     tag: TagEntity,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isDark: Boolean
 ) {
     val shape = RoundedCornerShape(16.dp)
     Box(
@@ -875,7 +853,7 @@ private fun TagItemCard(
             .fillMaxWidth()
             .shadow(elevation = if (isSelected) 8.dp else 2.dp, shape = shape, clip = false)
             .background(color = MaterialTheme.colorScheme.surface, shape = shape)
-            .then(if (isSelected) Modifier.border(2.dp, Color(0xFF1976D2), shape) else Modifier)
+            .then(if (isSelected) Modifier.border(2.dp, if (!isDark) Color(0xFF1976D2) else Color(0xFF4A90FF), shape) else Modifier)
             .clip(shape)
             .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp)
