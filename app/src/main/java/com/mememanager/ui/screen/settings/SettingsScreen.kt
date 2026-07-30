@@ -2,6 +2,8 @@ package com.mememanager.ui.screen.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,10 +42,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -126,7 +133,7 @@ fun SettingsScreen(
                         onValueChange = { viewModel.setTrashDays(it.toInt()) },
                         valueRange = 2f..90f,
                         unit = if (settings.trashDays >= 90) "" else "天",
-                        unitOverride = if (settings.trashDays >= 90) "永不清理" else null
+                        unitOverride = "永不清理"
                     )
                     Divider()
                     Row(
@@ -268,7 +275,6 @@ private fun FilterRow(
         }
     }
 }
-
 @Composable
 private fun SliderRow(
     label: String,
@@ -282,22 +288,31 @@ private fun SliderRow(
     var textValue by remember { mutableStateOf(value.toInt().toString()) }
     var dragging by remember { mutableStateOf(false) }
     var dragValue by remember { mutableStateOf(value) }
+    var isOverride by remember { mutableStateOf(unitOverride != null) }
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
 
-    // 外部值变化且不在拖拽中 → 同步本地状态
-    if (!dragging) {
+    // 外部值变化且不在拖拽 + 未聚焦 → 同步本地状态
+    if (!dragging && !focusRequester.isFocused) {
         textValue = value.toInt().toString()
         dragValue = value
     }
 
-    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+    Column(
+        modifier = Modifier
+            .padding(vertical = 4.dp)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                focusManager.clearFocus()
+            }
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (unitOverride != null) {
-                Text(unitOverride, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary)
+            if (unitOverride != null && isOverride) {
+                Text(unitOverride, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, lineHeight = 34.sp)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -322,6 +337,7 @@ private fun SliderRow(
                             }
                         },
                         singleLine = true,
+                        modifier = Modifier.focusRequester(focusRequester),
                         textStyle = MaterialTheme.typography.bodySmall.copy(
                             textAlign = TextAlign.Center,
                             fontSize = 13.sp,
@@ -346,10 +362,16 @@ private fun SliderRow(
                 dragValue = it
                 textValue = it.toInt().toString()
                 dragging = true
+                if (dragValue >= 90){
+                    isOverride = true
+                } else {
+                    isOverride = false
+                }
             },
             onValueChangeFinished = {
                 dragging = false
                 onValueChange(dragValue) // 松手才提交
+                focusManager.clearFocus()
             },
             valueRange = valueRange,
             steps = steps
