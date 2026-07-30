@@ -17,4 +17,7 @@ data class MediaWithTags(
         )
     )
     val tags: List<TagEntity> = emptyList()
-)
+) {
+    /** 按 sortOrder 排序后的标签列表 */
+    val sortedTags: List<TagEntity> get() = tags.sortedBy { it.sortOrder }
+}
