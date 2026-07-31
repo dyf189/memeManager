@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.mememanager.data.local.entity.MediaType
+import com.mememanager.ui.components.ShareMenu
 import com.mememanager.ui.util.TimeGroupUtil
 import com.mememanager.ui.viewmodel.AlbumViewModel
 import com.mememanager.ui.viewmodel.SettingsViewModel

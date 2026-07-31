@@ -131,6 +131,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.platform.LocalLayoutDirection
+import com.mememanager.ui.components.ShareMenu
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
