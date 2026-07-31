@@ -341,7 +341,6 @@ private fun SliderRow(
                                     val coerced = num.toFloat().coerceIn(valueRange)
                                     dragValue = coerced
                                     onValueChange(coerced)
-                                isOverride = unitOverride != null && coerced >= valueRange.endInclusive
                                 }
                             },
                             singleLine = true,
