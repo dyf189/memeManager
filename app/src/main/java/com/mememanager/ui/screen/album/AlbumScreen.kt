@@ -122,6 +122,7 @@ fun AlbumScreen(
             if (uiState.isMultiSelectMode) {
                 val allIds = items.mapNotNull { it?.media?.id }.toSet()
                 val allSelected = uiState.selectedMediaIds.containsAll(allIds)
+                var shareExpanded by remember { mutableStateOf(false) }
                 BatchActionBar(
                     selectedCount = uiState.selectedMediaIds.size,
                     totalCount = allIds.size,
@@ -130,11 +131,14 @@ fun AlbumScreen(
                         if (allSelected) viewModel.unselectGroup(allIds)
                         else viewModel.selectAll(allIds)
                     },
-                    onDelete = { viewModel.softDeleteSelected() },
-                    onTag = {},
-                    onExport = {},
-                    onShare = {}
+                    onShare = { shareExpanded = true },
+                    onDelete = { viewModel.softDeleteSelected() }
                 )
+                // 分享下拉
+                val firstSelectedMedia = items.mapNotNull { it?.media }.firstOrNull { it.id in uiState.selectedMediaIds }
+                if (firstSelectedMedia != null) {
+                    ShareMenu(expanded = shareExpanded, onDismiss = { shareExpanded = false }, media = firstSelectedMedia)
+                }
             }
             // ── 搜索栏 + 筛选按钮 ──
             Row(

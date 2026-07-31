@@ -216,8 +216,12 @@ fun MediaDetailScreen(
                     fontSize = 16.sp,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = { onShare(currentMedia) }) {
-                    Icon(Icons.Default.Share, contentDescription = "分享")
+                var shareExpanded by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { shareExpanded = true }) {
+                        Icon(Icons.Default.Share, contentDescription = "分享")
+                    }
+                    ShareMenu(expanded = shareExpanded, onDismiss = { shareExpanded = false }, media = currentMedia.media)
                 }
                 Box {
                     IconButton(onClick = { isMenuExpanded = true }) {
@@ -227,10 +231,6 @@ fun MediaDetailScreen(
                         expanded = isMenuExpanded,
                         onDismissRequest = { isMenuExpanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("保存到相册") },
-                            onClick = { isMenuExpanded = false }
-                        )
                         DropdownMenuItem(
                             text = { Text("查看原始信息") },
                             onClick = { isMenuExpanded = false }

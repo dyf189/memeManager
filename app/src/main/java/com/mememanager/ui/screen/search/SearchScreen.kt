@@ -233,6 +233,14 @@ private fun SearchResultRow(item: SearchResultItem, onClick: () -> Unit) {
                     fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
+            // 分享
+            var shareExpanded by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { shareExpanded = true }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Share, "分享", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                ShareMenu(expanded = shareExpanded, onDismiss = { shareExpanded = false }, media = media)
+            }
         }
     }
 }

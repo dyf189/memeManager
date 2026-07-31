@@ -35,10 +35,8 @@ fun BatchActionBar(
     totalCount: Int = 0,
     onCancel: () -> Unit,
     onSelectAll: (() -> Unit)? = null,
-    onTag: () -> Unit = {},
-    onExport: () -> Unit = {},
+    onShare: (() -> Unit)? = null,
     onDelete: () -> Unit = {},
-    onShare: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val allSelected = selectedCount >= totalCount && totalCount > 0
@@ -73,8 +71,10 @@ fun BatchActionBar(
                         )
                     }
                 }
-                IconButton(onClick = onTag) {
-                    Icon(Icons.Default.Star, "打标签", modifier = Modifier.size(22.dp))
+                if (onShare != null) {
+                    IconButton(onClick = onShare) {
+                        Icon(Icons.Default.Share, "分享", modifier = Modifier.size(22.dp))
+                    }
                 }
                 IconButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, "删除", tint = MaterialTheme.colorScheme.error)
