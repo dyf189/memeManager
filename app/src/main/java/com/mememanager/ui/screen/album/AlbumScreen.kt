@@ -116,6 +116,7 @@ fun AlbumScreen(
     var selectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
     Box(modifier = modifier.fillMaxSize()) {
+        val items = lazyPagingItems.itemSnapshotList
         Column(modifier = Modifier.fillMaxSize()) {
             // ── 批量操作栏 ──
             if (uiState.isMultiSelectMode) {
@@ -194,8 +195,7 @@ fun AlbumScreen(
 
             // ── 网格 + 筛选覆盖层 ──
             Box(modifier = Modifier.fillMaxSize()) {
-                val items = lazyPagingItems.itemSnapshotList
-
+                // ── 网格视图 ──
                 if (items.isEmpty() && lazyPagingItems.loadState.refresh is LoadState.Loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
