@@ -293,7 +293,7 @@ private fun SliderRow(
     var justCommitted by remember { mutableStateOf(false) }
 
     // isOverride 始终跟随当前值，不靠手动设置
-    val isOverride = unitOverride != null && value >= valueRange.endInclusive
+    val isOverride = unitOverride != null && dragValue >= valueRange.endInclusive
 
     // 外部值变化且不在拖拽 + 未聚焦 + 刚未提交 → 同步本地状态
     if (!dragging && !isFocused && !justCommitted) {
