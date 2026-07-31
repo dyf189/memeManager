@@ -370,11 +370,6 @@ private fun SliderRow(
                 dragValue = it
                 textValue = it.toInt().toString()
                 dragging = true
-                if (dragValue >= 90){
-                    isOverride = true
-                } else {
-                    isOverride = false
-                }
             },
             onValueChangeFinished = {
                 onValueChange(dragValue)
