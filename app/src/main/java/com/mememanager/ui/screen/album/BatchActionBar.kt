@@ -10,7 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Output
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -71,7 +71,7 @@ fun BatchActionBar(
                 }
                 if (onExport != null) {
                     IconButton(onClick = onExport) {
-                        Icon(Icons.Filled.FileDownload, "导出", modifier = Modifier.size(22.dp))
+                        Icon(Icons.Filled.Output, "导出", modifier = Modifier.size(22.dp))
                     }
                 }
                 IconButton(onClick = onDelete) {
