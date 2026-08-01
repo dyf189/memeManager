@@ -18,7 +18,8 @@ data class AppSettings(
     val themeMode: String = "跟随系统",
     val gridColumns: Int = 3,
     val trashDays: Int = 30,
-    val jsonSyncEnabled: Boolean = false
+    val jsonSyncEnabled: Boolean = false,
+    val exportDirUri: String? = null
 )
 
 object SettingsKeys {
@@ -28,6 +29,7 @@ object SettingsKeys {
     val GRID_COLUMNS = intPreferencesKey("grid_columns")
     val TRASH_DAYS = intPreferencesKey("trash_days")
     val JSON_SYNC_ENABLED = booleanPreferencesKey("json_sync_enabled")
+    val EXPORT_DIR_URI = stringPreferencesKey("export_dir_uri")
     val SEARCH_HISTORY = stringSetPreferencesKey("search_history")
     val CUSTOM_COLORS = stringSetPreferencesKey("custom_colors")
     val LAST_TRASH_CLEAN = longPreferencesKey("last_trash_clean")

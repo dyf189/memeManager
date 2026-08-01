@@ -30,7 +30,8 @@ class SettingsViewModel @Inject constructor(
                 themeMode = prefs[SettingsKeys.THEME_MODE] ?: "跟随系统",
                 gridColumns = prefs[SettingsKeys.GRID_COLUMNS] ?: 3,
                 trashDays = prefs[SettingsKeys.TRASH_DAYS] ?: 30,
-                jsonSyncEnabled = prefs[SettingsKeys.JSON_SYNC_ENABLED] ?: false
+                jsonSyncEnabled = prefs[SettingsKeys.JSON_SYNC_ENABLED] ?: false,
+                exportDirUri = prefs[SettingsKeys.EXPORT_DIR_URI]
             )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
@@ -71,6 +72,19 @@ class SettingsViewModel @Inject constructor(
     fun setJsonSyncEnabled(value: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.JSON_SYNC_ENABLED] = value }
+        }
+    }
+
+    /** 设置导出目录（SAF tree URI，已持久授权） */
+    fun setExportDirUri(uri: String) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.EXPORT_DIR_URI] = uri }
+        }
+    }
+
+    fun clearExportDirUri() {
+        viewModelScope.launch {
+            dataStore.edit { it.remove(SettingsKeys.EXPORT_DIR_URI) }
         }
     }
 

@@ -1,5 +1,9 @@
 package com.mememanager.ui.screen.settings
 
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +24,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -28,6 +35,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -44,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +63,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mememanager.ui.viewmodel.SettingsViewModel
@@ -97,6 +108,12 @@ fun SettingsScreen(
                         onValueChange = { viewModel.setShardSizeMB(it.toInt()) },
                         valueRange = 10f..500f,
                         unit = "MB"
+                    )
+                    Divider()
+                    ExportDirRow(
+                        uri = settings.exportDirUri,
+                        onPick = { uri -> viewModel.setExportDirUri(uri) },
+                        onClear = { viewModel.clearExportDirUri() }
                     )
                 }
             }
@@ -398,5 +415,70 @@ private fun InfoRow(label: String, value: String) {
             fontSize = 15.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+
+/** 导出目录选择行 — SAF OpenDocumentTree + 持久授权 */
+@Composable
+private fun ExportDirRow(
+    uri: String?,
+    onPick: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    val context = LocalContext.current
+    val dirLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { treeUri ->
+        if (treeUri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    treeUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            onPick(treeUri.toString())
+        }
+    }
+
+    // 显示目录名（取 URI 最后一段，解析失败则显示占位）
+    val dirName = uri?.let {
+        runCatching { DocumentFile.fromTreeUri(context, Uri.parse(it))?.name }
+            .getOrNull() ?: "已设置（路径不可读）"
+    } ?: "未设置"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { dirLauncher.launch(null) }
+            .padding(horizontal = 4.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Default.Folder,
+            null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text("导出目录", fontSize = 15.sp)
+            Text(
+                dirName,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (uri != null) {
+            IconButton(onClick = onClear) {
+                Icon(
+                    Icons.Default.Clear,
+                    "清除导出目录",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
 }
