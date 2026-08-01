@@ -209,7 +209,9 @@ fun SettingsScreen(
                 SettingsCard(title = "关于") {
                     InfoRow("版本", "1.0.0")
                     Divider()
-                    InfoRow("开源许可", "Apache 2.0")
+                    InfoRow("开源许可", "MIT")
+                    Divider()
+                    InfoRow("GitHub", "github.com/dyf189/memeManager")
                 }
             }
         }
