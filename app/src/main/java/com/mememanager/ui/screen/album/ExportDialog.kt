@@ -66,9 +66,8 @@ fun computeShards(mediaSizes: List<Long>, maxSizeBytes: Long): List<ShardInfo> {
 
     for (size in mediaSizes) {
         val itemSize = 2L + fileNameLen + 8L + size
-        val newSize = used + itemSize
-        // 当前片非空且装不下 → 结算当前片，开新片
-        if (current.isNotEmpty() && newSize > maxSizeBytes) {
+        // 当前片非空且装不下 → 结算当前片，开新片（used 重置）
+        if (current.isNotEmpty() && used + itemSize > maxSizeBytes) {
             shards += ShardInfo(current.size, used)
             current = mutableListOf()
             used = headerBytes + jsonEstimate
@@ -80,7 +79,7 @@ fun computeShards(mediaSizes: List<Long>, maxSizeBytes: Long): List<ShardInfo> {
             continue
         }
         current += size
-        used = newSize
+        used += itemSize
     }
     if (current.isNotEmpty()) shards += ShardInfo(current.size, used)
     return shards
