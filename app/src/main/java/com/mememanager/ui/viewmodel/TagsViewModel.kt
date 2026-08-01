@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 /** 预设标签颜色（Material3 色板） */
@@ -58,13 +60,16 @@ class TagsViewModel @Inject constructor(
         viewModelScope.launch { tagRepository.delete(tag) }
     }
 
-    /** 拖拽排序后批量更新 sortOrder */
+    /** 拖拽排序后批量更新 sortOrder — Mutex 串行化，连续拖拽的更新排队不交错 */
+    private val sortMutex = Mutex()
+
     fun updateSortOrder(reordered: List<TagEntity>) {
         viewModelScope.launch {
-            reordered.forEachIndexed { index, tag ->
-                if (tag.sortOrder != index) {
-                    tagRepository.update(tag.copy(sortOrder = index))
-                }
+            sortMutex.withLock {
+                // 全量更新（不做 tag.sortOrder != index 跳过判断——对象旧值可能已被污染）
+                tagRepository.updateSortOrders(
+                    reordered.mapIndexed { index, tag -> tag.copy(sortOrder = index) }
+                )
             }
         }
     }

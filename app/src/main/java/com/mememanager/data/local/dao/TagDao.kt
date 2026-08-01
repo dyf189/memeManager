@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.mememanager.data.local.entity.TagEntity
 import kotlinx.coroutines.flow.Flow
@@ -18,13 +19,19 @@ interface TagDao {
     @Update
     suspend fun update(tag: TagEntity)
 
+    /** 批量更新 sortOrder — 单事务原子提交，杜绝中间态重复 sortOrder 泄漏到 UI */
+    @Transaction
+    suspend fun updateSortOrders(tags: List<TagEntity>) {
+        tags.forEach { update(it) }
+    }
+
     @Delete
     suspend fun delete(tag: TagEntity)
 
     @Query("SELECT * FROM tags WHERE id = :id")
     fun getById(id: Long): Flow<TagEntity?>
 
-    @Query("SELECT * FROM tags ORDER BY sortOrder ASC")
+    @Query("SELECT * FROM tags ORDER BY sortOrder ASC, id ASC")
     fun getAll(): Flow<List<TagEntity>>
 
     @Query("SELECT * FROM tags WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")

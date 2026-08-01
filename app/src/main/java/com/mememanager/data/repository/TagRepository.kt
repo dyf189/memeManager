@@ -22,6 +22,9 @@ class TagRepository @Inject constructor(
 
     suspend fun update(tag: TagEntity) = tagDao.update(tag)
 
+    /** 批量更新 sortOrder（单事务原子提交） */
+    suspend fun updateSortOrders(tags: List<TagEntity>) = tagDao.updateSortOrders(tags)
+
     suspend fun delete(tag: TagEntity) = tagDao.delete(tag)
 
     /**
