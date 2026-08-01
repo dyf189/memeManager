@@ -284,6 +284,7 @@ private fun ExportSliderRow(
                 dragValue = it
                 textValue = it.toInt().toString()
                 dragging = true
+                onValueChange(it)   // 拖动中也上报 → 分片实时重算
             },
             onValueChangeFinished = {
                 onValueChange(dragValue)
