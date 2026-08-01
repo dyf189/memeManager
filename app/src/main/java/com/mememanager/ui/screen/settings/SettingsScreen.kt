@@ -211,7 +211,7 @@ fun SettingsScreen(
                     Divider()
                     InfoRow("开源许可", "MIT")
                     Divider()
-                    InfoRow("GitHub", "github.com/dyf189/memeManager")
+                    InfoRow("GitHub", "dyf189/memeManager")
                 }
             }
         }
