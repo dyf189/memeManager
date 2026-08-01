@@ -144,13 +144,11 @@ fun AlbumScreen(
                 }
                 // 导出预览弹窗
                 if (showExportDialog) {
-                    val selectedSizes = items.mapNotNull { it?.media }
+                    val selectedMedia = items.mapNotNull { it?.media }
                         .filter { it.id in uiState.selectedMediaIds }
-                        .map { it.size }
                     val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
                     ExportDialog(
-                        mediaCount = selectedSizes.size,
-                        mediaSizes = selectedSizes,
+                        mediaList = selectedMedia,
                         initialShardSizeMB = settings.shardSizeMB,
                         onDismiss = { showExportDialog = false }
                     )

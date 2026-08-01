@@ -45,10 +45,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.mememanager.data.local.entity.MediaEntity
 
 /** 一片的打包结果 */
 data class ShardInfo(
-    val mediaCount: Int,
+    val media: List<MediaEntity>,
     val totalBytes: Long
 )
 
@@ -56,32 +57,32 @@ data class ShardInfo(
  * 分片算法（export-format.md §6.1）
  * 片大小 = 14（文件头） + JSON 段长度（估算） + Σ（2 + fileNameLen + 8 + fileSize）
  */
-fun computeShards(mediaSizes: List<Long>, maxSizeBytes: Long): List<ShardInfo> {
+fun computeShards(media: List<MediaEntity>, maxSizeBytes: Long): List<ShardInfo> {
     val shards = mutableListOf<ShardInfo>()
     val headerBytes = 14L
     val jsonEstimate = 4 * 1024L          // 起始 JSON 段估算（约 4KB）
     val fileNameLen = 14L                 // "meme_0001.jpg" 固定长度估算
-    var current = mutableListOf<Long>()
+    var current = mutableListOf<MediaEntity>()
     var used = headerBytes + jsonEstimate
 
-    for (size in mediaSizes) {
-        val itemSize = 2L + fileNameLen + 8L + size
+    for (item in media) {
+        val itemSize = 2L + fileNameLen + 8L + item.size
         // 当前片非空且装不下 → 结算当前片，开新片（used 重置）
         if (current.isNotEmpty() && used + itemSize > maxSizeBytes) {
-            shards += ShardInfo(current.size, used)
+            shards += ShardInfo(current.toList(), used)
             current = mutableListOf()
             used = headerBytes + jsonEstimate
         }
         // 超大单文件单独成片（允许超限）
         if (current.isEmpty() && itemSize > maxSizeBytes) {
-            shards += ShardInfo(1, headerBytes + jsonEstimate + itemSize)
+            shards += ShardInfo(listOf(item), headerBytes + jsonEstimate + itemSize)
             used = headerBytes + jsonEstimate
             continue
         }
-        current += size
+        current += item
         used += itemSize
     }
-    if (current.isNotEmpty()) shards += ShardInfo(current.size, used)
+    if (current.isNotEmpty()) shards += ShardInfo(current.toList(), used)
     return shards
 }
 
@@ -97,19 +98,18 @@ fun formatBytes(bytes: Long): String {
 
 /**
  * 导出预览弹窗：选择分片大小，实时计算分片方案
- * @param mediaSizes 选中媒体的字节大小列表（顺序即导出顺序）
+ * @param mediaList 选中媒体的完整实体列表（顺序即导出顺序）
  * @param initialShardSizeMB 设置页的分片大小（作为默认值，弹窗内调整不写回设置）
  */
 @Composable
 fun ExportDialog(
-    mediaCount: Int,
-    mediaSizes: List<Long>,
+    mediaList: List<MediaEntity>,
     initialShardSizeMB: Int,
     onDismiss: () -> Unit
 ) {
     var shardSizeMB by remember { mutableIntStateOf(initialShardSizeMB) }
-    val shards = remember(mediaSizes, shardSizeMB) {
-        computeShards(mediaSizes, shardSizeMB * 1024L * 1024L)
+    val shards = remember(mediaList, shardSizeMB) {
+        computeShards(mediaList, shardSizeMB * 1024L * 1024L)
     }
 
     Dialog(
@@ -126,7 +126,7 @@ fun ExportDialog(
             // 标题
             Text("导出", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Text(
-                "共 $mediaCount 个媒体 · 将分成 ${shards.size} 片",
+                "共 ${mediaList.size} 个媒体 · 将分成 ${shards.size} 片",
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
@@ -171,7 +171,7 @@ fun ExportDialog(
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            "${shard.mediaCount} 个媒体",
+                            "${shard.media.size} 个媒体",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
