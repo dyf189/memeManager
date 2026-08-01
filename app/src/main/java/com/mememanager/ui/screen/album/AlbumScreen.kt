@@ -115,6 +115,7 @@ fun AlbumScreen(
     var isFilterPanelVisible by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf<MediaType?>(null) }
     var selectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var showExportDialog by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxSize()) {
         val items = lazyPagingItems.itemSnapshotList
@@ -133,12 +134,26 @@ fun AlbumScreen(
                         else viewModel.selectAll(allIds)
                     },
                     onShare = { shareExpanded = true },
+                    onExport = { showExportDialog = true },
                     onDelete = { viewModel.softDeleteSelected() }
                 )
                 // 分享下拉
                 val firstSelectedMedia = items.mapNotNull { it?.media }.firstOrNull { it.id in uiState.selectedMediaIds }
                 if (firstSelectedMedia != null) {
                     ShareMenu(expanded = shareExpanded, onDismiss = { shareExpanded = false }, media = firstSelectedMedia)
+                }
+                // 导出预览弹窗
+                if (showExportDialog) {
+                    val selectedSizes = items.mapNotNull { it?.media }
+                        .filter { it.id in uiState.selectedMediaIds }
+                        .map { it.size }
+                    val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
+                    ExportDialog(
+                        mediaCount = selectedSizes.size,
+                        mediaSizes = selectedSizes,
+                        initialShardSizeMB = settings.shardSizeMB,
+                        onDismiss = { showExportDialog = false }
+                    )
                 }
             }
             // ── 搜索栏 + 筛选按钮 ──

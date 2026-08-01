@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Export
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -25,10 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * 批量操作栏（多选模式顶部栏）
- * ← 取消    已选 N 项    ⭐  🗑️
- */
+
 @Composable
 fun BatchActionBar(
     selectedCount: Int,
@@ -36,6 +34,7 @@ fun BatchActionBar(
     onCancel: () -> Unit,
     onSelectAll: (() -> Unit)? = null,
     onShare: (() -> Unit)? = null,
+    onExport: (() -> Unit)? = null,
     onDelete: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -58,12 +57,6 @@ fun BatchActionBar(
             Row {
                 if (onSelectAll != null) {
                     TextButton(onClick = onSelectAll) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = "全选",
-                            modifier = Modifier.size(18.dp),
-                            tint = if (allSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                         Text(
                             if (allSelected) "取消全选" else "全选",
                             fontSize = 13.sp,
@@ -74,6 +67,11 @@ fun BatchActionBar(
                 if (onShare != null) {
                     IconButton(onClick = onShare) {
                         Icon(Icons.Default.Share, "分享", modifier = Modifier.size(22.dp))
+                    }
+                }
+                if (onExport != null) {
+                    IconButton(onClick = onExport) {
+                        Icon(Icons.Default.Export, "导出", modifier = Modifier.size(22.dp))
                     }
                 }
                 IconButton(onClick = onDelete) {
