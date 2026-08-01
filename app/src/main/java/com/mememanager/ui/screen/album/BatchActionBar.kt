@@ -10,7 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Output
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -22,6 +22,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,7 +72,11 @@ fun BatchActionBar(
                 }
                 if (onExport != null) {
                     IconButton(onClick = onExport) {
-                        Icon(Icons.Filled.Output, "导出", modifier = Modifier.size(22.dp))
+                        Icon(
+                            Icons.Filled.Logout,
+                            "导出",
+                            modifier = Modifier.size(22.dp).rotate(-90f)
+                        )
                     }
                 }
                 IconButton(onClick = onDelete) {
