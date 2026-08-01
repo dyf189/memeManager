@@ -408,7 +408,8 @@ private fun ReorderableTagList(
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragged) 1f else 0f)
-                    .animateItem()
+                    // 被拖 item 不参与位置动画 — 完全由 offset 跟手，避免重排动画滞后导致手指下内容错位
+                    .then(if (!isDragged) Modifier.animateItem() else Modifier)
                     .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else 0) }
                     .onSizeChanged { if (itemHeightPx == 0f) itemHeightPx = it.height.toFloat() }
                     .then(
@@ -444,9 +445,15 @@ private fun ReorderableTagList(
                     .graphicsLayer {
                         scaleX = if (isDragged) liftAnim.value else 1f
                         scaleY = if (isDragged) liftAnim.value else 1f
-                        shadowElevation = if (isDragged) shadowAnim.value else 0f
                         clip = false
                     }
+                    // 阴影用 Modifier.shadow(clip = false) 画在最外层，不被任何 clip 裁切
+                    .then(
+                        if (isDragged) {
+                            val elevation = with(density) { shadowAnim.value.toDp() }
+                            Modifier.shadow(elevation, RoundedCornerShape(14.dp), clip = false)
+                        } else Modifier
+                    )
             ) {
                 TagCard(
                     tag = tag, sortMode = sortMode,
