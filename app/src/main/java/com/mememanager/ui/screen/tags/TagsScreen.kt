@@ -86,13 +86,15 @@ import com.mememanager.ui.viewmodel.TagsViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+/** 标签列表卡片间距 — spacedBy 与拖拽格高计算共用，修改时必须同步 */
+private val TAG_LIST_SPACING = 10.dp
+
 @Composable
 fun TagsScreen(
     viewModel: TagsViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
     val tags by viewModel.tags.collectAsStateWithLifecycle()
-
     var showNewDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf<TagEntity?>(null) }
     var showEditDialog by remember { mutableStateOf<TagEntity?>(null) }
@@ -363,7 +365,10 @@ private fun ReorderableTagList(
 
     val liftSpec = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
 
-    val itemH = if (itemHeightPx > 0f) itemHeightPx else with(density) { 90.dp.toPx() }
+    // LazyColumn 卡片间距（与 spacedBy 保持一致，必须计入"一格"高度）
+    val itemSpacingPx = with(density) { TAG_LIST_SPACING.toPx() }
+    val itemH = if (itemHeightPx > 0f) itemHeightPx + itemSpacingPx
+                else with(density) { 100.dp.toPx() }
 
     // 外部 tags 追上拖拽结果后释放本地列表（避免松手瞬间闪回旧顺序）
     LaunchedEffect(tags) {
@@ -397,7 +402,7 @@ private fun ReorderableTagList(
         state = listState,
         userScrollEnabled = draggingIndex < 0,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(TAG_LIST_SPACING)
     ) {
         itemsIndexed(displayList, key = { _, t -> t.id }) { index, tag ->
             val isDragged = index == draggingIndex && draggingTagId == tag.id
