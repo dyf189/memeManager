@@ -354,14 +354,13 @@ private fun ReorderableTagList(
     var dragList by remember { mutableStateOf<List<TagEntity>?>(null) }
     val displayList = dragList ?: tags
 
-    // 当前被拖的 index（rememberUpdatedState 保证手势闭包永远读到最新 index）
+    // 当前被拖的 tagId 与 index — tagId 守卫多指互斥（只有发起拖拽的那根手指能继续操作）
+    var draggingTagId by remember { mutableStateOf<Long?>(null) }
     var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
-    val liftAnim = remember { Animatable(1f) }
-    val shadowAnim = remember { Animatable(0f) }
     val liftSpec = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
 
     val itemH = if (itemHeightPx > 0f) itemHeightPx else with(density) { 90.dp.toPx() }
@@ -385,15 +384,13 @@ private fun ReorderableTagList(
         }
     }
 
-    fun endDrag() {
+    fun endDrag(tagId: Long) {
+        if (draggingTagId != tagId) return
         val final = dragList
+        draggingTagId = null
         draggingIndex = -1
         dragOffset = 0f
         if (final != null) onReorder(final)
-        scope.launch {
-            liftAnim.animateTo(1f, spring())
-            shadowAnim.animateTo(0f, spring())
-        }
     }
 
     LazyColumn(
@@ -403,8 +400,22 @@ private fun ReorderableTagList(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         itemsIndexed(displayList, key = { _, t -> t.id }) { index, tag ->
-            val isDragged = index == draggingIndex
+            val isDragged = index == draggingIndex && draggingTagId == tag.id
             val currentIndex by rememberUpdatedState(index)
+
+            // 每个 item 独立的抬升/阴影动画 — isDragged 变化即触发，抬升和放下都有平滑过渡
+            val liftAnim = remember(tag.id) { Animatable(1f) }
+            val shadowAnimItem = remember(tag.id) { Animatable(0f) }
+            LaunchedEffect(isDragged) {
+                if (isDragged) {
+                    liftAnim.animateTo(1.03f, liftSpec)
+                    shadowAnimItem.animateTo(24f, liftSpec)
+                } else {
+                    liftAnim.animateTo(1f, spring())
+                    shadowAnimItem.animateTo(0f, spring())
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragged) 1f else 0f)
@@ -416,16 +427,15 @@ private fun ReorderableTagList(
                         if (sortMode) Modifier.pointerInput(tag.id) {
                             detectDragGestures(
                                 onDragStart = {
+                                    // 多指互斥：已有拖拽进行中则忽略
+                                    if (draggingTagId != null) return@detectDragGestures
+                                    draggingTagId = tag.id
                                     draggingIndex = currentIndex
                                     dragOffset = 0f
-                                    scope.launch {
-                                        liftAnim.animateTo(1.03f, liftSpec)
-                                        shadowAnim.animateTo(16f, liftSpec)
-                                    }
                                 },
                                 onDrag = { change, amount ->
                                     change.consume()
-                                    if (draggingIndex < 0) return@detectDragGestures
+                                    if (draggingTagId != tag.id || draggingIndex < 0) return@detectDragGestures
                                     dragOffset += amount.y
                                     val base = dragList ?: displayList
                                     val from = draggingIndex
@@ -437,20 +447,20 @@ private fun ReorderableTagList(
                                         dragOffset -= (target - from) * itemH
                                     }
                                 },
-                                onDragEnd = { endDrag() },
-                                onDragCancel = { endDrag() }
+                                onDragEnd = { endDrag(tag.id) },
+                                onDragCancel = { endDrag(tag.id) }
                             )
                         } else Modifier
                     )
                     .graphicsLayer {
-                        scaleX = if (isDragged) liftAnim.value else 1f
-                        scaleY = if (isDragged) liftAnim.value else 1f
+                        scaleX = liftAnim.value
+                        scaleY = liftAnim.value
                         clip = false
                     }
-                    // 阴影用 Modifier.shadow(clip = false) 画在最外层，不被任何 clip 裁切
+                    // 阴影画在最外层，不被 clip 裁切；动画期间值 > 0 时保留 modifier，放下时平滑消退
                     .then(
-                        if (isDragged) {
-                            val elevation = with(density) { shadowAnim.value.toDp() }
+                        if (shadowAnimItem.value > 0f) {
+                            val elevation = with(density) { shadowAnimItem.value.toDp() }
                             Modifier.shadow(elevation, RoundedCornerShape(14.dp), clip = false)
                         } else Modifier
                     )
