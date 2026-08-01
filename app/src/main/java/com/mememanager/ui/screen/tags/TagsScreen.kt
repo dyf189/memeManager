@@ -338,6 +338,7 @@ private fun EditTagDialog(
 
 // ── 拖拽排序 ──
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReorderableTagList(
     tags: List<TagEntity>,
@@ -347,95 +348,102 @@ private fun ReorderableTagList(
     onDelete: (TagEntity?) -> Unit
 ) {
     val listState = rememberLazyListState()
-    var dragIndex by remember { mutableIntStateOf(-1) }
+    val scope = rememberCoroutineScope()
+
+    // 拖拽中的实时列表 — 本地可变，松手一次性提交
+    var dragList by remember { mutableStateOf<List<TagEntity>?>(null) }
+    val displayList = dragList ?: tags
+
+    // 当前被拖的 index（rememberUpdatedState 保证手势闭包永远读到最新 index）
+    var draggingIndex by remember { mutableIntStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    var dragOffsetAnim by remember { mutableFloatStateOf(0f) }
     var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
 
-    val scaleAnim = remember { Animatable(1f) }
+    val liftAnim = remember { Animatable(1f) }
     val shadowAnim = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
     val liftSpec = spring<Float>(dampingRatio = 0.5f, stiffness = 400f)
 
     val itemH = if (itemHeightPx > 0f) itemHeightPx else with(density) { 90.dp.toPx() }
-    val targetIndex = if (dragIndex >= 0) {
-        (dragIndex + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
-    } else -1
 
-    // 边缘自动滚动 — 只监听 dragIndex 启停，不因 dragOffset 变化重启
-    LaunchedEffect(dragIndex) {
-        if (dragIndex < 0) return@LaunchedEffect
-        while (dragIndex >= 0) {
+    // 外部 tags 追上拖拽结果后释放本地列表（避免松手瞬间闪回旧顺序）
+    LaunchedEffect(tags) {
+        val dl = dragList ?: return@LaunchedEffect
+        if (dl.map { it.id } == tags.map { it.id }) dragList = null
+    }
+
+    // 边缘自动滚动 — 只监听 draggingIndex 启停
+    LaunchedEffect(draggingIndex) {
+        if (draggingIndex < 0) return@LaunchedEffect
+        while (draggingIndex >= 0) {
             val info = listState.layoutInfo.visibleItemsInfo
             val first = info.firstOrNull()?.index ?: 0
             val last = info.lastOrNull()?.index ?: 0
-            if (dragIndex <= first + 1) listState.scrollBy(-itemH * 0.3f)
-            else if (dragIndex >= last - 1) listState.scrollBy(itemH * 0.3f)
+            if (draggingIndex <= first + 1) listState.scrollBy(-itemH * 0.3f)
+            else if (draggingIndex >= last - 1) listState.scrollBy(itemH * 0.3f)
             kotlinx.coroutines.delay(16)
         }
     }
 
-    // 松手后先动画回落，再真正重置（避免 snap + reorder 同时导致视觉跳动）
     fun endDrag() {
-        val finalTarget = (dragIndex + (dragOffset / itemH).roundToInt()).coerceIn(0, tags.size - 1)
-        if (finalTarget != dragIndex && dragIndex >= 0) {
-            onReorder(tags.toMutableList().apply { add(finalTarget, removeAt(dragIndex)) })
-        }
-        // 弹簧回弹拖拽位移
+        val final = dragList
+        draggingIndex = -1
+        dragOffset = 0f
+        if (final != null) onReorder(final)
         scope.launch {
-            val bounce = Animatable(dragOffset)
-            bounce.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 300f))
-            dragOffsetAnim = 0f
-        }
-        scope.launch {
-            scaleAnim.animateTo(1f, spring())
+            liftAnim.animateTo(1f, spring())
             shadowAnim.animateTo(0f, spring())
-        }
-        scope.launch {
-            kotlinx.coroutines.delay(200)
-            dragIndex = -1; dragOffset = 0f; dragOffsetAnim = 0f
         }
     }
 
     LazyColumn(
         state = listState,
-        userScrollEnabled = dragIndex < 0,
+        userScrollEnabled = draggingIndex < 0,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        itemsIndexed(tags, key = { _, t -> t.id }) { index, tag ->
-            val isDragged = index == dragIndex
-            val visualOffset = if (isDragged) dragOffsetAnim else {
-                val raw = when {
-                    targetIndex > dragIndex && index in (dragIndex + 1)..targetIndex -> -itemH
-                    targetIndex < dragIndex && index in targetIndex..<dragIndex -> itemH
-                    else -> 0f
-                }
-                animateFloatAsState(raw, spring(dampingRatio = 0.7f, stiffness = 300f), label = "avoid").value
-            }
+        itemsIndexed(displayList, key = { _, t -> t.id }) { index, tag ->
+            val isDragged = index == draggingIndex
+            val currentIndex by rememberUpdatedState(index)
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragged) 1f else 0f)
-                    .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else visualOffset.roundToInt()) }
+                    .animateItem()
+                    .offset { IntOffset(0, if (isDragged) dragOffset.roundToInt() else 0) }
                     .onSizeChanged { if (itemHeightPx == 0f) itemHeightPx = it.height.toFloat() }
                     .then(
                         if (sortMode) Modifier.pointerInput(tag.id) {
                             detectDragGestures(
                                 onDragStart = {
-                                    dragIndex = index; dragOffset = 0f
-                                    dragOffsetAnim = 0f
-                                    scope.launch { scaleAnim.animateTo(1.03f, liftSpec); shadowAnim.animateTo(16f, liftSpec) }
+                                    draggingIndex = currentIndex
+                                    dragOffset = 0f
+                                    scope.launch {
+                                        liftAnim.animateTo(1.03f, liftSpec)
+                                        shadowAnim.animateTo(16f, liftSpec)
+                                    }
                                 },
-                                onDrag = { change, amount -> change.consume(); dragOffset += amount.y; dragOffsetAnim = dragOffset },
+                                onDrag = { change, amount ->
+                                    change.consume()
+                                    if (draggingIndex < 0) return@detectDragGestures
+                                    dragOffset += amount.y
+                                    val base = dragList ?: displayList
+                                    val from = draggingIndex
+                                    val delta = (dragOffset / itemH).roundToInt()
+                                    val target = (from + delta).coerceIn(0, base.size - 1)
+                                    if (target != from) {
+                                        dragList = base.toMutableList().apply { add(target, removeAt(from)) }
+                                        draggingIndex = target
+                                        dragOffset -= (target - from) * itemH
+                                    }
+                                },
                                 onDragEnd = { endDrag() },
-                                onDragCancel = { dragIndex = -1; dragOffset = 0f; dragOffsetAnim = 0f }
+                                onDragCancel = { endDrag() }
                             )
                         } else Modifier
                     )
                     .graphicsLayer {
-                        scaleX = if (isDragged) scaleAnim.value else 1f
-                        scaleY = if (isDragged) scaleAnim.value else 1f
+                        scaleX = if (isDragged) liftAnim.value else 1f
+                        scaleY = if (isDragged) liftAnim.value else 1f
                         shadowElevation = if (isDragged) shadowAnim.value else 0f
                         clip = false
                     }
