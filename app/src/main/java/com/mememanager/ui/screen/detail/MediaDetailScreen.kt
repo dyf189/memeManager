@@ -2,7 +2,7 @@ package com.mememanager.ui.screen.detail
 
 import android.graphics.Paint
 import android.graphics.Region
-import android.widget.VideoView
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -96,6 +96,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
@@ -112,6 +113,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import androidx.compose.runtime.DisposableEffect
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
@@ -493,9 +498,14 @@ private fun MediaDisplay(media: MediaWithTags) {
             .fillMaxSize()
             .clipToBounds()
             .background(Color(0xFF1A1A1A))
-            .pointerInput(Unit) {
-                // 自定义手势：双指缩放/平移，单指不消费（透传 Pager）
-                awaitEachGesture {
+            .then(
+                if (media.media.type == MediaType.VIDEO) {
+                    // 视频：手势全权交给 PlayerView（点击控制条/拖动进度），不挂缩放手势
+                    Modifier
+                } else {
+                    Modifier.pointerInput(Unit) {
+                        // 自定义手势：双指缩放/平移，单指不消费（透传 Pager）
+                        awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     var pointerId = down.id
                     var isMultiTouch = false
@@ -599,32 +609,32 @@ private fun MediaDisplay(media: MediaWithTags) {
                         animTrigger++
                     }
                 )
-            },
+                }
+            }
+        ),
         contentAlignment = Alignment.Center
     ) {
         if (media.media.type == MediaType.VIDEO) {
-            // 视频：VideoView 播放（点击暂停/继续，循环播放）
+            // 视频：ExoPlayer + PlayerView（自带进度条/控制条）
+            val player = remember(media.media.filePath) {
+                ExoPlayer.Builder(context).build().apply {
+                    setMediaItem(MediaItem.fromUri(Uri.fromFile(File(media.media.filePath))))
+                    prepare()
+                    playWhenReady = true
+                    repeatMode = ExoPlayer.REPEAT_MODE_ONE
+                }
+            }
+            DisposableEffect(Unit) {
+                onDispose { player.release() }
+            }
             AndroidView(
                 factory = { ctx ->
-                    VideoView(ctx).apply {
-                        setVideoPath(media.media.filePath)
-                        setOnPreparedListener { mp ->
-                            mp.isLooping = true
-                            start()
-                        }
-                        setOnClickListener {
-                            if (isPlaying) pause() else start()
-                        }
+                    PlayerView(ctx).apply {
+                        useController = true
+                        this.player = player
                     }
                 },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = if (isAnimating) sAnim.value else scale
-                        scaleY = if (isAnimating) sAnim.value else scale
-                        translationX = if (isAnimating) oxAnim.value else offsetX
-                        translationY = if (isAnimating) oyAnim.value else offsetY
-                    }
+                modifier = Modifier.fillMaxSize()
             )
         } else {
         SubcomposeAsyncImage(
