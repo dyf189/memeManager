@@ -631,6 +631,9 @@ private fun MediaDisplay(media: MediaWithTags) {
                 factory = { ctx ->
                     PlayerView(ctx).apply {
                         useController = true
+                        // SurfaceView 是独立图层，不参与 Compose 的 alpha/变换动画
+                        // （返回页面淡出时视频区域会突兀消失）；TextureView 走普通渲染管线
+                        setUseTextureView(true)
                         this.player = player
                     }
                 },
