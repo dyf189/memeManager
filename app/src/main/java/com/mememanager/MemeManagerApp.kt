@@ -3,8 +3,8 @@ package com.mememanager
 import android.app.Application
 import coil.Coil
 import coil.ImageLoader
-import coil.gif.GifDecoder
-import coil.video.VideoFrameDecoder
+import coil.decode.GifDecoder
+import coil.decode.VideoFrameDecoder
 import com.mememanager.util.JiebaTokenizer
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -22,7 +22,7 @@ class MemeManagerApp : Application() {
                 add(VideoFrameDecoder.Factory())
             }
             .build()
-        Coil.setImageLoader(this, imageLoader)
+        Coil.setImageLoader(imageLoader)
         CoroutineScope(Dispatchers.IO).launch {
             JiebaTokenizer.warmUp()
         }
