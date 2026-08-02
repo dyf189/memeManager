@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -60,6 +61,7 @@ import com.mememanager.data.local.entity.MediaType
 import com.mememanager.ui.components.ShareMenu
 import com.mememanager.ui.util.TimeGroupUtil
 import com.mememanager.ui.viewmodel.AlbumViewModel
+import com.mememanager.ui.viewmodel.GroupViewModel
 import com.mememanager.ui.viewmodel.SettingsViewModel
 
 /**
@@ -92,6 +94,8 @@ fun AlbumScreen(
     val lazyPagingItems = viewModel.pagingDataFlow.collectAsLazyPagingItems()
     val tags by viewModel.tags.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val groupViewModel: GroupViewModel = hiltViewModel()
+    var showGroupView by remember { mutableStateOf(false) }
 
     // ── 图片选择器 ──
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -219,6 +223,16 @@ fun AlbumScreen(
                             MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                IconButton(onClick = { showGroupView = !showGroupView }) {
+                    Icon(
+                        Icons.Default.Folder,
+                        contentDescription = "组别",
+                        tint = if (showGroupView)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             // ── 标签胶囊栏 ──
@@ -231,7 +245,21 @@ fun AlbumScreen(
                 }
             )
 
-            // ── 网格 + 筛选覆盖层 ──
+            // ── 组别视图 / 网格 + 筛选覆盖层 ──
+            if (showGroupView) {
+                GroupView(
+                    viewModel = groupViewModel,
+                    onBack = { showGroupView = false },
+                    onMediaClick = { mwt ->
+                        val list = listOf(mwt)
+                        viewModel.setCurrentItems(list)
+                        onNavigateToDetail(0)
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f)
+                )
+            } else {
             Box(modifier = Modifier.fillMaxSize()) {
                 // ── 网格视图 ──
                 if (items.isEmpty() && lazyPagingItems.loadState.refresh is LoadState.Loading) {
@@ -312,6 +340,7 @@ fun AlbumScreen(
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
+            } // else（组别视图/网格切换）
         }
 
         // ── FAB ──
