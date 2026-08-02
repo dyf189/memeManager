@@ -205,17 +205,15 @@ class AlbumViewModel @Inject constructor(
     fun importMpak(uri: Uri, onDone: (ImportResult) -> Unit = {}) {
         viewModelScope.launch {
             val result = MpakImporter.importMpak(application, uri)
-            result.let { r ->
-                // 逐条入库 + 标签合并（[已导出] 已在解析时过滤）
-                for (parsed in r.successItems) {
-                    val mediaId = mediaRepository.insert(parsed.entity)
-                    for (tagName in parsed.tagNames) {
-                        val tagId = tagRepository.getByName(tagName)?.id
-                            ?: tagRepository.save(
-                                TagEntity(name = tagName, bgColor = 0xFFCCCCCC.toInt())
-                            )
-                        mediaRepository.addTagToMedia(mediaId, tagId)
-                    }
+            // 逐条入库 + 标签合并（[已导出] 已在解析时过滤）
+            for (parsed in result.items) {
+                val mediaId = mediaRepository.insert(parsed.entity)
+                for (tagName in parsed.tagNames) {
+                    val tagId = tagRepository.getByName(tagName)?.id
+                        ?: tagRepository.save(
+                            TagEntity(name = tagName, bgColor = 0xFFCCCCCC.toInt())
+                        )
+                    mediaRepository.addTagToMedia(mediaId, tagId)
                 }
             }
             onDone(result)
