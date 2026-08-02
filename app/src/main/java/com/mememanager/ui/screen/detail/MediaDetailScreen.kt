@@ -122,6 +122,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.compose.runtime.DisposableEffect
 import com.mememanager.R
+import com.mememanager.data.local.entity.GroupEntity
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
@@ -159,6 +160,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun MediaDetailScreen(
     mediaItems: List<MediaWithTags> = emptyList(),
     availableTags: List<TagEntity> = emptyList(),
+    availableGroups: List<GroupEntity> = emptyList(),
     initialIndex: Int = 0,
     onBack: () -> Unit = {},
     onEdit: (MediaWithTags) -> Unit = {},
@@ -166,6 +168,7 @@ fun MediaDetailScreen(
     onUpdateDescription: (MediaWithTags, String) -> Unit = { _, _ -> },
     onAddTag: (MediaWithTags, TagEntity) -> Unit = { _, _ -> },
     onRemoveTag: (MediaWithTags, TagEntity) -> Unit = { _, _ -> },
+    onSetGroup: (MediaWithTags, Long?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     if (mediaItems.isEmpty()) {
@@ -184,6 +187,7 @@ fun MediaDetailScreen(
     var isMenuExpanded by remember { mutableStateOf(false) }
     var showDescriptionDialog by remember { mutableStateOf(false) }
     var showTagPicker by remember { mutableStateOf(false) }
+    var showGroupPicker by remember { mutableStateOf(false) }
     var editingDescription by remember(currentMedia) { mutableStateOf(currentMedia.media.description ?: "") }
     var showBottomSheet by remember { mutableStateOf(true) }
 
@@ -201,6 +205,7 @@ fun MediaDetailScreen(
                 media = currentMedia,
                 onEditDescription = { showDescriptionDialog = true },
                 onEditTagsClick = { showTagPicker = true },
+                onEditGroupClick = { showGroupPicker = true },
                 onRemoveTag = { tag -> onRemoveTag(currentMedia, tag) }
             )
         }
@@ -444,6 +449,81 @@ fun MediaDetailScreen(
                 }
             }
         }
+    }
+
+    // ── 分组选择弹窗 ──
+    if (showGroupPicker) {
+        AlertDialog(
+            onDismissRequest = { showGroupPicker = false },
+            title = { Text("选择分组") },
+            text = {
+                Column {
+                    // 未分组
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onSetGroup(currentMedia, null)
+                                showGroupPicker = false
+                            }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF9E9E9E))
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "未分组",
+                            color = if (currentMedia.group == null)
+                                MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    // 各组
+                    availableGroups.forEach { group ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onSetGroup(currentMedia, group.id)
+                                    showGroupPicker = false
+                                }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(group.color))
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                group.name,
+                                color = if (currentMedia.group?.id == group.id)
+                                    MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    if (availableGroups.isEmpty()) {
+                        Text(
+                            "暂无分组，请到相册页的组别视图创建",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showGroupPicker = false }) { Text("取消") }
+            }
+        )
     }
 }
 
@@ -700,6 +780,7 @@ fun MediaBottomSheetContent(
     media: MediaWithTags,
     onEditDescription: () -> Unit,
     onEditTagsClick: () -> Unit,
+    onEditGroupClick: () -> Unit = {},
     onRemoveTag: (TagEntity) -> Unit
 ) {
     val maxSheetHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 2 / 3
@@ -850,6 +931,36 @@ fun MediaBottomSheetContent(
                 modifier = Modifier.size(32.dp)
             ) {
                 Icon(Icons.Default.Edit, "编辑标签", modifier = Modifier.size(18.dp))
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(8.dp))
+
+        // 分组
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "分组",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                media.group?.name ?: "未分组",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (media.group != null) Color(media.group!!.color)
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.padding(end = 8.dp)
+            )
+            FilledTonalIconButton(
+                onClick = onEditGroupClick,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(Icons.Default.Edit, "编辑分组", modifier = Modifier.size(18.dp))
             }
         }
 

@@ -51,6 +51,7 @@ import com.mememanager.ui.screen.trash.TrashScreen
 import com.mememanager.ui.screen.tags.TagsScreen
 import com.mememanager.ui.theme.MemeManagerTheme
 import com.mememanager.ui.viewmodel.AlbumViewModel
+import com.mememanager.ui.viewmodel.GroupViewModel
 import com.mememanager.ui.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -158,6 +159,7 @@ fun AppContent(
 
     val activity = LocalActivity.current as ComponentActivity
     val sharedAlbumViewModel: AlbumViewModel = hiltViewModel(viewModelStoreOwner = activity)
+    val groupViewModel: GroupViewModel = hiltViewModel(viewModelStoreOwner = activity)
 
     // 处理分享导入
     LaunchedEffect(shareUris) {
@@ -220,9 +222,11 @@ fun AppContent(
                 val index = backStackEntry.arguments?.getInt("index") ?: 0
                 val currentItems by sharedAlbumViewModel.currentItems.collectAsStateWithLifecycle()
                 val allTags by sharedAlbumViewModel.tags.collectAsStateWithLifecycle()
+                val allGroups by groupViewModel.groups.collectAsStateWithLifecycle()
                 MediaDetailScreen(
                     mediaItems = currentItems,
                     availableTags = allTags,
+                    availableGroups = allGroups,
                     initialIndex = index,
                     onBack = { navController.popBackStack() },
                     onUpdateDescription = { mediaWithTags, desc ->
@@ -233,6 +237,9 @@ fun AppContent(
                     },
                     onRemoveTag = { mediaWithTags, tag ->
                         sharedAlbumViewModel.removeTag(mediaWithTags.media.id, tag.id)
+                    },
+                    onSetGroup = { mediaWithTags, groupId ->
+                        groupViewModel.setMediaGroup(mediaWithTags.media.id, groupId)
                     }
                 )
             }
