@@ -74,6 +74,8 @@ dependencies {
     // Coil
     implementation(libs.coil)
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
+    implementation(libs.coil.video)
 
     // Hilt
     implementation(libs.hilt.android)

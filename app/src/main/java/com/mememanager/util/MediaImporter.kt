@@ -29,20 +29,32 @@ object MediaImporter {
     ): MediaEntity = withContext(Dispatchers.IO) {
         val cr = context.contentResolver
 
-        // 查询文件名和大小
-        var fileName = "unknown_${System.currentTimeMillis()}"
+        // 查询文件名和大小（部分相册 provider 不支持，拿不到时走 fallback 链）
+        var fileName: String? = null
         var fileSize = 0L
         cr.query(uri, null, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val nameIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 val sizeIdx = cursor.getColumnIndex(OpenableColumns.SIZE)
-                if (nameIdx >= 0) fileName = cursor.getString(nameIdx) ?: fileName
+                if (nameIdx >= 0) fileName = cursor.getString(nameIdx)
                 if (sizeIdx >= 0) fileSize = cursor.getLong(sizeIdx)
             }
         }
 
-        // 推断媒体类型
-        val mediaType = inferType(fileName, cr.getType(uri))
+        // 推断媒体类型（mime 优先）
+        val mimeType = cr.getType(uri)
+        val mediaType = inferType(fileName ?: "", mimeType)
+
+        // 文件名 fallback 链：DISPLAY_NAME → URI 路径尾段（带扩展名才用）→ IMG_时间戳.扩展名
+        val finalName = when {
+            !fileName.isNullOrBlank() -> fileName!!
+            else -> {
+                val seg = uri.lastPathSegment
+                val pathName = if (!seg.isNullOrBlank() && seg.contains('.')) seg.substringAfterLast('/') else ""
+                if (pathName.isNotBlank()) pathName
+                else "IMG_${System.currentTimeMillis()}${extensionFor(mediaType)}"
+            }
+        }
 
         // 目标文件
         val destDir = when (storageType) {
@@ -51,7 +63,7 @@ object MediaImporter {
             StorageType.EXTERNAL -> {
                 // 外部索引：不复制文件，直接构建实体
                 return@withContext MediaEntity(
-                    name = fileName,
+                    name = finalName,
                     filePath = uri.toString(),
                     type = mediaType,
                     size = fileSize,
@@ -65,11 +77,11 @@ object MediaImporter {
         if (!destDir.exists()) destDir.mkdirs()
 
         // 处理重名
-        var destFile = File(destDir, fileName)
+        var destFile = File(destDir, finalName)
         if (destFile.exists()) {
-            val dotIndex = fileName.lastIndexOf('.')
-            val base = if (dotIndex >= 0) fileName.substring(0, dotIndex) else fileName
-            val ext = if (dotIndex >= 0) fileName.substring(dotIndex) else ""
+            val dotIndex = finalName.lastIndexOf('.')
+            val base = if (dotIndex >= 0) finalName.substring(0, dotIndex) else finalName
+            val ext = if (dotIndex >= 0) finalName.substring(dotIndex) else ""
             var counter = 1
             while (destFile.exists()) {
                 destFile = File(destDir, "${base}_${counter}$ext")
@@ -95,6 +107,12 @@ object MediaImporter {
             takenTime = System.currentTimeMillis(),
             updatedAt = System.currentTimeMillis()
         )
+    }
+
+    private fun extensionFor(type: MediaType): String = when (type) {
+        MediaType.VIDEO -> ".mp4"
+        MediaType.GIF -> ".gif"
+        MediaType.IMAGE -> ".jpg"
     }
 
     private fun inferType(fileName: String, mimeType: String?): MediaType {
