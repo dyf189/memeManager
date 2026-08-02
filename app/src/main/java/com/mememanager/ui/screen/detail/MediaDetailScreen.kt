@@ -450,6 +450,7 @@ fun MediaDetailScreen(
 // ── 媒体展示区 ──
 
 @Composable
+@UnstableApi
 @OptIn(UnstableApi::class)
 private fun MediaDisplay(media: MediaWithTags) {    val context = LocalContext.current
     val density = LocalDensity.current
