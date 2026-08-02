@@ -5,6 +5,7 @@ package com.mememanager.ui.screen.detail
 import android.graphics.Paint
 import android.graphics.Region
 import android.net.Uri
+import android.view.LayoutInflater
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -120,6 +121,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.compose.runtime.DisposableEffect
+import com.mememanager.R
 import com.mememanager.data.local.entity.MediaEntity
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
@@ -633,14 +635,12 @@ private fun MediaDisplay(media: MediaWithTags) {    val context = LocalContext.c
             }
             AndroidView(
                 factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        useController = true
-                        // SurfaceView 是独立图层，不参与 Compose 的 alpha/变换动画
-                        // （返回页面淡出时视频区域会突兀消失）；TextureView 走普通渲染管线
-                        // Media3 没有 setUseTextureView，用 setVideoTextureView 注入
-                        setVideoTextureView(android.view.TextureView(ctx))
-                        this.player = player
-                    }
+                    // 用 XML inflate 并指定 surface_type="texture_view"（PlayerView 无
+                    // 代码 API 切换视频视图；TextureView 参与 Compose alpha 淡出动画）
+                    val view = LayoutInflater.from(ctx)
+                        .inflate(R.layout.player_view, null) as PlayerView
+                    view.player = player
+                    view
                 },
                 modifier = Modifier.fillMaxSize()
             )
