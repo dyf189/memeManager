@@ -114,6 +114,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.compose.runtime.DisposableEffect
@@ -447,6 +448,7 @@ fun MediaDetailScreen(
 // ── 媒体展示区 ──
 
 @Composable
+@OptIn(UnstableApi::class)
 private fun MediaDisplay(media: MediaWithTags) {
     val context = LocalContext.current
     val density = LocalDensity.current
