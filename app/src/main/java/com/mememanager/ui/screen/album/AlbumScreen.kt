@@ -1,6 +1,7 @@
 package com.mememanager.ui.screen.album
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -106,6 +108,23 @@ fun AlbumScreen(
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             viewModel.importMedia(uris)
+        }
+    }
+
+    // ── .mpak 分片选择器 ──
+    val context = LocalContext.current
+    val mpakPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.importMpak(uri) { result ->
+                val msg = if (result.failed.isEmpty()) {
+                    "导入成功：${result.success} 个媒体"
+                } else {
+                    "成功 ${result.success} 个，失败 ${result.failed.size} 个：${result.failed.first()}"
+                }
+                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -325,6 +344,13 @@ fun AlbumScreen(
                         onClick = {
                             showImportMenu = false
                             filePickerLauncher.launch(arrayOf("image/*", "video/*"))
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("导入 .mpak 分片") },
+                        onClick = {
+                            showImportMenu = false
+                            mpakPickerLauncher.launch(arrayOf("application/octet-stream"))
                         }
                     )
                 }

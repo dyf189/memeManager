@@ -13,6 +13,8 @@ import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.repository.MediaRepository
 import com.mememanager.data.repository.TagRepository
 import com.mememanager.util.MediaImporter
+import com.mememanager.util.MpakImporter
+import com.mememanager.util.MpakImporter.ImportResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -196,6 +198,27 @@ class AlbumViewModel @Inject constructor(
                 val entity = MediaImporter.importFromUri(application, uri)
                 mediaRepository.insert(entity)
             }
+        }
+    }
+
+    /** 导入 .mpak 分片：解析校验 + 入库 + 标签合并 */
+    fun importMpak(uri: Uri, onDone: (ImportResult) -> Unit = {}) {
+        viewModelScope.launch {
+            val result = MpakImporter.importMpak(application, uri)
+            result.let { r ->
+                // 逐条入库 + 标签合并（[已导出] 已在解析时过滤）
+                for (parsed in r.successItems) {
+                    val mediaId = mediaRepository.insert(parsed.entity)
+                    for (tagName in parsed.tagNames) {
+                        val tagId = tagRepository.getByName(tagName)?.id
+                            ?: tagRepository.save(
+                                TagEntity(name = tagName, bgColor = 0xFFCCCCCC.toInt())
+                            )
+                        mediaRepository.addTagToMedia(mediaId, tagId)
+                    }
+                }
+            }
+            onDone(result)
         }
     }
 

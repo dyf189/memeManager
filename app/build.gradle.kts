@@ -49,6 +49,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.remote.creation.core)
     implementation(libs.androidx.compose.ui.test)
+    implementation(libs.androidx.documentfile)
     implementation(libs.androidx.ui)
     implementation(libs.jieba.analysis)
     implementation(libs.requery.sqlite)
