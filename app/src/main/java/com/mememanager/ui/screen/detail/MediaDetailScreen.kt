@@ -1,3 +1,5 @@
+@file:OptIn(UnstableApi::class)
+
 package com.mememanager.ui.screen.detail
 
 import android.graphics.Paint
@@ -449,8 +451,7 @@ fun MediaDetailScreen(
 
 @Composable
 @OptIn(UnstableApi::class)
-private fun MediaDisplay(media: MediaWithTags) {
-    val context = LocalContext.current
+private fun MediaDisplay(media: MediaWithTags) {    val context = LocalContext.current
     val density = LocalDensity.current
     val screenW = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
     val screenH = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
