@@ -1,8 +1,8 @@
 package com.mememanager.ui.screen.detail
 
-import android.R.attr.layoutDirection
 import android.graphics.Paint
 import android.graphics.Region
+import android.widget.VideoView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -109,6 +109,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mememanager.data.local.entity.MediaEntity
@@ -490,6 +491,7 @@ private fun MediaDisplay(media: MediaWithTags) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .clipToBounds()
             .background(Color(0xFF1A1A1A))
             .pointerInput(Unit) {
                 // 自定义手势：双指缩放/平移，单指不消费（透传 Pager）
@@ -600,6 +602,31 @@ private fun MediaDisplay(media: MediaWithTags) {
             },
         contentAlignment = Alignment.Center
     ) {
+        if (media.media.type == MediaType.VIDEO) {
+            // 视频：VideoView 播放（点击暂停/继续，循环播放）
+            AndroidView(
+                factory = { ctx ->
+                    VideoView(ctx).apply {
+                        setVideoPath(media.media.filePath)
+                        setOnPreparedListener { mp ->
+                            mp.isLooping = true
+                            start()
+                        }
+                        setOnClickListener {
+                            if (isPlaying) pause() else start()
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = if (isAnimating) sAnim.value else scale
+                        scaleY = if (isAnimating) sAnim.value else scale
+                        translationX = if (isAnimating) oxAnim.value else offsetX
+                        translationY = if (isAnimating) oyAnim.value else offsetY
+                    }
+            )
+        } else {
         SubcomposeAsyncImage(
             model = ImageRequest.Builder(context)
                 .data(File(media.media.filePath))
@@ -643,6 +670,7 @@ private fun MediaDisplay(media: MediaWithTags) {
                 }
             }
         )
+        }
     }
 }
 
