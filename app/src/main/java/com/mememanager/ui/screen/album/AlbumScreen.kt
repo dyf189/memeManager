@@ -138,6 +138,7 @@ fun AlbumScreen(
     var isFilterPanelVisible by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf<MediaType?>(null) }
     var selectedTagIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var selectedGroupId by remember { mutableStateOf<Long?>(null) }
     var showExportDialog by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -336,6 +337,12 @@ fun AlbumScreen(
                     onTypeSelected = {
                         selectedType = it
                         viewModel.setTypeFilter(it)
+                    },
+                    groups = groupViewModel.groups.collectAsStateWithLifecycle().value,
+                    selectedGroupId = selectedGroupId,
+                    onGroupSelected = { id ->
+                        selectedGroupId = id
+                        viewModel.setGroupFilter(id)
                     },
                     modifier = Modifier.align(Alignment.TopCenter)
                 )

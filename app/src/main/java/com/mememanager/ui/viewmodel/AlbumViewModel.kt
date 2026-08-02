@@ -52,7 +52,11 @@ class AlbumViewModel @Inject constructor(
 
     val pagingDataFlow: Flow<PagingData<MediaWithTags>> = _filterState
         .flatMapLatest { filters ->
-            mediaRepository.getAlbumFlow(type = filters.type, tagIds = filters.tagIds)
+            mediaRepository.getAlbumFlow(
+                type = filters.type,
+                tagIds = filters.tagIds,
+                groupId = filters.groupId
+            )
         }
         .cachedIn(viewModelScope)
 
@@ -90,6 +94,10 @@ class AlbumViewModel @Inject constructor(
 
     fun setTagFilter(tagIds: Set<Long>) {
         _filterState.update { it.copy(tagIds = tagIds) }
+    }
+
+    fun setGroupFilter(groupId: Long?) {
+        _filterState.update { it.copy(groupId = groupId) }
     }
 
     fun setExportedFilter(exported: Boolean?) {

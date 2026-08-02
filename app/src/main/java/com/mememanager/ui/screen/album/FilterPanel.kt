@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.mememanager.data.local.entity.GroupEntity
 import com.mememanager.data.local.entity.MediaType
 
 /**
@@ -34,6 +35,9 @@ fun FilterPanel(
     onDismiss: () -> Unit,
     selectedType: MediaType?,
     onTypeSelected: (MediaType?) -> Unit,
+    groups: List<GroupEntity> = emptyList(),
+    selectedGroupId: Long? = null,
+    onGroupSelected: (Long?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(visible = visible) {
@@ -84,7 +88,43 @@ fun FilterPanel(
                         )
                     }
                 }
+
+                // 组别筛选（单选：选组 / 全部 / 未分组）
+                if (groups.isNotEmpty() || selectedGroupId != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = selectedGroupId == null,
+                            onClick = { onGroupSelected(null) },
+                            label = { Text("全部") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                        FilterChip(
+                            selected = selectedGroupId == GROUP_NONE_ID,
+                            onClick = { onGroupSelected(GROUP_NONE_ID) },
+                            label = { Text("未分组") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                        groups.forEach { group ->
+                            FilterChip(
+                                selected = selectedGroupId == group.id,
+                                onClick = { onGroupSelected(group.id) },
+                                label = { Text(group.name) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                                )
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
+
+/** 未分组筛选的哨兵 ID（与真实组 id 冲突概率为零） */
+const val GROUP_NONE_ID = -1L

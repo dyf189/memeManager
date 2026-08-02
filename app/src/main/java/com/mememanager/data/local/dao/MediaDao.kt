@@ -55,6 +55,7 @@ interface MediaDao {
     /**
      * 通用筛选查询：type / tagIds / groupId 均可空，空则不过滤（可任意组合）
      * tagIds 为 null 时不过滤标签；为 null 或空集合时语义一致
+     * groupId = -1 表示筛选"未分组"（groupId IS NULL）
      */
     @Transaction
     @Query("""
@@ -63,7 +64,11 @@ interface MediaDao {
         AND (:tagIds IS NULL OR id IN (
             SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r WHERE r.tagId IN (:tagIds)
         ))
-        AND (:groupId IS NULL OR groupId = :groupId)
+        AND (
+            :groupId IS NULL
+            OR (:groupId = -1 AND groupId IS NULL)
+            OR groupId = :groupId
+        )
         ORDER BY createdAt DESC
     """)
     fun getAlbumPagingSourceFiltered(

@@ -10,6 +10,7 @@ data class FilterState(
     val source: String? = null,
     val hasDescription: Boolean? = null, // true=有描述, false=无描述, null=不限
     val tagIds: Set<Long> = emptySet(),
+    val groupId: Long? = null,
     val exported: Boolean? = null, // true=已导出, false=未导出, null=不限
     val startTime: Long? = null,
     val endTime: Long? = null,
@@ -18,7 +19,7 @@ data class FilterState(
 ) {
     val isActive: Boolean
         get() = type != null || source != null || hasDescription != null ||
-                tagIds.isNotEmpty() || exported != null || startTime != null ||
+                tagIds.isNotEmpty() || groupId != null || exported != null || startTime != null ||
                 endTime != null || minSize != null || maxSize != null
 }
 
