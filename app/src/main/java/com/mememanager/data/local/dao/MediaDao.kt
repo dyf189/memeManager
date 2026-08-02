@@ -52,35 +52,45 @@ interface MediaDao {
     @Query("SELECT * FROM media WHERE isDeleted = 0 ORDER BY createdAt DESC")
     fun getAlbumPagingSource(): PagingSource<Int, MediaWithTags>
 
-    @Transaction
-    @Query("SELECT * FROM media WHERE isDeleted = 0 AND type = :type ORDER BY createdAt DESC")
-    fun getAlbumPagingSourceByType(type: MediaType): PagingSource<Int, MediaWithTags>
-
-    @Transaction
-    @Query("""
-        SELECT * FROM media WHERE isDeleted = 0 
-        AND id IN (
-            SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r 
-            WHERE r.tagId IN (:tagIds)
-        )
-        ORDER BY createdAt DESC
-    """)
-    fun getAlbumPagingSourceByTags(tagIds: Set<Long>): PagingSource<Int, MediaWithTags>
-
+    /**
+     * 通用筛选查询：type / tagIds / groupId 均可空，空则不过滤（可任意组合）
+     * tagIds 为 null 时不过滤标签；为 null 或空集合时语义一致
+     */
     @Transaction
     @Query("""
-        SELECT * FROM media WHERE isDeleted = 0 AND type = :type
-        AND id IN (
-            SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r 
-            WHERE r.tagId IN (:tagIds)
-        )
+        SELECT * FROM media WHERE isDeleted = 0
+        AND (:type IS NULL OR type = :type)
+        AND (:tagIds IS NULL OR id IN (
+            SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r WHERE r.tagId IN (:tagIds)
+        ))
+        AND (:groupId IS NULL OR groupId = :groupId)
         ORDER BY createdAt DESC
     """)
-    fun getAlbumPagingSourceByTypeAndTags(type: MediaType, tagIds: Set<Long>): PagingSource<Int, MediaWithTags>
+    fun getAlbumPagingSourceFiltered(
+        type: MediaType?,
+        tagIds: List<Long>?,
+        groupId: Long?
+    ): PagingSource<Int, MediaWithTags>
 
     @Transaction
     @Query("SELECT * FROM media WHERE isDeleted = 0 AND (name LIKE :q OR description LIKE :q) ORDER BY createdAt DESC")
     fun getAlbumPagingSourceByLike(q: String): PagingSource<Int, MediaWithTags>
+
+    // ── 组别 ──
+
+    @Transaction
+    @Query("SELECT * FROM media WHERE isDeleted = 0 AND groupId = :groupId ORDER BY createdAt DESC")
+    fun getMediaWithTagsByGroup(groupId: Long): Flow<List<MediaWithTags>>
+
+    @Transaction
+    @Query("SELECT * FROM media WHERE isDeleted = 0 AND groupId IS NULL ORDER BY createdAt DESC")
+    fun getUngroupedMediaWithTags(): Flow<List<MediaWithTags>>
+
+    @Query("UPDATE media SET groupId = :groupId WHERE id = :mediaId")
+    suspend fun setMediaGroup(mediaId: Long, groupId: Long?)
+
+    @Query("UPDATE media SET groupId = NULL WHERE groupId = :groupId")
+    suspend fun clearGroup(groupId: Long)
 
     // ── 回收站 ──
 

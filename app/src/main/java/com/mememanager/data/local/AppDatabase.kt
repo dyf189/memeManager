@@ -17,9 +17,10 @@ import com.mememanager.data.local.entity.TagEntity
     entities = [
         MediaEntity::class,
         TagEntity::class,
-        MediaTagCrossRef::class
+        MediaTagCrossRef::class,
+        GroupEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -28,6 +29,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun tagDao(): TagDao
     abstract fun mediaTagRefDao(): MediaTagRefDao
     abstract fun mediaFtsDao(): MediaFtsDao
+    abstract fun groupDao(): GroupDao
 
     companion object {
         private const val CREATE_FTS = """
@@ -73,6 +75,22 @@ abstract class AppDatabase : RoomDatabase() {
                 // 不再创建触发器——由 Repository 层手动维护 FTS
                 // 存量数据用 rebuild（但 content 表不存在，无法 rebuild）
                 // 直接在 onOpen 中手动填充
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 组别表
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `groups` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `color` INTEGER NOT NULL,
+                        `sortOrder` INTEGER NOT NULL
+                    )
+                """)
+                // media 表加 groupId 列（可空，0/1 个组）
+                db.execSQL("ALTER TABLE media ADD COLUMN groupId INTEGER")
             }
         }
     }

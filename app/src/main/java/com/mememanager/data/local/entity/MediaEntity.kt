@@ -22,7 +22,9 @@ data class MediaEntity(
     val updatedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false,
     val deletedTime: Long? = null,
-    val exportedHash: String? = null
+    val exportedHash: String? = null,
+    /** 所属组别（0/1 个），null = 未分组 */
+    val groupId: Long? = null
 )
 
 enum class MediaType {

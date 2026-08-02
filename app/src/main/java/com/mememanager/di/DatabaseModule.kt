@@ -39,7 +39,7 @@ object DatabaseModule {
             "meme_manager.db"
         )
             .openHelperFactory(RequerySQLiteOpenHelperFactory())
-            .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4)
+            .addMigrations(AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onCreate(db: SupportSQLiteDatabase) {
                     db.execSQL("""

@@ -30,14 +30,17 @@ class MediaRepository @Inject constructor(
 
     // ── 分页查询 ──
 
-    fun getAlbumFlow(type: MediaType? = null, tagIds: Set<Long> = emptySet()): Flow<PagingData<MediaWithTags>> {
+    fun getAlbumFlow(
+        type: MediaType? = null,
+        tagIds: Set<Long> = emptySet(),
+        groupId: Long? = null
+    ): Flow<PagingData<MediaWithTags>> {
         return Pager(PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false)) {
-            when {
-                type != null && tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTypeAndTags(type, tagIds)
-                type != null -> mediaDao.getAlbumPagingSourceByType(type)
-                tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTags(tagIds)
-                else -> mediaDao.getAlbumPagingSource()
-            }
+            mediaDao.getAlbumPagingSourceFiltered(
+                type = type,
+                tagIds = tagIds.ifEmpty { null }?.toList(),
+                groupId = groupId
+            )
         }.flow
     }
 
@@ -46,6 +49,19 @@ class MediaRepository @Inject constructor(
             mediaDao.getDeletedPagingSource()
         }.flow
     }
+
+    // ── 组别 ──
+
+    fun getMediaWithTagsByGroup(groupId: Long): Flow<List<MediaWithTags>> =
+        mediaDao.getMediaWithTagsByGroup(groupId)
+
+    fun getUngroupedMediaWithTags(): Flow<List<MediaWithTags>> =
+        mediaDao.getUngroupedMediaWithTags()
+
+    suspend fun setMediaGroup(mediaId: Long, groupId: Long?) =
+        mediaDao.setMediaGroup(mediaId, groupId)
+
+    suspend fun clearGroup(groupId: Long) = mediaDao.clearGroup(groupId)
 
     // ── 单条查询 ──
 

@@ -16,7 +16,13 @@ data class MediaWithTags(
             entityColumn = "tagId"
         )
     )
-    val tags: List<TagEntity> = emptyList()
+    val tags: List<TagEntity> = emptyList(),
+    /** 所属组别（0/1 个） */
+    @Relation(
+        parentColumn = "groupId",
+        entityColumn = "id"
+    )
+    val group: GroupEntity? = null
 ) {
     /** 按 sortOrder 排序后的标签列表 */
     val sortedTags: List<TagEntity> get() = tags.sortedBy { it.sortOrder }
