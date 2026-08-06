@@ -153,7 +153,7 @@ fun AlbumScreen(
                     totalCount = totalIds.size,
                     onCancel = { viewModel.exitMultiSelectMode() },
                     onSelectAll = {
-                        if (allSelected) viewModel.unselectGroup(totalIds)
+                        if (allSelected) viewModel.unselectAll()
                         else viewModel.selectAll()
                     },
                     onShare = { shareExpanded = true },
@@ -309,6 +309,7 @@ fun AlbumScreen(
                             AlbumGridItem(
                                 mediaWithTags = mediaWithTags,
                                 isSelected = mediaWithTags.media.id in uiState.selectedMediaIds,
+                                gifAnimated = settings.gifAnimationEnabled,
                                 onClick = {
                                     if (uiState.isMultiSelectMode) {
                                         viewModel.toggleSelection(mediaWithTags.media.id)

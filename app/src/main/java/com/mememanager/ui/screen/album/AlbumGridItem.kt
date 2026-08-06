@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.decode.BitmapFactoryDecoder
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
@@ -50,6 +51,7 @@ import java.io.File
 fun AlbumGridItem(
     mediaWithTags: MediaWithTags,
     isSelected: Boolean = false,
+    gifAnimated: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -73,15 +75,20 @@ fun AlbumGridItem(
         Box(modifier = Modifier.fillMaxSize()) {
 
             // ── 图片加载 ──
+            val requestBuilder = ImageRequest.Builder(LocalContext.current)
+                .data(File(media.filePath))
+                // 网格缩略图不需要全尺寸解码——限制目标尺寸，避免大图解码卡顿
+                .size(if (gifAnimated && media.type == MediaType.GIF) 256 else 512)
+                .crossfade(!gifAnimated || media.type != MediaType.GIF)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+            if (media.type == MediaType.GIF && !gifAnimated) {
+                // 开关默认关闭：网格 GIF 只显示第一帧（静态），动画在网格中
+                // 持续解码+重绘是滚动卡顿元凶；详情页仍走全局 GifDecoder 播放
+                requestBuilder.decoderFactory(BitmapFactoryDecoder.Factory())
+            }
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(File(media.filePath))
-                    // 网格缩略图不需要全尺寸解码——限制目标尺寸，避免大图解码卡顿
-                    .size(512)
-                    .crossfade(true)
-                    .memoryCachePolicy(CachePolicy.ENABLED)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .build(),
+                model = requestBuilder.build(),
                 contentDescription = media.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

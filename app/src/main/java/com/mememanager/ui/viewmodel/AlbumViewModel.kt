@@ -164,6 +164,11 @@ class AlbumViewModel @Inject constructor(
         }
     }
 
+    /** 取消全选：清空整个选中集（不能只取消已加载项，未加载的会残留） */
+    fun unselectAll() {
+        _uiState.update { it.copy(selectedMediaIds = emptySet()) }
+    }
+
     fun selectGroup(ids: Set<Long>) {
         _uiState.update { state ->
             val merged = state.selectedMediaIds + ids

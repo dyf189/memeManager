@@ -31,6 +31,7 @@ class SettingsViewModel @Inject constructor(
                 gridColumns = prefs[SettingsKeys.GRID_COLUMNS] ?: 3,
                 trashDays = prefs[SettingsKeys.TRASH_DAYS] ?: 30,
                 jsonSyncEnabled = prefs[SettingsKeys.JSON_SYNC_ENABLED] ?: false,
+                gifAnimationEnabled = prefs[SettingsKeys.GIF_ANIMATION_ENABLED] ?: false,
                 exportDirUri = prefs[SettingsKeys.EXPORT_DIR_URI]
             )
         }
@@ -72,6 +73,12 @@ class SettingsViewModel @Inject constructor(
     fun setJsonSyncEnabled(value: Boolean) {
         viewModelScope.launch {
             dataStore.edit { it[SettingsKeys.JSON_SYNC_ENABLED] = value }
+        }
+    }
+
+    fun setGifAnimationEnabled(value: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[SettingsKeys.GIF_ANIMATION_ENABLED] = value }
         }
     }
 

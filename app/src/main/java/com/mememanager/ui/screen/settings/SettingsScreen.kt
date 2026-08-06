@@ -219,6 +219,26 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.setJsonSyncEnabled(it) }
                         )
                     }
+                    Divider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("GIF 动图播放", fontSize = 15.sp)
+                            Text(
+                                "实验性功能，可能造成较大卡顿",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                            )
+                        }
+                        Switch(
+                            checked = settings.gifAnimationEnabled,
+                            onCheckedChange = { viewModel.setGifAnimationEnabled(it) }
+                        )
+                    }
                 }
             }
 
