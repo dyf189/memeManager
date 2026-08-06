@@ -251,14 +251,22 @@ fun AlbumScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
+                    // 上一个已渲染媒体的分组 key（placeholder 不更新，避免误插 header）
+                    var lastGroupKey: String? = null
                     for (i in 0 until items.size) {
-                        val mediaWithTags = items[i] ?: continue
+                        val mediaWithTags = items[i]
+                        if (mediaWithTags == null) {
+                            // placeholder 占位：保持滚动范围完整，访问 items[i] 已触发加载
+                            item(key = "ph_$i") {
+                                Box(Modifier.fillMaxWidth().aspectRatio(1f))
+                            }
+                            continue
+                        }
 
                         // ── 时间分组粘性头（跨列全宽） ──
                         val group = TimeGroupUtil.getGroup(mediaWithTags.media.createdAt)
-                        val prevItem = if (i > 0) items[i - 1] else null
-                        val prevGroup = prevItem?.let { TimeGroupUtil.getGroup(it.media.createdAt) }
-                        if (prevGroup == null || group.sortKey != prevGroup.sortKey) {
+                        if (lastGroupKey == null || group.sortKey != lastGroupKey) {
+                            lastGroupKey = group.sortKey
                             stickyHeader(key = "header_${group.sortKey}") {
                                 val groupIds = items.drop(i).mapNotNull { item ->
                                     val m = item ?: return@mapNotNull null

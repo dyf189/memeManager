@@ -31,7 +31,7 @@ class MediaRepository @Inject constructor(
     // ── 分页查询 ──
 
     fun getAlbumFlow(type: MediaType? = null, tagIds: Set<Long> = emptySet()): Flow<PagingData<MediaWithTags>> {
-        return Pager(PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false)) {
+        return Pager(PagingConfig(pageSize = PAGE_SIZE)) {
             when {
                 type != null && tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTypeAndTags(type, tagIds)
                 type != null -> mediaDao.getAlbumPagingSourceByType(type)
@@ -42,7 +42,7 @@ class MediaRepository @Inject constructor(
     }
 
     fun getDeletedFlow(): Flow<PagingData<MediaWithTags>> {
-        return Pager(PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false)) {
+        return Pager(PagingConfig(pageSize = PAGE_SIZE)) {
             mediaDao.getDeletedPagingSource()
         }.flow
     }
