@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -46,6 +47,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -245,7 +248,22 @@ fun AlbumScreen(
                     }
                 }
 
+                val gridState = rememberLazyGridState()
+                // 显式触发加载：Room PagingSource 无总计数（占位失效），
+                // 组合期 items[i] 访问被 Paging 抑制，滚到底不会自动加载下一页。
+                // 监听最后一个可见项，接近末尾时访问末尾索引强制 loadAround。
+                LaunchedEffect(gridState, items) {
+                    snapshotFlow {
+                        gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+                    }.collect { last ->
+                        if (last != null && last >= items.itemCount - 2) {
+                            items[items.itemCount - 1]
+                        }
+                    }
+                }
+
                 LazyVerticalGrid(
+                    state = gridState,
                     columns = GridCells.Fixed(columns),
                     contentPadding = PaddingValues(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
