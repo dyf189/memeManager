@@ -159,6 +159,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun MediaDetailScreen(
     mediaItems: List<MediaWithTags> = emptyList(),
     availableTags: List<TagEntity> = emptyList(),
+    totalCount: Int = 0,
     initialIndex: Int = 0,
     onBack: () -> Unit = {},
     onEdit: (MediaWithTags) -> Unit = {},
@@ -263,7 +264,7 @@ fun MediaDetailScreen(
 
             if (mediaItems.size > 1) {
                 Text(
-                    text = "${pagerState.currentPage + 1} / ${mediaItems.size}",
+                    text = "${pagerState.currentPage + 1} / ${if (totalCount > mediaItems.size) totalCount else mediaItems.size}",
                     fontSize = 12.sp,
                     color = Color.White,
                     modifier = Modifier

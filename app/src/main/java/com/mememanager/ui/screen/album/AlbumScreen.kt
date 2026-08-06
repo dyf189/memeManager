@@ -145,16 +145,16 @@ fun AlbumScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             // ── 批量操作栏 ──
             if (uiState.isMultiSelectMode) {
-                val allIds = items.mapNotNull { it?.media?.id }.toSet()
-                val allSelected = uiState.selectedMediaIds.containsAll(allIds)
+                val totalIds = items.mapNotNull { it?.media?.id }.toSet()
+                val allSelected = totalIds.isNotEmpty() && uiState.selectedMediaIds.containsAll(totalIds)
                 var shareExpanded by remember { mutableStateOf(false) }
                 BatchActionBar(
                     selectedCount = uiState.selectedMediaIds.size,
-                    totalCount = allIds.size,
+                    totalCount = totalIds.size,
                     onCancel = { viewModel.exitMultiSelectMode() },
                     onSelectAll = {
-                        if (allSelected) viewModel.unselectGroup(allIds)
-                        else viewModel.selectAll(allIds)
+                        if (allSelected) viewModel.unselectGroup(totalIds)
+                        else viewModel.selectAll()
                     },
                     onShare = { shareExpanded = true },
                     onExport = { showExportDialog = true },

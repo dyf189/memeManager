@@ -104,4 +104,24 @@ interface MediaDao {
 
     @Query("SELECT COUNT(*) FROM media WHERE isDeleted = 0")
     fun getActiveCount(): Flow<Int>
+
+    // ── 全选 / 总数（带筛选条件，type/tagIds 可空） ──
+
+    @Query("""
+        SELECT id FROM media WHERE isDeleted = 0
+        AND (:type IS NULL OR type = :type)
+        AND (:tagIds IS NULL OR id IN (
+            SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r WHERE r.tagId IN (:tagIds)
+        ))
+    """)
+    suspend fun getActiveMediaIds(type: MediaType?, tagIds: List<Long>?): List<Long>
+
+    @Query("""
+        SELECT COUNT(*) FROM media WHERE isDeleted = 0
+        AND (:type IS NULL OR type = :type)
+        AND (:tagIds IS NULL OR id IN (
+            SELECT DISTINCT r.mediaId FROM media_tag_cross_ref r WHERE r.tagId IN (:tagIds)
+        ))
+    """)
+    fun getActiveMediaCount(type: MediaType?, tagIds: List<Long>?): Flow<Int>
 }

@@ -223,6 +223,7 @@ fun AppContent(
                 MediaDetailScreen(
                     mediaItems = currentItems,
                     availableTags = allTags,
+                    totalCount = sharedAlbumViewModel.totalCount.collectAsStateWithLifecycle().value,
                     initialIndex = index,
                     onBack = { navController.popBackStack() },
                     onUpdateDescription = { mediaWithTags, desc ->

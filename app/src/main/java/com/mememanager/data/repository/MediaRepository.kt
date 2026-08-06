@@ -138,6 +138,14 @@ class MediaRepository @Inject constructor(
 
     fun getActiveCount(): Flow<Int> = mediaDao.getActiveCount()
 
+    /** 当前筛选集全部媒体 id（全选用） */
+    suspend fun getActiveMediaIds(type: MediaType? = null, tagIds: Set<Long> = emptySet()): List<Long> =
+        mediaDao.getActiveMediaIds(type, tagIds.ifEmpty { null }?.toList())
+
+    /** 当前筛选集总数（详情页分母） */
+    fun getActiveMediaCount(type: MediaType? = null, tagIds: Set<Long> = emptySet()): Flow<Int> =
+        mediaDao.getActiveMediaCount(type, tagIds.ifEmpty { null }?.toList())
+
     // ── 标签关联 ──
 
     fun getTagsForMedia(mediaId: Long): Flow<List<TagEntity>> =

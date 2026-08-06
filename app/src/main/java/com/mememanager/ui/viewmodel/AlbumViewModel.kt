@@ -56,6 +56,13 @@ class AlbumViewModel @Inject constructor(
         }
         .cachedIn(viewModelScope)
 
+    /** 当前筛选集总数（详情页分母） */
+    val totalCount: StateFlow<Int> = _filterState
+        .flatMapLatest { filters ->
+            mediaRepository.getActiveMediaCount(type = filters.type, tagIds = filters.tagIds)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
     // ── UI 状态 ──
 
     private val _uiState = MutableStateFlow(AlbumUiState())
@@ -143,9 +150,17 @@ class AlbumViewModel @Inject constructor(
         }
     }
 
-    fun selectAll(ids: Set<Long>) {
-        _uiState.update {
-            it.copy(isMultiSelectMode = true, selectedMediaIds = ids)
+    /** 全选当前筛选集全部媒体（查库拿完整 id 列表，不受分页加载限制） */
+    fun selectAll() {
+        viewModelScope.launch {
+            val filters = _filterState.value
+            val ids = mediaRepository.getActiveMediaIds(
+                type = filters.type,
+                tagIds = filters.tagIds
+            )
+            _uiState.update {
+                it.copy(isMultiSelectMode = true, selectedMediaIds = ids.toSet())
+            }
         }
     }
 
