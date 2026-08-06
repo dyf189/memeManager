@@ -4,15 +4,20 @@
   "version": "0.1.0",
   "identifier": "com.dyf189.mememanager",
   "build": {
-    "frontendDist": "../src"
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
   },
   "app": {
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "mememanager",
-        "width": 800,
-        "height": 600
+        "title": "表情包管理器",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 720,
+        "minHeight": 520
       }
     ],
     "security": {
@@ -29,8 +34,5 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
-  },
-  "build": {
-    "frontendDist": "./src"
   }
 }
