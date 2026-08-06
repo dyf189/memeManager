@@ -6,19 +6,28 @@ import { useThemeStore, type ThemeMode } from "../stores/theme";
 
 // —— 设置值（后续迁入 Pinia + Rust 持久化）——
 const settings = reactive({
-  defaultStorage: "public", // private | public | external
+  defaultStorage: "user", // user=用户目录 ~/ | app=安装目录 | custom=自定义目录
+  customDir: "", // 自定义目录路径
   shardSize: 100, // MB
   groupBy: "taken", // taken | import
-  gridCols: 4,
+  gridCols: 6,
   recycleDays: 30,
   jsonSync: false,
 });
 
 const storageLabels: Record<string, string> = {
-  private: "应用私有目录",
-  public: "公共目录",
-  external: "外部索引（不复制）",
+  user: "用户目录 (~/)",
+  app: "安装目录",
+  custom: "自定义目录",
 };
+
+/** 存储类型展示值：自定义目录时显示实际路径 */
+const storageValue = computed(() => {
+  if (settings.defaultStorage === "custom" && settings.customDir) {
+    return settings.customDir;
+  }
+  return storageLabels[settings.defaultStorage];
+});
 
 const themeLabels: Record<string, string> = {
   light: "浅色",
@@ -51,11 +60,18 @@ const dialogVisible = computed({
     if (!v) openPanel.value = null;
   },
 });
-const gridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${settings.gridCols}, 1fr)`,
-}));
 
 const presetColors = ref<string[]>([...PRESET_TAG_COLORS]);
+
+// —— 开源许可项目链接 ——
+const licenses = [
+  { name: "本项目 (mememanager)", url: "https://github.com/dyf189/memeManager", lic: "MIT" },
+  { name: "Tauri 2（桌面框架）", url: "https://github.com/tauri-apps/tauri", lic: "MIT / Apache-2.0" },
+  { name: "Vue 3（前端框架）", url: "https://github.com/vuejs/core", lic: "MIT" },
+  { name: "Element Plus（UI 组件库）", url: "https://github.com/element-plus/element-plus", lic: "MIT" },
+  { name: "Vite（构建工具）", url: "https://github.com/vitejs/vite", lic: "MIT" },
+  { name: "Rust（后端语言）", url: "https://github.com/rust-lang/rust", lic: "MIT / Apache-2.0" },
+];
 
 // —— 主题（接入 theme store，选择即时生效）——
 const themeStore = useThemeStore();
@@ -75,6 +91,10 @@ async function clearRecycle() {
     return;
   }
   ElMessage.success("回收站已清空（mock）");
+}
+
+function pickDir() {
+  ElMessage.info("目录选择器待接入 Rust 后端（tauri-plugin-dialog）");
 }
 
 function restoreColors() {
@@ -99,7 +119,7 @@ function todo() {
         <h3 class="group-title">存储</h3>
         <div class="item" @click="openPanel = 'storage'">
           <span class="item-label">默认存储类型</span>
-          <span class="item-value">{{ storageLabels[settings.defaultStorage] }}</span>
+          <span class="item-value text-ellipsis">{{ storageValue }}</span>
           <el-icon class="item-arrow"><ArrowRight /></el-icon>
         </div>
         <div class="item" @click="openPanel = 'shard'">
@@ -194,10 +214,16 @@ function todo() {
     <el-dialog v-model="dialogVisible" :title="panelTitle" width="80%" align-center>
       <!-- 默认存储类型 -->
       <el-radio-group v-if="openPanel === 'storage'" v-model="settings.defaultStorage" class="panel-options">
-        <el-radio value="private">应用私有目录（数据安全，卸载即删）</el-radio>
-        <el-radio value="public">公共目录（方便手动备份）</el-radio>
-        <el-radio value="external">外部索引（不复制文件，仅记录路径）</el-radio>
+        <el-radio value="user">用户目录（~/ 用户主目录，便于手动备份）</el-radio>
+        <el-radio value="app">安装目录（程序所在目录）</el-radio>
+        <el-radio value="custom">自定义目录</el-radio>
       </el-radio-group>
+
+      <!-- 自定义目录路径 -->
+      <div v-if="openPanel === 'storage' && settings.defaultStorage === 'custom'" class="custom-dir-row">
+        <el-input v-model="settings.customDir" placeholder="输入目录路径，或点击浏览选择" clearable />
+        <el-button @click="pickDir">浏览…</el-button>
+      </div>
 
       <!-- 分片大小 -->
       <el-radio-group v-else-if="openPanel === 'shard'" v-model="settings.shardSize" class="panel-options">
@@ -223,8 +249,8 @@ function todo() {
 
       <!-- 网格列数 -->
       <template v-else-if="openPanel === 'grid'">
-        <el-slider v-model="settings.gridCols" :min="2" :max="6" show-stops />
-        <div class="grid-preview" :style="gridStyle">
+        <el-slider v-model="settings.gridCols" :min="4" :max="10" />
+        <div class="grid-preview">
           <span v-for="n in settings.gridCols" :key="n" class="grid-preview-cell" />
         </div>
       </template>
@@ -256,29 +282,12 @@ function todo() {
 
         <h4 class="lic-title">开源许可</h4>
         <div class="licenses">
-          <div class="license-item">
-            <span>本项目 (mememanager)</span>
-            <span class="lic-val">MIT</span>
-          </div>
-          <div class="license-item">
-            <span>Tauri 2（桌面框架）</span>
-            <span class="lic-val">MIT / Apache-2.0</span>
-          </div>
-          <div class="license-item">
-            <span>Vue 3（前端框架）</span>
-            <span class="lic-val">MIT</span>
-          </div>
-          <div class="license-item">
-            <span>Element Plus（UI 组件库）</span>
-            <span class="lic-val">MIT</span>
-          </div>
-          <div class="license-item">
-            <span>Vite（构建工具）</span>
-            <span class="lic-val">MIT</span>
-          </div>
-          <div class="license-item">
-            <span>Rust（后端语言）</span>
-            <span class="lic-val">MIT / Apache-2.0</span>
+          <div v-for="l in licenses" :key="l.url" class="license-item">
+            <a :href="l.url" target="_blank" class="lic-link">
+              {{ l.name }}
+              <el-icon :size="12"><Link /></el-icon>
+            </a>
+            <span class="lic-val">{{ l.lic }}</span>
           </div>
         </div>
         <p class="lic-foot">各依赖的完整许可文本请参阅对应项目源码仓库。</p>
@@ -381,6 +390,16 @@ function todo() {
   gap: 12px;
 }
 
+.custom-dir-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.custom-dir-row .el-input {
+  flex: 1;
+}
+
 .panel-hint {
   font-size: 12px;
   color: var(--text-muted);
@@ -388,12 +407,15 @@ function todo() {
 }
 
 .grid-preview {
-  display: grid;
+  display: flex;
   gap: 6px;
   margin-top: 16px;
+  overflow: hidden;
 }
 
 .grid-preview-cell {
+  flex: 1 1 0;
+  min-width: 0;
   aspect-ratio: 1;
   background: var(--input-bg);
   border-radius: 6px;
@@ -459,6 +481,20 @@ function todo() {
 
 .license-item:last-child {
   border-bottom: none;
+}
+
+.lic-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-main);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.lic-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .lic-val {
