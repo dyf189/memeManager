@@ -252,12 +252,12 @@ fun AlbumScreen(
                 // 显式触发加载：Room PagingSource 无总计数（占位失效），
                 // 组合期 items[i] 访问被 Paging 抑制，滚到底不会自动加载下一页。
                 // 监听最后一个可见项，接近末尾时访问末尾索引强制 loadAround。
-                LaunchedEffect(gridState, items) {
+                LaunchedEffect(gridState, lazyPagingItems) {
                     snapshotFlow {
                         gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                     }.collect { last ->
-                        if (last != null && last >= items.itemCount - 2) {
-                            items[items.itemCount - 1]
+                        if (last != null && last >= lazyPagingItems.itemCount - 2) {
+                            lazyPagingItems[lazyPagingItems.itemCount - 1]
                         }
                     }
                 }
