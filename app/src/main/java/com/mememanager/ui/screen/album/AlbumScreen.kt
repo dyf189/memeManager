@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -252,7 +253,7 @@ fun AlbumScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // 上一个已渲染媒体的分组 key（placeholder 不更新，避免误插 header）
-                    var lastGroupKey: String? = null
+                    var lastGroupKey: Long? = null
                     for (i in 0 until items.size) {
                         val mediaWithTags = items[i]
                         if (mediaWithTags == null) {
