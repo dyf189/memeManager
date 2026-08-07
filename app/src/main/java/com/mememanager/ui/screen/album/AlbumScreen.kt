@@ -63,6 +63,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.mememanager.data.local.entity.MediaType
+import coil.imageLoader
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import com.mememanager.ui.components.ShareMenu
 import com.mememanager.ui.util.TimeGroup
 import com.mememanager.ui.util.TimeGroupUtil
@@ -257,6 +262,7 @@ fun AlbumScreen(
                 // 监听最后一个可见项，接近末尾时访问末尾索引强制 loadAround。
                 LaunchedEffect(gridState, lazyPagingItems) {
                     var lastTriggered = -1
+                    var preloadJob: Job? = null
                     snapshotFlow {
                         gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                     }.collect { last ->
@@ -265,6 +271,35 @@ fun AlbumScreen(
                         if (last != null && last >= target - 2 && target != lastTriggered) {
                             lastTriggered = target
                             lazyPagingItems[target]
+                        }
+                        // 滚动停止后（防抖 300ms）预取下一屏缩略图：
+                        // 白方块 = 图片到眼前才开始磁盘解码；提前 enqueue 进内存缓存，
+                        // 滚到那里时直接命中缓存秒出。Coil 对相同请求自动去重，重复 enqueue 无害。
+                        preloadJob?.cancel()
+                        preloadJob = launch {
+                            kotlinx.coroutines.delay(300)
+                            val info = gridState.layoutInfo.visibleItemsInfo
+                            val firstV = info.firstOrNull()?.index ?: return@launch
+                            val lastV = info.lastOrNull()?.index ?: return@launch
+                            val visibleCount = (lastV - firstV + 1).coerceAtLeast(1)
+                            // 往前补半屏 + 往后预取一屏
+                            val from = (firstV - visibleCount / 2).coerceAtLeast(0)
+                            val to = (lastV + visibleCount).coerceAtMost(lazyPagingItems.itemCount - 1)
+                            val imageLoader = context.imageLoader
+                            for (i in from..to) {
+                                val mwt = lazyPagingItems[i] ?: continue
+                                if (mwt.media.type == MediaType.VIDEO) continue // 视频帧解码重，跳过
+                                val req = ImageRequest.Builder(context)
+                                    .data(mwt.media.filePath)
+                                    .size(
+                                        if (mwt.media.type == MediaType.GIF)
+                                            minOf(256, thumbSize) else thumbSize
+                                    )
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                    .build()
+                                imageLoader.enqueue(req)
+                            }
                         }
                     }
                 }
