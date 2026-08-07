@@ -257,6 +257,10 @@ fun AlbumScreen(
                 }
 
                 val gridState = rememberLazyGridState()
+                // 缩略图解码尺寸 = 每格宽度（屏宽/列数），预取与网格保持一致
+                val thumbSize = with(LocalDensity.current) {
+                    (LocalConfiguration.current.screenWidthDp * density / columns).toInt()
+                }
                 // 显式触发加载：Room PagingSource 无总计数（占位失效），
                 // 组合期 items[i] 访问被 Paging 抑制，滚到底不会自动加载下一页。
                 // 监听最后一个可见项，接近末尾时访问末尾索引强制 loadAround。
