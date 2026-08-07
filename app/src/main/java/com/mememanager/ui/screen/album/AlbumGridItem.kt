@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -30,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
-import coil.decode.BitmapFactoryDecoder
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
@@ -46,7 +46,6 @@ import com.mememanager.data.local.entity.StorageType
 fun AlbumGridItem(
     mediaWithTags: MediaWithTags,
     isSelected: Boolean = false,
-    gifAnimated: Boolean = false,
     thumbSize: Int = 512,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
@@ -74,17 +73,13 @@ fun AlbumGridItem(
             val requestBuilder = ImageRequest.Builder(LocalContext.current)
                 // 直接传字符串：Coil 自动识别 content:// 为 URI、否则按文件路径处理
                 .data(media.filePath)
-                // 解码尺寸按网格列数动态计算（3 列约 350px），避免全尺寸解码大图
-                // 200 张 512px ≈ 200MB 内存缓存 → LRU 淘汰 + GC 压力
-                .size(if (gifAnimated && media.type == MediaType.GIF) minOf(256, thumbSize) else thumbSize)
+                // 解码尺寸按网格列数动态计算（3 列约 300px），避免全尺寸解码大图；
+                // GIF 动画解码内存大（多帧位图），固定 256px 控制内存
+                .size(if (media.type == MediaType.GIF) minOf(256, thumbSize) else thumbSize)
                 // 关闭 crossfade：滚动时一屏多张图同时淡入会产生主线程动画叠加卡顿
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
-            if (media.type == MediaType.GIF && !gifAnimated) {
-                // 开关默认关闭：网格 GIF 只显示第一帧（静态），动画在网格中
-                // 持续解码+重绘是滚动卡顿元凶；详情页仍走全局 GifDecoder 播放
-                requestBuilder.decoderFactory(BitmapFactoryDecoder.Factory())
-            }
+            // GIF 永久走全局 GifDecoder 播放动画（网格里动态展示）
             // 用 AsyncImage 而非 SubcomposeAsyncImage：Subcompose 每个 item 多一层
             // 子组合槽，一屏 12 个可见项 → 每帧 55ms+ 组合开销（滚动卡顿根因）。
             // loading 占位直接用 modifier 背景色（加载中显示浅灰，完成后图片覆盖）。

@@ -316,6 +316,9 @@ fun AlbumScreen(
                 LazyVerticalGrid(
                     state = gridState,
                     columns = GridCells.Fixed(columns),
+                    // 预组合视口外 1 页的 item：图片进入视野前就开始加载，
+                    // 缓解滚动白块（组合+加载提前，滚动到时已就绪）
+                    beyondBoundsPageCount = 1,
                     contentPadding = PaddingValues(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -368,7 +371,6 @@ fun AlbumScreen(
                             AlbumGridItem(
                                 mediaWithTags = mediaWithTags,
                                 isSelected = mediaWithTags.media.id in uiState.selectedMediaIds,
-                                gifAnimated = settings.gifAnimationEnabled,
                                 // 缩略图解码尺寸 = 每格宽度（屏宽/列数）
                                 thumbSize = with(LocalDensity.current) {
                                     (LocalConfiguration.current.screenWidthDp * density / columns).toInt()
