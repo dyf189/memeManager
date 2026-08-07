@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
 import coil.compose.SubcomposeAsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -94,6 +95,19 @@ fun AlbumGridItem(
                 contentDescription = media.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
+                // ── 排查日志：filter "CoilTrace" 看每个缩略图的数据源与成败 ──
+                onSuccess = { state ->
+                    Log.d(
+                        "CoilTrace",
+                        "OK id=${media.id} src=${state.result.dataSource}"
+                    )
+                },
+                onError = { state ->
+                    Log.d(
+                        "CoilTrace",
+                        "FAIL id=${media.id} ${state.result.throwable.message}"
+                    )
+                },
                 loading = {
                     // 加载中：浅灰占位
                     Box(
