@@ -44,7 +44,8 @@ class SearchViewModel @Inject constructor(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    val smartMode = MutableStateFlow(true)
+    /** 智能搜索默认关闭：分词词典在后台预热（延迟 5s），刚启动时打开可能卡 */
+    val smartMode = MutableStateFlow(false)
 
     val history: StateFlow<List<String>> = dataStore.data
         .map { prefs ->
@@ -53,13 +54,13 @@ class SearchViewModel @Inject constructor(
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** 解析历史条目：query|smartMode → query, 纯文本 → mode=true */
+    /** 解析历史条目：query|smartMode → query, 纯文本 → mode=false（与默认关闭一致） */
     fun parseHistoryEntry(entry: String): Pair<String, Boolean> {
-        if (entry.endsWith("|false")) {
-            return entry.removeSuffix("|false") to false
+        if (entry.endsWith("|true")) {
+            return entry.removeSuffix("|true") to true
         }
-        val clean = if (entry.endsWith("|true")) entry.removeSuffix("|true") else entry
-        return clean to true
+        val clean = if (entry.endsWith("|false")) entry.removeSuffix("|false") else entry
+        return clean to false
     }
 
     @OptIn(FlowPreview::class)

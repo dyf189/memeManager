@@ -123,19 +123,27 @@ fun SearchScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         // 智能搜索开关
-        Row(
-            modifier = Modifier.fillMaxWidth().height(32.dp).padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("智能搜索", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Switch(
-                checked = smartMode,
-                onCheckedChange = { viewModel.smartMode.value = it },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(32.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("智能搜索", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Switch(
+                    checked = smartMode,
+                    onCheckedChange = { viewModel.smartMode.value = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                    )
                 )
+            }
+            // 分词词典在后台预热，刚启动时打开智能搜索可能卡
+            Text(
+                "刚启动时打开可能卡顿",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
             )
         }
 
