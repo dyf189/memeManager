@@ -29,9 +29,14 @@ class MediaRepository @Inject constructor(
     }
 
     // ── 分页查询 ──
+    // prefetchDistance = 0：关闭 Paging 自动预取。否则滚动到底时注册阶段的
+    // 全量 items[i] 访问会让 presenter 连锁预取加载剩余所有页（300+ 项连续
+    // 涌入 → 多次重组 + GC → 一次 8 秒大卡顿）。加载由 AlbumScreen 的
+    // 滚动监听显式触发（接近末尾访问最后一项）。
+    private fun pagingConfig() = PagingConfig(pageSize = PAGE_SIZE, prefetchDistance = 0)
 
     fun getAlbumFlow(type: MediaType? = null, tagIds: Set<Long> = emptySet()): Flow<PagingData<MediaWithTags>> {
-        return Pager(PagingConfig(pageSize = PAGE_SIZE)) {
+        return Pager(pagingConfig()) {
             when {
                 type != null && tagIds.isNotEmpty() -> mediaDao.getAlbumPagingSourceByTypeAndTags(type, tagIds)
                 type != null -> mediaDao.getAlbumPagingSourceByType(type)
@@ -42,7 +47,7 @@ class MediaRepository @Inject constructor(
     }
 
     fun getDeletedFlow(): Flow<PagingData<MediaWithTags>> {
-        return Pager(PagingConfig(pageSize = PAGE_SIZE)) {
+        return Pager(pagingConfig()) {
             mediaDao.getDeletedPagingSource()
         }.flow
     }

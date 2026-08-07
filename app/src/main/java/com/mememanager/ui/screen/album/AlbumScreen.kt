@@ -257,9 +257,11 @@ fun AlbumScreen(
                 }
 
                 val gridState = rememberLazyGridState()
-                // 缩略图解码尺寸 = 每格宽度（屏宽/列数），预取与网格保持一致
+                // 缩略图解码尺寸 = 每格宽度（屏宽/列数），预取与网格保持一致。
+                // ×0.85 轻微降采样：300+ 张 350px ≈ 150MB 内存缓存 → 淘汰循环 + GC；
+                // 300px ≈ 110MB，肉眼几乎无差但 GC 压力降 27%
                 val thumbSize = with(LocalDensity.current) {
-                    (LocalConfiguration.current.screenWidthDp * density / columns).toInt()
+                    (LocalConfiguration.current.screenWidthDp * density * 0.85f / columns).toInt()
                 }
                 // 显式触发加载：Room PagingSource 无总计数（占位失效），
                 // 组合期 items[i] 访问被 Paging 抑制，滚到底不会自动加载下一页。
