@@ -1,12 +1,10 @@
 package com.mememanager.ui.screen.album
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,7 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -183,25 +181,37 @@ private fun TagDots(
     val displayCount = minOf(tagColors.size, 4)
     val overflow = tagColors.size - 4
 
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically
+    // 单个 Canvas 画圆点：替代 Row+多个 Box（一屏 12 个 item × 4 个圆点 =
+    // 60 个布局节点 → 1 个 draw 节点，滚动 measure/layout 开销大减）
+    Canvas(
+        modifier = modifier.height(10.dp)
     ) {
-        tagColors.take(displayCount).forEach { colorInt ->
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(Color(colorInt))
+        val gap = 10.dp.toPx()
+        val dotSize = 8.dp.toPx()
+        tagColors.take(displayCount).forEachIndexed { i, colorInt ->
+            drawCircle(
+                color = Color(colorInt),
+                radius = dotSize / 2f,
+                center = Offset(dotSize / 2f + i * gap, dotSize / 2f)
             )
         }
         if (overflow > 0) {
-            Text(
-                text = "+$overflow",
-                fontSize = 9.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(start = 1.dp)
+            // 溢出计数画在最后（圆形深灰底 + 白字）
+            val cx = dotSize / 2f + displayCount * gap
+            drawCircle(
+                color = Color(0x66000000),
+                radius = dotSize / 2f,
+                center = Offset(cx, dotSize / 2f)
+            )
+            drawContext.canvas.nativeCanvas.drawText(
+                "+$overflow",
+                cx - (if (overflow > 9) 9f else 6f),
+                dotSize / 2f + 4.5f,
+                android.graphics.Paint().apply {
+                    color = android.graphics.Color.WHITE
+                    textSize = 9f * density
+                    textAlign = android.graphics.Paint.Align.LEFT
+                }
             )
         }
     }

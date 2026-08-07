@@ -21,7 +21,6 @@ class SearchRepository @Inject constructor(
     private val mediaDao: MediaDao,
     private val mediaRepository: MediaRepository
 ) {
-) {
     companion object {
         private const val PAGE_SIZE = 30
         private const val FTS_SQL = """
