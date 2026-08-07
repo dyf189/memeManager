@@ -62,7 +62,6 @@ function clear() {
   draft.source = "all";
   draft.dir = "all";
   draft.hasDescription = "all";
-  draft.exported = "all";
   draft.tagIds = [];
   draft.timeRange = null;
   draft.sizeRange = null;
@@ -107,15 +106,6 @@ function clear() {
         <el-radio-button value="all">不限</el-radio-button>
         <el-radio-button value="yes">有</el-radio-button>
         <el-radio-button value="no">无</el-radio-button>
-      </el-radio-group>
-    </div>
-
-    <div class="filter-row">
-      <span class="filter-label">导出</span>
-      <el-radio-group v-model="draft.exported" size="small">
-        <el-radio-button value="all">不限</el-radio-button>
-        <el-radio-button value="exported">已导出</el-radio-button>
-        <el-radio-button value="not">未导出</el-radio-button>
       </el-radio-group>
     </div>
 

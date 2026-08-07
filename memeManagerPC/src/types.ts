@@ -17,7 +17,7 @@ export interface Tag {
   id: number;
   name: string;
   bgColor: string;
-  /** [已导出] 等保留标签：不可删除、不可重名 */
+  /** 保留标签（如系统内置）：不可删除、不可重名 */
   isReserved?: boolean;
   sortOrder: number;
 }
@@ -52,7 +52,6 @@ export interface FilterState {
   /** 按来源目录筛选（filePath 的父目录），"all" = 全部 */
   dir: string;
   hasDescription: "all" | "yes" | "no";
-  exported: "all" | "exported" | "not";
   /** 多选标签，AND 逻辑 */
   tagIds: number[];
   timeRange: [number, number] | null;
@@ -65,7 +64,6 @@ export function emptyFilter(): FilterState {
     source: "all",
     dir: "all",
     hasDescription: "all",
-    exported: "all",
     tagIds: [],
     timeRange: null,
     sizeRange: null,

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { Media } from "../types";
 import { useTagStore } from "../stores/tags";
 import { api } from "../api";
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   (e: "prev"): void;
   (e: "next"): void;
   (e: "changed"): void; // 描述/标签变更后，通知父级刷新
+  (e: "export"): void; // 请求导出当前媒体
 }>();
 
 const tagStore = useTagStore();
@@ -95,13 +97,36 @@ async function removeTag(tagId: number) {
 // 右上角菜单操作
 function menuAction(action: string) {
   if (action === "copy") {
+    const path = props.media!.filePath;
     api
-      .copyToClipboard(props.media!.filePath)
+      .copyToClipboard(path)
       .then((msg) => ElMessage.success(msg))
-      .catch((e) => ElMessage.error(`复制失败：${e}`));
-  } else if (action === "export") ElMessage.info("导出功能：待接入 Rust 后端");
-  else if (action === "reveal") ElMessage.info("打开所在文件夹：待接入");
-  else if (action === "delete") ElMessage.warning("删除（进回收站）：待接入");
+      .catch(async (e) => {
+        // 兜底：Web 剪贴板复制路径文本
+        try {
+          await navigator.clipboard.writeText(path);
+          ElMessage.warning(`复制图像失败（${e}），已降级复制文件路径`);
+        } catch {
+          ElMessage.error(`复制失败：${e}`);
+        }
+      });
+  } else if (action === "export") emit("export");
+  else if (action === "reveal") {
+    // 在文件管理器中显示该文件
+    revealItemInDir(props.media!.filePath).catch((e) =>
+      ElMessage.error(`打开所在文件夹失败：${e}`)
+    );
+  } else if (action === "delete") {
+    // 删除（进回收站）
+    api
+      .deleteMedia([props.media!.id])
+      .then(async () => {
+        ElMessage.success("已移入回收站");
+        emit("changed");
+        emit("close");
+      })
+      .catch((e) => ElMessage.error(`删除失败：${e}`));
+  }
 }
 </script>
 

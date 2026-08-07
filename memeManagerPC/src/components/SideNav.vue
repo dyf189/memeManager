@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// 侧边导航栏（Cloudflare Dashboard 风格）：相册 / 标签 / 设置
+// 侧边导航栏（Cloudflare Dashboard 风格）
 const items = [
   { path: "/album", label: "相册", icon: "Picture" },
+  { path: "/recycle", label: "回收站", icon: "Delete" },
   { path: "/tags", label: "标签", icon: "Collection" },
   { path: "/settings", label: "设置", icon: "Setting" },
 ];

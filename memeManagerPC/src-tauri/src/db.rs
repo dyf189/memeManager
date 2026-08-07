@@ -54,11 +54,8 @@ CREATE TABLE IF NOT EXISTS settings (
 /// 在给定连接上建表 + 写入默认数据
 pub fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(SCHEMA)?;
-    // 保留标签 [已导出]（goals.md：不可删除、不可重名）
-    conn.execute(
-        "INSERT OR IGNORE INTO tag (name, bg_color, is_reserved, sort_order) VALUES ('[已导出]', '#9c27b0', 1, 999)",
-        [],
-    )?;
+    // 清理旧版本的 [已导出] 保留标签（该标签已废弃，保留标签机制仍保留）
+    let _ = conn.execute("DELETE FROM tag WHERE name = '[已导出]' AND is_reserved = 1", []);
     Ok(())
 }
 
@@ -77,22 +74,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_schema_init_and_default_tag() {
+    fn test_schema_init_and_no_default_tags() {
         let conn = Connection::open_in_memory().unwrap();
         init_schema(&conn).unwrap();
 
-        let count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM tag WHERE name = '[已导出]' AND is_reserved = 1",
-                [],
-                |r| r.get(0),
-            )
+        let total: i64 = conn
+            .query_row("SELECT COUNT(*) FROM tag", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(count, 1);
+        assert_eq!(total, 0);
 
         // 再次初始化不产生重复
         init_schema(&conn).unwrap();
         let total: i64 = conn.query_row("SELECT COUNT(*) FROM tag", [], |r| r.get(0)).unwrap();
-        assert_eq!(total, 1);
+        assert_eq!(total, 0);
     }
 }

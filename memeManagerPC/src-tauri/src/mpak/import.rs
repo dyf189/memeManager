@@ -5,13 +5,29 @@ use std::path::{Path, PathBuf};
 
 use super::{read_u16, read_u32, read_u64, sha256_hex, FORMAT_ID, HASH_LEN, HEADER_LEN, MAGIC, VERSION, Metadata};
 
-#[derive(serde::Serialize, Default)]
+/// 成功导入的媒体条目（用于落库时恢复元数据）
+#[derive(serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedItem {
+    /// 落位后的完整路径（与库中 file_path 对应）
+    pub file_path: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: i64,
+    pub tags: Vec<String>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
+#[derive(serde::Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportResult {
     pub succeeded: usize,
     pub skipped: usize,
     pub failed: usize,
     pub failed_names: Vec<String>,
+    /// 成功导入的媒体元数据（供导入端入库合并）
+    pub items: Vec<ImportedItem>,
 }
 
 /// Windows 禁止的保留名（含扩展名也不允许）
@@ -231,8 +247,17 @@ pub fn import_pak(path: &str, dest_dir: &str) -> Result<ImportResult, String> {
             continue;
         }
         result.succeeded += 1;
-        // 已写入文件加入清单，供后续条去重
-        existing.push((content_len, target));
+        // 已写入文件加入清单，供后续条去重；并记录元数据供落库合并
+        existing.push((content_len, target.clone()));
+        result.items.push(ImportedItem {
+            file_path: target.to_string_lossy().into_owned(),
+            name: entry.name.clone(),
+            description: entry.description.clone(),
+            created_at: entry.created_at,
+            tags: entry.tags.clone(),
+            width: entry.width,
+            height: entry.height,
+        });
     }
 
     Ok(result)

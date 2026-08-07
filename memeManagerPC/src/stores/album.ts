@@ -4,6 +4,7 @@ import type { FilterState, Media, ViewMode } from "../types";
 import { emptyFilter } from "../types";
 import { api } from "../api";
 import { useTagStore } from "./tags";
+import { useSettingsStore } from "./settings";
 import { groupByTime } from "../utils/time";
 import { dirName } from "../utils/format";
 
@@ -27,10 +28,7 @@ export const useAlbumStore = defineStore("album", () => {
   const selectedIds = ref<Set<number>>(new Set());
 
   const tagStore = useTagStore();
-  /** 保留标签 [已导出] 的 id（用于导出状态筛选） */
-  const exportedTagId = computed(() =>
-    tagStore.tags.find((t) => t.name === "[已导出]")?.id
-  );
+  const settingsStore = useSettingsStore();
 
   async function loadMedia() {
     loading.value = true;
@@ -63,13 +61,6 @@ export const useAlbumStore = defineStore("album", () => {
     if (f.dir !== "all") list = list.filter((m) => dirName(m.filePath) === f.dir);
     if (f.hasDescription === "yes") list = list.filter((m) => m.description.trim().length > 0);
     if (f.hasDescription === "no") list = list.filter((m) => m.description.trim().length === 0);
-    const exTag = exportedTagId.value;
-    if (f.exported === "exported" && exTag !== undefined) {
-      list = list.filter((m) => m.tagIds.includes(exTag));
-    }
-    if (f.exported === "not" && exTag !== undefined) {
-      list = list.filter((m) => !m.tagIds.includes(exTag));
-    }
     if (f.tagIds.length > 0) {
       list = list.filter((m) => f.tagIds.every((t) => m.tagIds.includes(t)));
     }
@@ -83,9 +74,14 @@ export const useAlbumStore = defineStore("album", () => {
     if (isSearchActive.value) {
       const q = searchQuery.value.trim().toLowerCase();
       list = list.filter((m) => {
+        // 搜索范围：文件名、描述、标签名（goals.md）
+        const tagNames = tagStore.tags
+          .filter((t) => m.tagIds.includes(t.id))
+          .map((t) => t.name);
         return (
           m.fileName.toLowerCase().includes(q) ||
-          m.description.toLowerCase().includes(q)
+          m.description.toLowerCase().includes(q) ||
+          tagNames.some((n) => n.toLowerCase().includes(q))
         );
       });
     }
@@ -93,8 +89,12 @@ export const useAlbumStore = defineStore("album", () => {
     return list;
   });
 
-  /** 时间降序分组（分组头 = 导出顺序） */
-  const grouped = computed(() => groupByTime(filteredMedia.value));
+  /** 时间分组（依据设置：拍摄日期 / 导入日期） */
+  const grouped = computed(() => {
+    const field =
+      settingsStore.settings.groupBy === "import" ? "importTime" : "takenTime";
+    return groupByTime(filteredMedia.value, Date.now(), field);
+  });
 
   /** 库中所有来源目录（供筛选器选择） */
   const dirList = computed(() => {

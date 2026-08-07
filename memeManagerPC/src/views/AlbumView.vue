@@ -31,14 +31,24 @@ onMounted(async () => {
     if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
     refreshTimer = window.setTimeout(() => album.loadMedia(), 300);
   });
+  // 导出进度事件
+  unlistenExportProgress = await listen<[number, number]>(
+    "export-progress",
+    (e) => {
+      exporting.current = e.payload[0];
+      exporting.total = e.payload[1];
+    }
+  );
 });
 
 let unlistenMediaChanged: (() => void) | undefined;
+let unlistenExportProgress: (() => void) | undefined;
 let refreshTimer: number | undefined;
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
   unlistenMediaChanged?.();
+  unlistenExportProgress?.();
   if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
 });
 
@@ -55,7 +65,9 @@ function onKeydown(e: KeyboardEvent) {
 // —— 顶部工具栏状态 ——
 const showFilter = ref(false);
 const addMenuVisible = ref(false);
-const exportVisible = ref(false);
+
+// —— 导出状态（进度由 export-progress 事件驱动）——
+const exporting = reactive({ visible: false, current: 0, total: 0 });
 
 // —— 详情页状态 ——
 const detailVisible = ref(false);
@@ -143,7 +155,51 @@ async function importFolder() {
 }
 
 function exportSelected() {
-  exportVisible.value = true;
+  const items = album.mediaList.filter((m) => album.selectedIds.has(m.id));
+  runExport(items);
+}
+
+// —— 导出为 .mpak ——
+function tagNamesOf(m: Media): string[] {
+  return tagStore.tags
+    .filter((t) => m.tagIds.includes(t.id))
+    .map((t) => t.name);
+}
+
+async function runExport(items: Media[]) {
+  if (items.length === 0) {
+    ElMessage.info("没有可导出的媒体");
+    return;
+  }
+  const destDir = await api.pickDirectory();
+  if (!destDir) return;
+
+  exporting.visible = true;
+  exporting.current = 0;
+  exporting.total = items.length;
+  const maxSize = (settingsStore.settings.shardSize || 100) * 1024 * 1024;
+  const payload = items.map((m) => ({
+    name: m.fileName,
+    type: m.mediaType,
+    filePath: m.filePath,
+    width: m.width,
+    height: m.height,
+    description: m.description || null,
+    createdAt: m.importTime,
+    tags: tagNamesOf(m),
+  }));
+
+  try {
+    const result = await api.exportPak(payload, maxSize, destDir);
+    await album.loadMedia();
+    ElMessage.success(
+      `导出完成：${result.shards.length} 个分片，共 ${result.totalMedia} 张`
+    );
+  } catch (e) {
+    ElMessage.error(`导出失败：${e}`);
+  } finally {
+    exporting.visible = false;
+  }
 }
 
 // —— 导入单张/批量文件 ——
@@ -165,12 +221,20 @@ async function importFiles(paths: string[]) {
 // —— 分享：复制选中媒体到剪贴板（多选时取第一张）——
 async function shareSelected() {
   const first = album.mediaList.find((m) => album.selectedIds.has(m.id));
-  if (!first) return;
+  if (!first) {
+    ElMessage.info("请选择要分享的媒体");
+    return;
+  }
   try {
     const msg = await api.copyToClipboard(first.filePath);
     ElMessage.success(msg);
   } catch (e) {
-    ElMessage.error(`复制失败：${e}`);
+    try {
+      await navigator.clipboard.writeText(first.filePath);
+      ElMessage.warning(`复制图像失败（${e}），已降级复制文件路径`);
+    } catch {
+      ElMessage.error(`复制失败：${e}`);
+    }
   }
 }
 
@@ -348,6 +412,12 @@ async function startMpakImport(destDir: string) {
       "
     />
     <ImportingDialog v-model:visible="mpakState.importing" :stage="mpakState.stage" />
+    <ExportProgressDialog
+      v-model:visible="exporting.visible"
+      :current="exporting.current"
+      :total="exporting.total"
+      @cancel="exporting.visible = false"
+    />
     <ExportProgressDialog v-model:visible="exportVisible" />
 
     <MediaDetail
@@ -359,6 +429,7 @@ async function startMpakImport(destDir: string) {
       @prev="stepDetail(-1)"
       @next="stepDetail(1)"
       @changed="album.loadMedia"
+      @export="detailMedia && runExport([detailMedia])"
     />
 
     <!-- 批量打标签 -->

@@ -1,10 +1,20 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed } from "vue";
 
-const props = defineProps<{ visible: boolean }>();
+/**
+ * 导出进度对话框：受控组件，进度由 Rust 端 export-progress 事件驱动。
+ */
+const props = defineProps<{
+  visible: boolean;
+  /** 已处理媒体数 */
+  current: number;
+  /** 媒体总数 */
+  total: number;
+}>();
 
 const emit = defineEmits<{
   (e: "update:visible", v: boolean): void;
+  (e: "cancel"): void;
 }>();
 
 const dialogVisible = computed({
@@ -12,51 +22,28 @@ const dialogVisible = computed({
   set: (v: boolean) => emit("update:visible", v),
 });
 
-// mock 导出进度：UI 占位，后续由 Rust 后端事件驱动
-const progress = ref(0);
-const curShard = ref("分片_001.emp");
-const exportedCount = ref(0);
-
-let timer: number | undefined;
-
-watch(
-  () => props.visible,
-  (v) => {
-    if (v) {
-      progress.value = 0;
-      exportedCount.value = 0;
-      timer = window.setInterval(() => {
-        progress.value = Math.min(100, progress.value + 4);
-        exportedCount.value = Math.floor((progress.value / 100) * 67);
-        curShard.value = `分片_${String(Math.min(8, Math.ceil((progress.value / 100) * 8))).padStart(3, "0")}.emp`;
-        if (progress.value >= 100 && timer !== undefined) {
-          clearInterval(timer);
-          timer = undefined;
-        }
-      }, 120);
-    } else if (timer !== undefined) {
-      clearInterval(timer);
-      timer = undefined;
-    }
-  }
+const percent = computed(() =>
+  props.total > 0 ? Math.round((props.current / props.total) * 100) : 0
 );
-
-onBeforeUnmount(() => {
-  if (timer !== undefined) clearInterval(timer);
-});
 </script>
 
 <template>
   <teleport to="body">
-    <el-dialog v-model="dialogVisible" title="正在导出..." width="80%" align-center :show-close="false">
-      <el-progress :percentage="progress" :stroke-width="14" />
+    <el-dialog
+      v-model="dialogVisible"
+      title="正在导出..."
+      width="80%"
+      align-center
+      :show-close="false"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+    >
+      <el-progress :percentage="percent" :stroke-width="14" />
       <div class="export-info">
-        <div class="export-line">{{ curShard }}</div>
-        <div class="export-line">已导出：{{ exportedCount }} 张图片</div>
+        <div class="export-line">已处理：{{ current }} / {{ total }} 张</div>
       </div>
       <template #footer>
-        <el-button @click="emit('update:visible', false)">后台运行</el-button>
-        <el-button type="danger" @click="emit('update:visible', false)">取消</el-button>
+        <el-button @click="emit('cancel')">取消</el-button>
       </template>
     </el-dialog>
   </teleport>

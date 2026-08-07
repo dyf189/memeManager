@@ -14,17 +14,31 @@ use db::Db;
 /// 导出 .mpak 分片（前端传入待导出媒体列表 + 分片上限 + 输出目录）
 #[tauri::command]
 fn export_pak(
+    app: tauri::AppHandle,
     items: Vec<mpak::export::ExportItem>,
     max_size: u64,
     dest_dir: String,
 ) -> Result<mpak::export::ExportResult, String> {
-    mpak::export::export_pak(items, max_size, &dest_dir)
+    use tauri::Emitter;
+    mpak::export::export_pak_with_progress(items, max_size, &dest_dir, |done, total| {
+        let _ = app.emit("export-progress", (done, total));
+    })
 }
 
-/// 导入 .mpak 分片（校验 → 解析 → 提取到目标目录）
+/// 导入 .mpak 分片（校验 → 解析 → 提取到目标目录 → 元数据合并入库）
 #[tauri::command]
-fn import_pak(path: String, dest_dir: String) -> Result<mpak::import::ImportResult, String> {
-    mpak::import::import_pak(&path, &dest_dir)
+fn import_pak(
+    db: State<Db>,
+    path: String,
+    dest_dir: String,
+) -> Result<mpak::import::ImportResult, String> {
+    let result = mpak::import::import_pak(&path, &dest_dir)?;
+    // 提取出的元数据（描述/标签/时间/尺寸）合并到媒体库
+    if !result.items.is_empty() {
+        let conn = db.0.lock().map_err(|_| "数据库锁异常".to_string())?;
+        media::apply_imported_metadata_impl(&conn, &result.items)?;
+    }
+    Ok(result)
 }
 
 // ===== 数据层命令（薄包装，逻辑在 media.rs）=====

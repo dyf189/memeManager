@@ -126,12 +126,31 @@ fn build_shard_bytes(
     Ok(out)
 }
 
-/// 分片打包入口
-///
-/// - `items`: 待导出媒体（调用方保证已按时间降序排列）
-/// - `max_size`: 分片大小上限（字节）
-/// - `dest_dir`: 输出目录（不存在则创建）
-pub fn export_pak(items: Vec<ExportItem>, max_size: u64, dest_dir: &str) -> Result<ExportResult, String> {
+/// 分片打包入口（无进度回调，测试/简单调用用）
+pub fn export_pak(
+    items: Vec<ExportItem>,
+    max_size: u64,
+    dest_dir: &str,
+) -> Result<ExportResult, String> {
+    export_pak_inner(items, max_size, dest_dir, |_, _| {})
+}
+
+/// 分片打包入口（带进度回调：on_progress(已处理数, 总数)，用于前端进度展示）
+pub fn export_pak_with_progress(
+    items: Vec<ExportItem>,
+    max_size: u64,
+    dest_dir: &str,
+    mut on_progress: impl FnMut(usize, usize),
+) -> Result<ExportResult, String> {
+    export_pak_inner(items, max_size, dest_dir, &mut on_progress)
+}
+
+fn export_pak_inner(
+    items: Vec<ExportItem>,
+    max_size: u64,
+    dest_dir: &str,
+    mut on_progress: impl FnMut(usize, usize),
+) -> Result<ExportResult, String> {
     if items.is_empty() {
         // 规范 6.2：空导出不生成文件
         return Err("未选择任何媒体".into());
@@ -149,6 +168,7 @@ pub fn export_pak(items: Vec<ExportItem>, max_size: u64, dest_dir: &str) -> Resu
         let sha = sha256_hex(&bytes);
         let bin_name = safe_bin_name(i + 1, &item.file_path, &item.media_type);
         prepared.push((item.clone(), bytes, sha, bin_name));
+        on_progress(i + 1, items.len());
     }
 
     // —— 贪心分片（规范 6.1）——

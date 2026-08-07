@@ -43,10 +43,14 @@ export function groupLabel(ts: number, now: number = Date.now()): string {
 }
 
 /** 按时间降序分组（分组头顺序 = 导出顺序） */
-export function groupByTime(items: Media[], now: number = Date.now()): TimeGroup[] {
+export function groupByTime(
+  items: Media[],
+  now: number = Date.now(),
+  field: "takenTime" | "importTime" = "takenTime"
+): TimeGroup[] {
   const groups: TimeGroup[] = [];
-  for (const m of [...items].sort((a, b) => b.takenTime - a.takenTime)) {
-    const label = groupLabel(m.takenTime, now);
+  for (const m of [...items].sort((a, b) => b[field] - a[field])) {
+    const label = groupLabel(m[field], now);
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.items.push(m);
     else groups.push({ label, items: [m] });

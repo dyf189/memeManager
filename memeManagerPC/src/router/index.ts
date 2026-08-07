@@ -6,6 +6,7 @@ const router = createRouter({
   routes: [
     { path: "/", redirect: "/album" },
     { path: "/album", name: "album", component: () => import("../views/AlbumView.vue") },
+    { path: "/recycle", name: "recycle", component: () => import("../views/RecycleView.vue") },
     { path: "/tags", name: "tags", component: () => import("../views/TagManagerView.vue") },
     { path: "/settings", name: "settings", component: () => import("../views/SettingsView.vue") },
   ],

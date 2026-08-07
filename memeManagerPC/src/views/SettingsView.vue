@@ -4,11 +4,22 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { PRESET_TAG_COLORS } from "../utils/color";
 import { useThemeStore, type ThemeMode } from "../stores/theme";
 import { useSettingsStore } from "../stores/settings";
+import { useAlbumStore } from "../stores/album";
 import { api } from "../api";
+import { formatSize } from "../utils/format";
 
 // —— 设置（Pinia + SQLite 持久化，变更自动保存）——
 const settingsStore = useSettingsStore();
 const settings = settingsStore.settings;
+const albumStore = useAlbumStore();
+
+/** 存储空间占用：库中媒体总数 + 总大小 */
+const storageUsage = computed(() => {
+  const list = albumStore.mediaList;
+  if (list.length === 0) return "—";
+  const bytes = list.reduce((s, m) => s + m.fileSize, 0);
+  return `${list.length} 条 · ${formatSize(bytes)}`;
+});
 
 onMounted(() => settingsStore.load());
 
@@ -87,7 +98,9 @@ async function clearRecycle() {
   } catch {
     return;
   }
-  ElMessage.success("回收站已清空（mock）");
+  const items = await api.listRecycle();
+  if (items.length > 0) await api.purgeMedia(items.map((m) => m.id));
+  ElMessage.success(`回收站已清空（${items.length} 项）`);
 }
 
 function pickDir() {
@@ -130,10 +143,9 @@ function todo() {
           <span class="item-value">{{ settings.shardSize }} MB</span>
           <el-icon class="item-arrow"><ArrowRight /></el-icon>
         </div>
-        <div class="item" @click="todo()">
+        <div class="item">
           <span class="item-label">存储空间占用</span>
-          <span class="item-value">—</span>
-          <el-icon class="item-arrow"><ArrowRight /></el-icon>
+          <span class="item-value">{{ storageUsage }}</span>
         </div>
       </section>
 

@@ -278,9 +278,6 @@ pub fn add_tag_impl(conn: &Connection, name: &str, bg_color: &str) -> Result<Tag
     if name.is_empty() {
         return Err("标签名不能为空".into());
     }
-    if name.eq("[已导出]") {
-        return Err("「[已导出]」为保留标签，不可创建".into());
-    }
     let dup: Option<i64> = conn
         .query_row("SELECT id FROM tag WHERE name = ?1", params![name], |r| r.get(0))
         .optional()
@@ -319,11 +316,8 @@ pub fn rename_tag_impl(conn: &Connection, id: i64, name: &str) -> Result<(), Str
     if reserved.is_none() {
         return Err("标签不存在".into());
     }
-    if reserved == Some(1) && name != "[已导出]" {
+    if reserved == Some(1) {
         return Err("保留标签不可重命名".into());
-    }
-    if reserved == Some(0) && name.eq("[已导出]") {
-        return Err("「[已导出]」为保留标签名".into());
     }
     let dup: Option<i64> = conn
         .query_row("SELECT id FROM tag WHERE name = ?1 AND id != ?2", params![name, id], |r| r.get(0))
@@ -493,6 +487,63 @@ pub fn set_setting_impl(conn: &Connection, key: &str, value: &str) -> Result<(),
 
 // ===== 单文件/批量文件导入 =====
 
+/// 把 .mpak 导入提取出的元数据合并到媒体库：
+/// 按落位路径找到记录 → 更新描述/时间/尺寸 → 按标签名合并标签（同名复用，不存在则创建）
+pub fn apply_imported_metadata_impl(
+    conn: &Connection,
+    items: &[crate::mpak::import::ImportedItem],
+) -> Result<(), String> {
+    for item in items {
+        let Some(id) = conn
+            .query_row(
+                "SELECT id FROM media WHERE file_path = ?1",
+                params![item.file_path],
+                |r| r.get::<_, i64>(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?
+        else {
+            continue; // 记录尚未入库（可能被去重跳过），跳过元数据
+        };
+
+        let _ = conn.execute(
+            "UPDATE media SET description = ?1, taken_time = ?2, width = ?3, height = ?4 WHERE id = ?5",
+            params![
+                item.description.as_deref().unwrap_or(""),
+                item.created_at,
+                item.width,
+                item.height,
+                id
+            ],
+        );
+
+        for tag_name in &item.tags {
+            let tag_id: Option<i64> = conn
+                .query_row("SELECT id FROM tag WHERE name = ?1", params![tag_name], |r| r.get(0))
+                .optional()
+                .map_err(|e| e.to_string())?;
+            let tag_id = match tag_id {
+                Some(t) => t,
+                None => {
+                    let max_order: i64 = conn
+                        .query_row("SELECT COALESCE(MAX(sort_order), 0) FROM tag", [], |r| r.get(0))
+                        .map_err(|e| e.to_string())?;
+                    conn.execute(
+                        "INSERT INTO tag (name, bg_color, is_reserved, sort_order) VALUES (?1, '#f6821f', 0, ?2)",
+                        params![tag_name, max_order + 1],
+                    )
+                    .map_err(|e| e.to_string())?;
+                    conn.last_insert_rowid()
+                }
+            };
+            let _ = conn.execute(
+                "INSERT OR IGNORE INTO media_tag (media_id, tag_id) VALUES (?1, ?2)",
+                params![id, tag_id],
+            );
+        }
+    }
+    Ok(())
+}
 /// 把用户选中的文件复制到目标目录（文件名清洗 + 冲突后缀），随后扫描入库
 pub fn import_files_impl(
     conn: &Connection,
@@ -620,19 +671,25 @@ mod tests {
 
         // 重名拒绝
         assert!(add_tag_impl(&conn, "搞笑", "#000000").is_err());
-        // 保留名拒绝
-        assert!(add_tag_impl(&conn, "[已导出]", "#000000").is_err());
+        // 普通标签可以叫任何名字（含 [已导出]）
+        assert!(add_tag_impl(&conn, "[已导出]", "#000000").is_ok());
 
         rename_tag_impl(&conn, t.id, "超搞笑").unwrap();
         let tags = list_tags_impl(&conn).unwrap();
         assert!(tags.iter().any(|x| x.name == "超搞笑"));
 
-        // 保留标签不可删
-        let reserved = tags.iter().find(|x| x.is_reserved).unwrap();
-        assert!(delete_tag_impl(&conn, reserved.id).is_err());
+        // 保留标签机制仍保留：手动造一个保留标签验证不可删/不可改名
+        conn.execute(
+            "INSERT INTO tag (name, bg_color, is_reserved, sort_order) VALUES ('SYS', '#000000', 1, 999)",
+            [],
+        )
+        .unwrap();
+        let reserved = list_tags_impl(&conn).unwrap().iter().find(|x| x.is_reserved).unwrap().id;
+        assert!(delete_tag_impl(&conn, reserved).is_err());
+        assert!(rename_tag_impl(&conn, reserved, "改名").is_err());
 
         delete_tag_impl(&conn, t.id).unwrap();
-        assert_eq!(list_tags_impl(&conn).unwrap().len(), 1);
+        assert_eq!(list_tags_impl(&conn).unwrap().len(), 2);
     }
 
     #[test]
