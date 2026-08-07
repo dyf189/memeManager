@@ -23,7 +23,9 @@ class MemeManagerApp : Application() {
             }
             .build()
         Coil.setImageLoader(imageLoader)
+        // Jieba 词典加载占 IO，延迟到启动高峰后再做，避免拖慢首屏加载
         CoroutineScope(Dispatchers.IO).launch {
+            kotlinx.coroutines.delay(5000)
             JiebaTokenizer.warmUp()
         }
     }
