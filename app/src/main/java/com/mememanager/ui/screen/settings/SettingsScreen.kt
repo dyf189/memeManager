@@ -252,7 +252,7 @@ fun SettingsScreen(
                                 if (settings.jiebaPreloadEnabled)
                                     "开启：启动时后台加载词典（约 10 秒），搜索/导入零等待"
                                 else
-                                    "关闭：首次搜索/导入时才加载，那次操作会慢约 10 秒",
+                                    "关闭：仅首次智能搜索时加载（约 10 秒），导入不受影响",
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

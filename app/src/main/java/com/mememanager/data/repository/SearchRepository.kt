@@ -18,7 +18,9 @@ import javax.inject.Singleton
 @Singleton
 class SearchRepository @Inject constructor(
     private val mediaFtsDao: MediaFtsDao,
-    private val mediaDao: MediaDao
+    private val mediaDao: MediaDao,
+    private val mediaRepository: MediaRepository
+) {
 ) {
     companion object {
         private const val PAGE_SIZE = 30
@@ -35,6 +37,10 @@ class SearchRepository @Inject constructor(
         // 此函数被 viewModelScope（Main）调用，直接同步分词会 ANR
         return flow {
             val ftsQuery = withContext(Dispatchers.IO) {
+                // 首次加载（预热关闭场景）：加载后补全 FTS 索引——
+                // 预热关闭期间导入的媒体跳过了 FTS 同步，这里一次性补上
+                val firstLoad = com.mememanager.util.JiebaTokenizer.ensureLoaded()
+                if (firstLoad) mediaRepository.seedAllFts()
                 com.mememanager.util.JiebaTokenizer.toFtsQuery(query)
             }
             if (ftsQuery.isEmpty()) return@flow

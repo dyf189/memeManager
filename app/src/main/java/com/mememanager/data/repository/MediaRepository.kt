@@ -114,8 +114,10 @@ class MediaRepository @Inject constructor(
     }
 
     private suspend fun syncFts(id: Long, name: String, description: String) {
-        // Jieba 分词 + 首次词典加载必须在 IO 线程（首次加载约 10 秒，
-        // 在 Main 上会 ANR——导入图片卡死的根因）
+        // 词典未加载时跳过——预热关闭场景下导入不等待 Jieba 10 秒加载；
+        // 首次智能搜索时 seedAllFts() 会补全所有跳过的 FTS 数据。
+        if (!com.mememanager.util.JiebaTokenizer.isLoaded) return
+        // Jieba 分词在 IO 线程（首次加载约 10 秒，在 Main 上会 ANR——导入图片卡死的根因）
         val (tokenizedName, tokenizedDesc) = withContext(Dispatchers.IO) {
             com.mememanager.util.JiebaTokenizer.toFtsContent(name) to
                 com.mememanager.util.JiebaTokenizer.toFtsContent(description)

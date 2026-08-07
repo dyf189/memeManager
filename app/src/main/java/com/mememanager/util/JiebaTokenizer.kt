@@ -11,11 +11,20 @@ import com.huaban.analysis.jieba.JiebaSegmenter
  */
 object JiebaTokenizer {
 
-    private val segmenter by lazy { JiebaSegmenter() }
+    /** 词典是否已加载（预热完成或首次使用时加载完成） */
+    @Volatile
+    var isLoaded: Boolean = false
+        private set
 
-    /** 确保词典已加载（在 IO 线程执行，未加载则阻塞等待）——所有调用点先调它 */
-    suspend fun ensureLoaded() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    private val segmenter by lazy {
+        JiebaSegmenter().also { isLoaded = true }
+    }
+
+    /** 确保词典已加载（在 IO 线程执行，未加载则阻塞等待）。返回 true = 本次完成了首次加载 */
+    suspend fun ensureLoaded(): Boolean = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val firstLoad = !isLoaded
         segmenter // 触发 lazy 初始化（首次加载词典约 10 秒）
+        firstLoad
     }
 
     /** 后台预热：触发词典加载，避免首次搜索阻塞。完成后打日志 */
