@@ -16,8 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,8 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.util.Log
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.decode.BitmapFactoryDecoder
@@ -60,18 +57,18 @@ fun AlbumGridItem(
     val media = mediaWithTags.media
     val tags = mediaWithTags.sortedTags
 
-    Card(
+    // 用 Box 而非 Card：网格密集场景 Card(Surface) 的色层/shadow 处理是纯开销
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(1f)
+            .background(MaterialTheme.colorScheme.surface)
             .then(
                 if (isSelected) Modifier.border(
                     2.dp, MaterialTheme.colorScheme.primary, RectangleShape
                 ) else Modifier
             )
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-        shape = RectangleShape,
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
 
@@ -90,36 +87,16 @@ fun AlbumGridItem(
                 // 持续解码+重绘是滚动卡顿元凶；详情页仍走全局 GifDecoder 播放
                 requestBuilder.decoderFactory(BitmapFactoryDecoder.Factory())
             }
-            SubcomposeAsyncImage(
+            // 用 AsyncImage 而非 SubcomposeAsyncImage：Subcompose 每个 item 多一层
+            // 子组合槽，一屏 12 个可见项 → 每帧 55ms+ 组合开销（滚动卡顿根因）。
+            // loading 占位直接用 modifier 背景色（加载中显示浅灰，完成后图片覆盖）。
+            AsyncImage(
                 model = requestBuilder.build(),
                 contentDescription = media.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-                // ── 排查日志：filter "CoilTrace" 看每个缩略图的数据源与成败 ──
-                onSuccess = { state ->
-                    Log.d(
-                        "CoilTrace",
-                        "OK id=${media.id} src=${state.result.dataSource}"
-                    )
-                },
-                onError = { state ->
-                    Log.d(
-                        "CoilTrace",
-                        "FAIL id=${media.id} ${state.result.throwable.message}"
-                    )
-                },
-                loading = {
-                    // 加载中：浅灰占位
-                    Box(
-                        modifier = Modifier.fillMaxSize().background(Color(0xFFEEEEEE))
-                    )
-                },
-                error = {
-                    // 加载失败：浅灰占位
-                    Box(
-                        modifier = Modifier.fillMaxSize().background(Color(0xFFE0E0E0))
-                    )
-                }
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFEEEEEE))
             )
             // ── 类型角标（左上角，GIF/视频） ──
             if (media.type != MediaType.IMAGE) {
