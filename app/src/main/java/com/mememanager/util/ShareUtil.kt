@@ -17,14 +17,19 @@ import java.io.File
  */
 object ShareUtil {
 
-    /** 系统分享 — FileProvider 生成 content URI */
+    /** 系统分享 — FileProvider 生成 content URI；EXTERNAL 媒体直接用原 URI */
     fun shareMedia(context: Context, media: MediaEntity) {
-        val file = File(media.filePath)
-        if (!file.exists()) {
-            Toast.makeText(context, "文件不存在", Toast.LENGTH_SHORT).show()
-            return
+        val uri: Uri
+        if (media.filePath.startsWith("content://")) {
+            uri = Uri.parse(media.filePath)
+        } else {
+            val file = File(media.filePath)
+            if (!file.exists()) {
+                Toast.makeText(context, "文件不存在", Toast.LENGTH_SHORT).show()
+                return
+            }
+            uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         }
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val mime = when (media.type) {
             MediaType.VIDEO -> "video/*"
             MediaType.GIF -> "image/gif"
@@ -40,8 +45,14 @@ object ShareUtil {
 
     /** 保存到系统相册 */
     fun saveToGallery(context: Context, media: MediaEntity) {
-        val file = File(media.filePath)
-        if (!file.exists()) {
+        val resolver = context.contentResolver
+        val input = if (media.filePath.startsWith("content://")) {
+            resolver.openInputStream(Uri.parse(media.filePath))
+        } else {
+            val f = File(media.filePath)
+            if (!f.exists()) null else f.inputStream()
+        }
+        if (input == null) {
             Toast.makeText(context, "文件不存在", Toast.LENGTH_SHORT).show()
             return
         }
@@ -55,11 +66,10 @@ object ShareUtil {
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/MemeManager")
         }
-        val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
         uri?.let {
             resolver.openOutputStream(it)?.use { out ->
-                file.inputStream().use { it.copyTo(out) }
+                input.use { it.copyTo(out) }
             }
             Toast.makeText(context, "已保存到相册", Toast.LENGTH_SHORT).show()
         } ?: Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()

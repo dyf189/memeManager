@@ -51,7 +51,6 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.ui.viewmodel.TrashViewModel
-import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -177,7 +176,7 @@ private fun TrashGridItem(
             // 缩略图
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
-                    .data(File(mediaWithTags.media.filePath))
+                    .data(mediaWithTags.media.filePath)
                     .crossfade(true)
                     .build(),
                 contentDescription = mediaWithTags.media.name,

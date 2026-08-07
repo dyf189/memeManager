@@ -68,7 +68,6 @@ import coil.request.ImageRequest
 import com.mememanager.ui.components.ShareMenu
 import com.mememanager.ui.viewmodel.SearchResultItem
 import com.mememanager.ui.viewmodel.SearchViewModel
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -222,7 +221,7 @@ private fun SearchResultRow(item: SearchResultItem, onClick: () -> Unit) {
     ) {
         Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context).data(File(media.filePath)).crossfade(true).build(),
+                model = ImageRequest.Builder(context).data(media.filePath).crossfade(true).build(),
                 contentDescription = media.name, contentScale = ContentScale.Crop,
                 modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
             )

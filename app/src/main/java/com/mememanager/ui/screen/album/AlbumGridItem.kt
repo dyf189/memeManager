@@ -38,7 +38,6 @@ import coil.decode.BitmapFactoryDecoder
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.StorageType
-import java.io.File
 
 /**
  * 相册网格缩略图
@@ -77,7 +76,8 @@ fun AlbumGridItem(
 
             // ── 图片加载 ──
             val requestBuilder = ImageRequest.Builder(LocalContext.current)
-                .data(File(media.filePath))
+                // 直接传字符串：Coil 自动识别 content:// 为 URI、否则按文件路径处理
+                .data(media.filePath)
                 // 解码尺寸按网格列数动态计算（3 列约 350px），避免全尺寸解码大图
                 // 200 张 512px ≈ 200MB 内存缓存 → LRU 淘汰 + GC 压力
                 .size(if (gifAnimated && media.type == MediaType.GIF) minOf(256, thumbSize) else thumbSize)

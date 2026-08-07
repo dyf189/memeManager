@@ -625,7 +625,11 @@ private fun MediaDisplay(media: MediaWithTags) {    val context = LocalContext.c
             // 视频：ExoPlayer + PlayerView（自带进度条/控制条）
             val player = remember(media.media.filePath) {
                 ExoPlayer.Builder(context).build().apply {
-                    setMediaItem(MediaItem.fromUri(Uri.fromFile(File(media.media.filePath))))
+                    // EXTERNAL 媒体存的是 content:// URI，其余是文件路径
+                    val mediaUri = if (media.media.filePath.startsWith("content://"))
+                        Uri.parse(media.media.filePath)
+                    else Uri.fromFile(File(media.media.filePath))
+                    setMediaItem(MediaItem.fromUri(mediaUri))
                     prepare()
                     playWhenReady = true
                     repeatMode = ExoPlayer.REPEAT_MODE_ONE
@@ -648,7 +652,7 @@ private fun MediaDisplay(media: MediaWithTags) {    val context = LocalContext.c
         } else {
         SubcomposeAsyncImage(
             model = ImageRequest.Builder(context)
-                .data(File(media.media.filePath))
+                .data(media.media.filePath)
                 .crossfade(true)
                 .build(),
             contentDescription = media.media.name,
