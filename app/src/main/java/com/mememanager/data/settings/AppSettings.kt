@@ -21,6 +21,8 @@ data class AppSettings(
     val jsonSyncEnabled: Boolean = false,
     /** 网格中 GIF 动图播放（实验性，可能造成卡顿） */
     val gifAnimationEnabled: Boolean = false,
+    /** Jieba 词典启动时后台预热（关 = 首次使用时才加载，那次操作会慢约 10 秒） */
+    val jiebaPreloadEnabled: Boolean = true,
     val exportDirUri: String? = null
 )
 
@@ -32,6 +34,7 @@ object SettingsKeys {
     val TRASH_DAYS = intPreferencesKey("trash_days")
     val JSON_SYNC_ENABLED = booleanPreferencesKey("json_sync_enabled")
     val GIF_ANIMATION_ENABLED = booleanPreferencesKey("gif_animation_enabled")
+    val JIEBA_PRELOAD_ENABLED = booleanPreferencesKey("jieba_preload_enabled")
     val EXPORT_DIR_URI = stringPreferencesKey("export_dir_uri")
     val SEARCH_HISTORY = stringSetPreferencesKey("search_history")
     val CUSTOM_COLORS = stringSetPreferencesKey("custom_colors")

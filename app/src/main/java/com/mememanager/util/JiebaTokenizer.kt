@@ -18,9 +18,11 @@ object JiebaTokenizer {
         segmenter // 触发 lazy 初始化（首次加载词典约 10 秒）
     }
 
-    /** 后台预热：触发词典加载，避免首次搜索阻塞 */
+    /** 后台预热：触发词典加载，避免首次搜索阻塞。完成后打日志 */
     fun warmUp() {
+        val start = System.currentTimeMillis()
         segmenter.process("预热", JiebaSegmenter.SegMode.SEARCH)
+        android.util.Log.d("Jieba", "词典预热完成，耗时 ${System.currentTimeMillis() - start}ms")
     }
 
     /**

@@ -239,6 +239,29 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.setGifAnimationEnabled(it) }
                         )
                     }
+                    // ── Jieba 词典预热开关 ──
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Jieba 词典后台预热", fontSize = 15.sp)
+                            Text(
+                                if (settings.jiebaPreloadEnabled)
+                                    "开启：启动时后台加载词典（约 10 秒），搜索/导入零等待"
+                                else
+                                    "关闭：首次搜索/导入时才加载，那次操作会慢约 10 秒",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = settings.jiebaPreloadEnabled,
+                            onCheckedChange = { viewModel.setJiebaPreloadEnabled(it) }
+                        )
+                    }
                 }
             }
 
