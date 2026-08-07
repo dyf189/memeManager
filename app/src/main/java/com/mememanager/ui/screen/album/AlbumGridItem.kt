@@ -52,6 +52,7 @@ fun AlbumGridItem(
     mediaWithTags: MediaWithTags,
     isSelected: Boolean = false,
     gifAnimated: Boolean = false,
+    thumbSize: Int = 512,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -77,9 +78,10 @@ fun AlbumGridItem(
             // ── 图片加载 ──
             val requestBuilder = ImageRequest.Builder(LocalContext.current)
                 .data(File(media.filePath))
-                // 网格缩略图不需要全尺寸解码——限制目标尺寸，避免大图解码卡顿
-                .size(if (gifAnimated && media.type == MediaType.GIF) 256 else 512)
-                .crossfade(!gifAnimated || media.type != MediaType.GIF)
+                // 解码尺寸按网格列数动态计算（3 列约 350px），避免全尺寸解码大图
+                // 200 张 512px ≈ 200MB 内存缓存 → LRU 淘汰 + GC 压力
+                .size(if (gifAnimated && media.type == MediaType.GIF) minOf(256, thumbSize) else thumbSize)
+                // 关闭 crossfade：滚动时一屏多张图同时淡入会产生主线程动画叠加卡顿
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
             if (media.type == MediaType.GIF && !gifAnimated) {

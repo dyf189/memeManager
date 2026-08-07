@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -310,6 +311,10 @@ fun AlbumScreen(
                                 mediaWithTags = mediaWithTags,
                                 isSelected = mediaWithTags.media.id in uiState.selectedMediaIds,
                                 gifAnimated = settings.gifAnimationEnabled,
+                                // 缩略图解码尺寸 = 每格宽度（屏宽/列数）
+                                thumbSize = with(LocalDensity.current) {
+                                    (LocalConfiguration.current.screenWidthDp * density / columns).toInt()
+                                },
                                 onClick = {
                                     if (uiState.isMultiSelectMode) {
                                         viewModel.toggleSelection(mediaWithTags.media.id)
