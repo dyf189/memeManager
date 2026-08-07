@@ -4,7 +4,7 @@ import type { Tag } from "../types";
 import { api } from "../api";
 import { PRESET_TAG_COLORS } from "../utils/color";
 
-/** 标签管理器状态 */
+/** 标签管理器状态（读写均持久化到 SQLite） */
 export const useTagStore = defineStore("tags", () => {
   const tags = ref<Tag[]>([]);
   const loaded = ref(false);
@@ -27,34 +27,59 @@ export const useTagStore = defineStore("tags", () => {
   async function addTag(name: string, bgColor: string): Promise<boolean> {
     const trimmed = name.trim();
     if (!trimmed) return false;
-    if (tags.value.some((t) => t.name === trimmed)) return false; // 标签名唯一
-    const t = await api.addTag({ name: trimmed, bgColor });
-    tags.value.push(t);
-    return true;
+    try {
+      const t = await api.addTag(trimmed, bgColor);
+      tags.value.push(t);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  function updateTag(id: number, patch: Partial<Tag>) {
+  /** 重命名（后端校验唯一性与保留标签） */
+  async function renameTag(id: number, name: string): Promise<boolean> {
+    const trimmed = name.trim();
+    if (!trimmed) return false;
+    try {
+      await api.renameTag(id, trimmed);
+      const t = tags.value.find((x) => x.id === id);
+      if (t) t.name = trimmed;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** 改色（实时持久化） */
+  async function setColor(id: number, color: string) {
+    await api.setTagColor(id, color);
     const t = tags.value.find((x) => x.id === id);
-    if (!t) return;
-    Object.assign(t, patch);
+    if (t) t.bgColor = color;
   }
 
-  function removeTag(id: number) {
+  async function removeTag(id: number) {
     const t = tags.value.find((x) => x.id === id);
-    if (t?.isReserved) return; // 保留标签不可删除
-    tags.value = tags.value.filter((x) => x.id !== id);
+    if (t?.isReserved) return false; // 保留标签不可删除
+    try {
+      await api.deleteTag(id);
+      tags.value = tags.value.filter((x) => x.id !== id);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  function moveTag(id: number, dir: -1 | 1) {
-    const arr = sorted.value;
-    const idx = arr.findIndex((t) => t.id === id);
-    const target = idx + dir;
-    if (idx < 0 || target < 0 || target >= arr.length) return;
-    const cur = arr[idx];
-    const other = arr[target];
-    const tmp = cur.sortOrder;
-    cur.sortOrder = other.sortOrder;
-    other.sortOrder = tmp;
+  /** 拖拽后按新顺序持久化 */
+  async function setOrder(ids: number[]) {
+    try {
+      await api.setTagOrder(ids);
+      ids.forEach((id, i) => {
+        const t = tags.value.find((x) => x.id === id);
+        if (t) t.sortOrder = i + 1;
+      });
+    } catch {
+      /* 静默失败，下次刷新恢复 */
+    }
   }
 
   return {
@@ -64,8 +89,9 @@ export const useTagStore = defineStore("tags", () => {
     nextColor,
     loadTags,
     addTag,
-    updateTag,
+    renameTag,
+    setColor,
     removeTag,
-    moveTag,
+    setOrder,
   };
 });

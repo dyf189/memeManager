@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { ElMessage } from "element-plus";
+import { api } from "../api";
 
 const props = defineProps<{ visible: boolean }>();
 
 const emit = defineEmits<{
   (e: "update:visible", v: boolean): void;
+  (e: "import-folder"): void;
+  (e: "import-mpak"): void;
+  (e: "import-files", paths: string[]): void;
 }>();
 
 const dialogVisible = computed({
@@ -14,14 +17,28 @@ const dialogVisible = computed({
 });
 
 const items = [
-  { icon: "Picture", label: "选择图片/视频", desc: "从本地文件选择" },
-  { icon: "FolderOpened", label: "选择文件", desc: "单个文件导入" },
+  { icon: "Picture", label: "选择图片/视频", desc: "从本地文件选择（可多选）" },
+  { icon: "FolderOpened", label: "选择文件", desc: "单个文件导入（可多选）" },
   { icon: "Folder", label: "导入整个文件夹", desc: "批量索引（可包含子目录）" },
-  { icon: "Upload", label: "导入 .emp 分片", desc: "从表情包备份恢复" },
+  { icon: "Upload", label: "导入 .mpak 分片", desc: "从表情包备份恢复" },
 ];
 
-function pick(i: number) {
-  ElMessage.info(`「${items[i].label}」待接入 Rust 后端`);
+async function pick(i: number) {
+  if (i === 2) {
+    // 导入整个文件夹 → 交给相册页执行目录选择 + 扫描
+    emit("import-folder");
+    emit("update:visible", false);
+    return;
+  }
+  if (i === 3) {
+    // 导入 .mpak 分片 → 交给相册页执行文件选择 + 导入
+    emit("import-mpak");
+    emit("update:visible", false);
+    return;
+  }
+  // 单张/批量文件选择
+  const paths = i === 0 ? await api.pickImageFiles() : await api.pickAnyFiles();
+  if (paths.length > 0) emit("import-files", paths);
   emit("update:visible", false);
 }
 </script>

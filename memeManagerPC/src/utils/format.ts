@@ -16,3 +16,9 @@ export function formatDateTime(ts: number): string {
 export function formatResolution(w: number, h: number): string {
   return `${w}×${h}`;
 }
+
+/** 取文件所在目录（兼容 / 与 \ 分隔符） */
+export function dirName(p: string): string {
+  const i = Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
+  return i > 0 ? p.slice(0, i) : p;
+}

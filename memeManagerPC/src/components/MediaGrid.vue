@@ -8,6 +8,8 @@ const props = defineProps<{
   items: Media[];
   multiSelect: boolean;
   selectedIds: Set<number>;
+  /** 固定列数（来自设置）；缺省时自适应 */
+  columns?: number;
 }>();
 
 const emit = defineEmits<{
@@ -18,6 +20,11 @@ const emit = defineEmits<{
 
 // 必须用 computed：items 是异步加载的，普通变量不会随 props 更新
 const groups = computed(() => groupByTime(props.items));
+const gridStyle = computed(() =>
+  props.columns
+    ? `repeat(${props.columns}, minmax(0, 1fr))`
+    : "repeat(auto-fill, minmax(96px, 1fr))"
+);
 
 function onItemClick(m: Media) {
   if (props.multiSelect) emit("select", m);
@@ -34,7 +41,7 @@ function onContextMenu(m: Media) {
     <template v-for="(g, gi) in groups" :key="gi">
       <!-- 粘性时间分组头 -->
       <div class="grid-header">{{ g.label }}</div>
-      <div class="grid-row" :class="{ 'row-separated': gi > 0 }">
+      <div class="grid-row" :class="{ 'row-separated': gi > 0 }" :style="{ gridTemplateColumns: gridStyle }">
         <div
           v-for="m in g.items"
           :key="m.id"
@@ -69,7 +76,6 @@ function onContextMenu(m: Media) {
 
 .grid-row {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 6px;
   margin-bottom: 6px;
 }
@@ -86,6 +92,9 @@ function onContextMenu(m: Media) {
   position: relative;
   border: 2.5px solid transparent;
   transition: transform 0.12s ease, border-color 0.12s ease;
+  /* 长列表渲染优化：视口外的项跳过布局/绘制 */
+  content-visibility: auto;
+  contain-intrinsic-size: 110px;
 }
 
 .grid-cell:hover {

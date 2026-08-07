@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { PRESET_TAG_COLORS } from "../utils/color";
 import { useThemeStore, type ThemeMode } from "../stores/theme";
+import { useSettingsStore } from "../stores/settings";
+import { api } from "../api";
 
-// —— 设置值（后续迁入 Pinia + Rust 持久化）——
-const settings = reactive({
-  defaultStorage: "user", // user=用户目录 ~/ | app=安装目录 | custom=自定义目录
-  customDir: "", // 自定义目录路径
-  shardSize: 100, // MB
-  groupBy: "taken", // taken | import
-  gridCols: 6,
-  recycleDays: 30,
-  jsonSync: false,
-});
+// —— 设置（Pinia + SQLite 持久化，变更自动保存）——
+const settingsStore = useSettingsStore();
+const settings = settingsStore.settings;
+
+onMounted(() => settingsStore.load());
 
 const storageLabels: Record<string, string> = {
   user: "用户目录 (~/)",
@@ -61,7 +58,7 @@ const dialogVisible = computed({
   },
 });
 
-const presetColors = ref<string[]>([...PRESET_TAG_COLORS]);
+const presetColors = computed(() => settings.presetColors);
 
 // —— 开源许可项目链接 ——
 const licenses = [
@@ -94,11 +91,17 @@ async function clearRecycle() {
 }
 
 function pickDir() {
-  ElMessage.info("目录选择器待接入 Rust 后端（tauri-plugin-dialog）");
+  // 自定义目录选择：接 tauri-plugin-dialog
+  api
+    .pickDirectory()
+    .then((dir) => {
+      if (dir) settings.customDir = dir;
+    })
+    .catch(() => ElMessage.error("选择目录失败"));
 }
 
 function restoreColors() {
-  presetColors.value = [...PRESET_TAG_COLORS];
+  settings.presetColors = [...PRESET_TAG_COLORS];
   ElMessage.success("已恢复默认颜色");
 }
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import type { FilterState, MediaType, SourceType } from "../types";
-import { SOURCE_LABELS } from "../mock/data";
+import { SOURCE_LABELS } from "../utils/constants";
 import { useTagStore } from "../stores/tags";
+import { useAlbumStore } from "../stores/album";
 
 const props = defineProps<{
   modelValue: FilterState;
@@ -15,6 +16,7 @@ const emit = defineEmits<{
 }>();
 
 const tagStore = useTagStore();
+const albumStore = useAlbumStore();
 
 // 本地编辑副本，点「应用筛选」才生效（goals.md）
 const draft = reactive<FilterState>({ ...props.modelValue });
@@ -58,6 +60,7 @@ function apply() {
 function clear() {
   draft.type = "all";
   draft.source = "all";
+  draft.dir = "all";
   draft.hasDescription = "all";
   draft.exported = "all";
   draft.tagIds = [];
@@ -87,6 +90,14 @@ function clear() {
       <span class="filter-label">来源</span>
       <el-select v-model="draft.source" size="small" style="width: 120px">
         <el-option v-for="o in sourceOptions" :key="o.value" :label="o.label" :value="o.value" />
+      </el-select>
+    </div>
+
+    <div class="filter-row">
+      <span class="filter-label">目录</span>
+      <el-select v-model="draft.dir" size="small" style="max-width: 200px">
+        <el-option label="全部目录" value="all" />
+        <el-option v-for="d in albumStore.dirList" :key="d" :label="d" :value="d" />
       </el-select>
     </div>
 

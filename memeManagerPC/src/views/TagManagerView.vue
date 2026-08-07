@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { useTagStore } from "../stores/tags";
-import { PRESET_TAG_COLORS, textColorFor } from "../utils/color";
+import { PRESET_TAG_COLORS } from "../utils/color";
 import TagChip from "../components/TagChip.vue";
 
 const tagStore = useTagStore();
@@ -43,15 +43,14 @@ function openRename(tagId: number) {
   renameDialog.value = true;
 }
 
-function submitRename() {
-  const t = tagStore.tags.find((x) => x.id === renameId.value);
+async function submitRename() {
   const name = renameName.value.trim();
-  if (!t || !name) return;
-  if (tagStore.tags.some((x) => x.id !== t.id && x.name === name)) {
-    ElMessage.warning("标签名已存在");
+  if (!name) return;
+  const ok = await tagStore.renameTag(renameId.value, name);
+  if (!ok) {
+    ElMessage.warning("标签名不能为空、已存在或为保留名");
     return;
   }
-  t.name = name;
   renameDialog.value = false;
   ElMessage.success("已重命名");
 }
@@ -69,23 +68,23 @@ function onDrop(targetId: number) {
   const from = arr.findIndex((t) => t.id === dragId);
   const to = arr.findIndex((t) => t.id === targetId);
   if (from < 0 || to < 0) return;
-  // 重新编号 sortOrder = 数组索引（目标位置顺序）
+  // 重新编号 sortOrder = 数组索引（目标位置顺序）并持久化
   const reordered = [...arr];
   const [moved] = reordered.splice(from, 1);
   reordered.splice(to, 0, moved);
-  reordered.forEach((t, i) => (t.sortOrder = i + 1));
+  tagStore.setOrder(reordered.map((t) => t.id));
   dragId = 0;
 }
 
-function removeTag(id: number) {
+async function removeTag(id: number) {
   const t = tagStore.tags.find((x) => x.id === id);
   if (!t) return;
   if (t.isReserved) {
     ElMessage.warning("保留标签不可删除");
     return;
   }
-  tagStore.removeTag(id);
-  ElMessage.success("标签已删除");
+  const ok = await tagStore.removeTag(id);
+  ElMessage.success(ok ? "标签已删除" : "删除失败");
 }
 </script>
 
@@ -117,6 +116,7 @@ function removeTag(id: number) {
             size="small"
             class="row-color"
             :predefine="PRESET_TAG_COLORS"
+            @change="(c: string) => tagStore.setColor(t.id, c)"
           />
           <div class="row-spacer" />
           <template v-if="t.isReserved">

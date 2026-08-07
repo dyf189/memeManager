@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import type { Media } from "../types";
 import { groupByTime } from "../utils/time";
-import { formatDateTime, formatSize } from "../utils/format";
+import { dirName, formatDateTime, formatSize } from "../utils/format";
 import MediaThumb from "./MediaThumb.vue";
 import TagDots from "./TagDots.vue";
 
@@ -44,8 +44,8 @@ function onItemClick(m: Media) {
         </div>
         <div class="item-info">
           <div class="item-name text-ellipsis">{{ m.fileName }}</div>
-          <div class="item-meta">
-            {{ formatSize(m.fileSize) }} · {{ formatDateTime(m.takenTime) }}
+          <div class="item-meta text-ellipsis">
+            {{ dirName(m.filePath) }} · {{ formatSize(m.fileSize) }} · {{ formatDateTime(m.takenTime) }}
           </div>
         </div>
         <div class="item-tags"><TagDots :media="m" /></div>
@@ -80,6 +80,9 @@ function onItemClick(m: Media) {
   cursor: pointer;
   border: 2px solid transparent;
   transition: background 0.12s;
+  /* 长列表渲染优化 */
+  content-visibility: auto;
+  contain-intrinsic-size: 60px;
 }
 
 .list-item:hover {

@@ -1,9 +1,9 @@
-// ===== 领域类型定义（与 goals.md 的实体对应，后续由 Rust 后端返回）=====
+// ===== 领域类型定义（与 Rust 后端 media.rs 返回结构对齐，serde camelCase）=====
 
 export type MediaType = "image" | "gif" | "video";
 
-/** 存储类型：private=应用私有目录，public=公共目录，external=外部索引（仅记录路径） */
-export type StorageType = "private" | "public" | "external";
+/** 存储类型：user=用户目录 | app=安装目录 | custom=自定义目录 */
+export type StorageType = "user" | "app" | "custom";
 
 export type SourceType =
   | "camera"
@@ -27,30 +27,30 @@ export interface Media {
   fileName: string;
   filePath: string;
   storageType: StorageType;
-  type: MediaType;
-  mimeType: string;
-  source: SourceType;
+  mediaType: MediaType;
+  mimeType: string | null;
+  source: string;
   description: string;
   /** 拍摄/分组依据时间（ms） */
   takenTime: number;
   /** 导入时间（ms） */
   importTime: number;
   fileSize: number; // 字节
-  width: number;
-  height: number;
+  width: number | null;
+  height: number | null;
+  /** 媒体内容 SHA-256（hex 小写），用于导出去重 */
+  sha256: string | null;
   isDeleted: boolean;
-  deletedTime?: number;
+  deletedTime: number | null;
   tagIds: number[];
-  /** —— 以下为 UI 占位用，接入真实数据后删除 —— */
-  thumbFrom: string; // 渐变起始色
-  thumbTo: string; // 渐变结束色
-  emoji: string; // 占位表情符号
 }
 
 /** 可叠加的筛选条件（goals.md 第 7 节） */
 export interface FilterState {
   type: MediaType | "all";
   source: SourceType | "all";
+  /** 按来源目录筛选（filePath 的父目录），"all" = 全部 */
+  dir: string;
   hasDescription: "all" | "yes" | "no";
   exported: "all" | "exported" | "not";
   /** 多选标签，AND 逻辑 */
@@ -63,6 +63,7 @@ export function emptyFilter(): FilterState {
   return {
     type: "all",
     source: "all",
+    dir: "all",
     hasDescription: "all",
     exported: "all",
     tagIds: [],

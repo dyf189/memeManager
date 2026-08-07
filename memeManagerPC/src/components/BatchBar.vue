@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ElMessage } from "element-plus";
-
 defineProps<{
   count: number;
+  /** 当前可见列表总数（用于显示 N/M 和全选） */
+  total: number;
 }>();
 
 const emit = defineEmits<{
@@ -10,6 +10,8 @@ const emit = defineEmits<{
   (e: "tag"): void;
   (e: "export"): void;
   (e: "delete"): void;
+  (e: "select-all"): void;
+  (e: "share"): void;
 }>();
 
 // 桌面端无系统分享，占位提示（后续接复制/打开目录）
@@ -24,7 +26,11 @@ function share() {
       <el-icon><ArrowLeft /></el-icon>
       <span>取消</span>
     </button>
-    <span class="batch-count">已选 {{ count }} 项</span>
+    <span class="batch-count">已选 {{ count }} / {{ total }} 项</span>
+    <button class="batch-select-all" @click="emit('select-all')">
+      <el-icon><Finished /></el-icon>
+      <span>全选</span>
+    </button>
     <div class="batch-actions">
       <el-tooltip content="批量打标签">
         <button class="batch-btn" @click="emit('tag')">
@@ -36,8 +42,8 @@ function share() {
           <el-icon><Download /></el-icon>
         </button>
       </el-tooltip>
-      <el-tooltip content="分享">
-        <button class="batch-btn" @click="share">
+      <el-tooltip content="分享（复制到剪贴板）">
+        <button class="batch-btn" @click="emit('share')">
           <el-icon><Share /></el-icon>
         </button>
       </el-tooltip>
@@ -60,7 +66,7 @@ function share() {
   height: var(--app-topbar-height);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   padding: 0 10px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--divider);
@@ -81,6 +87,25 @@ function share() {
 .batch-count {
   font-size: 14px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.batch-select-all {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: var(--hover-bg);
+  color: var(--text-main);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.batch-select-all:hover {
+  background: var(--active-bg);
 }
 
 .batch-actions {

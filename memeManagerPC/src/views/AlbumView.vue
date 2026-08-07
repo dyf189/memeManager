@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { listen } from "@tauri-apps/api/event";
 import { useAlbumStore } from "../stores/album";
 import { useTagStore } from "../stores/tags";
+import { useSettingsStore } from "../stores/settings";
+import { api } from "../api";
 import type { Media } from "../types";
 import MediaGrid from "../components/MediaGrid.vue";
 import MediaList from "../components/MediaList.vue";
@@ -12,14 +15,42 @@ import BatchBar from "../components/BatchBar.vue";
 import MediaDetail from "../components/MediaDetail.vue";
 import AddMediaMenu from "../components/AddMediaMenu.vue";
 import ExportProgressDialog from "../components/ExportProgressDialog.vue";
+import ImportingDialog from "../components/ImportingDialog.vue";
+import ImportDestinationDialog from "../components/ImportDestinationDialog.vue";
 import TagChip from "../components/TagChip.vue";
 
 const album = useAlbumStore();
 const tagStore = useTagStore();
+const settingsStore = useSettingsStore();
 
 onMounted(async () => {
-  await Promise.all([album.loadMedia(), tagStore.loadTags()]);
+  await Promise.all([album.loadMedia(), tagStore.loadTags(), settingsStore.load()]);
+  window.addEventListener("keydown", onKeydown);
+  // 已索引目录文件变化（外部复制/删除）→ 自动刷新相册（防抖合并）
+  unlistenMediaChanged = await listen("media-changed", () => {
+    if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+    refreshTimer = window.setTimeout(() => album.loadMedia(), 300);
+  });
 });
+
+let unlistenMediaChanged: (() => void) | undefined;
+let refreshTimer: number | undefined;
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKeydown);
+  unlistenMediaChanged?.();
+  if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
+});
+
+// 多选快捷键：Ctrl/Cmd+A 全选可见项，Esc 退出多选
+function onKeydown(e: KeyboardEvent) {
+  if (album.multiSelect && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+    album.selectAll(album.filteredMedia.map((m) => m.id));
+  } else if (e.key === "Escape" && album.multiSelect) {
+    album.exitMultiSelect();
+  }
+}
 
 // —— 顶部工具栏状态 ——
 const showFilter = ref(false);
@@ -58,12 +89,18 @@ function openBatchTag() {
 }
 
 function saveBatchTag() {
-  for (const id of album.selectedIds) {
-    const m = album.mediaList.find((x) => x.id === id);
-    if (m) m.tagIds = [...batchTagDraft.value];
+  if (batchTagDraft.value.length === 0) {
+    ElMessage.info("未选择标签");
+    return;
   }
-  batchTagDialog.value = false;
-  ElMessage.success("批量打标签完成");
+  const ids = [...album.selectedIds];
+  api
+    .replaceMediaTags(ids, batchTagDraft.value)
+    .then(() => {
+      batchTagDialog.value = false;
+      ElMessage.success("批量打标签完成");
+      return album.loadMedia();
+    });
 }
 
 async function batchDelete() {
@@ -77,19 +114,105 @@ async function batchDelete() {
   } catch {
     return;
   }
-  for (const id of album.selectedIds) {
-    const m = album.mediaList.find((x) => x.id === id);
-    if (m) {
-      m.isDeleted = true;
-      m.deletedTime = Date.now();
-    }
+  const ids = [...album.selectedIds];
+  api.deleteMedia(ids).then(async () => {
+    album.exitMultiSelect();
+    ElMessage.success("已移入回收站");
+    await album.loadMedia();
+  });
+}
+
+// —— 导入文件夹 ——
+const importing = ref(false);
+
+async function importFolder() {
+  const dir = await api.pickDirectory();
+  if (!dir) return;
+  importing.value = true;
+  try {
+    const sum = await api.scanFolder(dir, true);
+    ElMessage.success(
+      `导入完成：新增 ${sum.added} 张，更新 ${sum.updated} 张，清理 ${sum.removed} 条失效记录`
+    );
+    await Promise.all([album.loadMedia(), tagStore.loadTags()]);
+  } catch (e) {
+    ElMessage.error(`导入失败：${e}`);
+  } finally {
+    importing.value = false;
   }
-  album.exitMultiSelect();
-  ElMessage.success("已移入回收站");
 }
 
 function exportSelected() {
   exportVisible.value = true;
+}
+
+// —— 导入单张/批量文件 ——
+async function importFiles(paths: string[]) {
+  if (paths.length === 0) return;
+  importing.value = true;
+  try {
+    const destDir = await api.defaultMediaDir();
+    const sum = await api.importFiles(paths, destDir);
+    await album.loadMedia();
+    ElMessage.success(`已导入 ${sum.added} 张，更新 ${sum.updated} 张`);
+  } catch (e) {
+    ElMessage.error(`导入失败：${e}`);
+  } finally {
+    importing.value = false;
+  }
+}
+
+// —— 分享：复制选中媒体到剪贴板（多选时取第一张）——
+async function shareSelected() {
+  const first = album.mediaList.find((m) => album.selectedIds.has(m.id));
+  if (!first) return;
+  try {
+    const msg = await api.copyToClipboard(first.filePath);
+    ElMessage.success(msg);
+  } catch (e) {
+    ElMessage.error(`复制失败：${e}`);
+  }
+}
+
+// —— 导入 .mpak 分片 ——
+const mpakState = reactive({
+  file: "",
+  defaultDir: "",
+  destDialog: false,
+  importing: false,
+  stage: "",
+});
+
+async function importMpak() {
+  const file = await api.pickMpakFile();
+  if (!file) return;
+  mpakState.file = file;
+  mpakState.defaultDir = await api.defaultMediaDir();
+  mpakState.destDialog = true;
+}
+
+async function startMpakImport(destDir: string) {
+  mpakState.destDialog = false;
+  mpakState.importing = true;
+  try {
+    mpakState.stage = "正在解包并校验 .mpak …";
+    const res = await api.importPak(mpakState.file, destDir);
+    mpakState.stage = "正在扫描媒体并写入媒体库 …";
+    const sum = await api.scanFolder(destDir, true);
+    await Promise.all([album.loadMedia(), tagStore.loadTags()]);
+    mpakState.importing = false;
+    const failMsg =
+      res.failedNames.length > 0 ? `\n失败文件：${res.failedNames.join("、")}` : "";
+    await ElMessageBox.alert(
+      `成功 ${res.succeeded} 张，跳过 ${res.skipped} 张，失败 ${res.failed} 张${failMsg}` +
+        `\n媒体库：新增 ${sum.added} 条，更新 ${sum.updated} 条，清理 ${sum.removed} 条失效记录`,
+      "导入结果",
+      { confirmButtonText: "好" }
+    );
+  } catch (e) {
+    mpakState.importing = false;
+    ElMessage.error(`导入失败：${e}`);
+  }
 }
 </script>
 
@@ -99,10 +222,13 @@ function exportSelected() {
     <BatchBar
       v-if="album.multiSelect"
       :count="album.selectedIds.size"
+      :total="album.filteredMedia.length"
       @exit="album.exitMultiSelect"
       @tag="openBatchTag"
       @export="exportSelected"
       @delete="batchDelete"
+      @share="shareSelected"
+      @select-all="album.selectAll(album.filteredMedia.map((m) => m.id))"
     />
 
     <!-- 顶部工具栏 -->
@@ -178,6 +304,7 @@ function exportSelected() {
           :items="album.filteredMedia"
           :multi-select="album.multiSelect"
           :selected-ids="album.selectedIds"
+          :columns="settingsStore.settings.gridCols"
           @open="openDetail"
           @select="(m: Media) => album.toggleSelect(m.id)"
           @multi="(m: Media) => album.enterMultiSelect(m.id)"
@@ -195,11 +322,34 @@ function exportSelected() {
 
       <!-- 空状态 -->
       <div v-if="album.filteredMedia.length === 0" class="empty-state">
-        <el-empty description="没有符合条件的媒体，试试调整筛选或添加媒体" />
+        <el-empty description="没有媒体，导入一个文件夹开始管理" />
+        <el-button type="primary" round :loading="importing" @click="importFolder">
+          <el-icon><FolderOpened /></el-icon>
+          <span>导入文件夹</span>
+        </el-button>
       </div>
     </div>
 
     <!-- 浮层 -->
+    <AddMediaMenu
+      v-model:visible="addMenuVisible"
+      @import-folder="importFolder"
+      @import-mpak="importMpak"
+      @import-files="importFiles"
+    />
+
+    <!-- .mpak 导入：目标位置二选一 + 导入中反馈 -->
+    <ImportDestinationDialog
+      v-model:visible="mpakState.destDialog"
+      :default-dir="mpakState.defaultDir"
+      @choose-default="startMpakImport(mpakState.defaultDir)"
+      @choose-custom="
+        api.pickDirectory().then((dir) => dir && startMpakImport(dir))
+      "
+    />
+    <ImportingDialog v-model:visible="mpakState.importing" :stage="mpakState.stage" />
+    <ExportProgressDialog v-model:visible="exportVisible" />
+
     <MediaDetail
       :visible="detailVisible"
       :media="detailMedia"
@@ -208,9 +358,8 @@ function exportSelected() {
       @close="detailVisible = false"
       @prev="stepDetail(-1)"
       @next="stepDetail(1)"
+      @changed="album.loadMedia"
     />
-    <AddMediaMenu v-model:visible="addMenuVisible" />
-    <ExportProgressDialog v-model:visible="exportVisible" />
 
     <!-- 批量打标签 -->
     <el-dialog v-model="batchTagDialog" title="批量打标签" width="80%" align-center>
@@ -352,7 +501,11 @@ function exportSelected() {
 }
 
 .empty-state {
-  padding: 60px 0;
+  padding: 80px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
 .batch-tags {

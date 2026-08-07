@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Media } from "../types";
 import { useTagStore } from "../stores/tags";
+import { api } from "../api";
 import { formatDateTime, formatResolution, formatSize } from "../utils/format";
-import { SOURCE_LABELS } from "../mock/data";
+import { SOURCE_LABELS } from "../utils/constants";
 import TagChip from "./TagChip.vue";
 
 const props = defineProps<{
@@ -19,9 +21,15 @@ const emit = defineEmits<{
   (e: "close"): void;
   (e: "prev"): void;
   (e: "next"): void;
+  (e: "changed"): void; // 描述/标签变更后，通知父级刷新
 }>();
 
 const tagStore = useTagStore();
+
+const stageSrc = computed(() =>
+  props.media ? convertFileSrc(props.media.filePath) : ""
+);
+const isVisual = computed(() => props.media?.mediaType !== "video");
 
 // 编辑描述
 const editingDesc = ref(false);
@@ -45,7 +53,7 @@ const mediaTags = computed(() => {
 });
 
 const sourceLabel = computed(() =>
-  props.media ? SOURCE_LABELS[props.media.source] : ""
+  props.media ? SOURCE_LABELS[props.media.source as keyof typeof SOURCE_LABELS] ?? props.media.source : ""
 );
 
 function startEditDesc() {
@@ -53,10 +61,13 @@ function startEditDesc() {
   editingDesc.value = true;
 }
 
-function saveDesc() {
-  if (props.media) props.media.description = descDraft.value.trim();
+async function saveDesc() {
+  if (!props.media) return;
+  await api.setDescription(props.media.id, descDraft.value.trim());
+  props.media.description = descDraft.value.trim();
   editingDesc.value = false;
   ElMessage.success("描述已保存");
+  emit("changed");
 }
 
 function openTagDialog() {
@@ -64,20 +75,31 @@ function openTagDialog() {
   tagDialog.value = true;
 }
 
-function saveTags() {
-  if (props.media) props.media.tagIds = [...tagDraft.value];
+async function saveTags() {
+  if (!props.media) return;
+  await api.replaceMediaTags([props.media.id], tagDraft.value);
+  props.media.tagIds = [...tagDraft.value];
   tagDialog.value = false;
   ElMessage.success("标签已更新");
+  emit("changed");
 }
 
-function removeTag(tagId: number) {
+async function removeTag(tagId: number) {
   if (!props.media) return;
-  props.media.tagIds = props.media.tagIds.filter((id) => id !== tagId);
+  const next = props.media.tagIds.filter((id) => id !== tagId);
+  await api.replaceMediaTags([props.media.id], next);
+  props.media.tagIds = next;
+  emit("changed");
 }
 
-// 右上角菜单操作（桌面端占位）
+// 右上角菜单操作
 function menuAction(action: string) {
-  if (action === "export") ElMessage.info("导出功能：待接入 Rust 后端");
+  if (action === "copy") {
+    api
+      .copyToClipboard(props.media!.filePath)
+      .then((msg) => ElMessage.success(msg))
+      .catch((e) => ElMessage.error(`复制失败：${e}`));
+  } else if (action === "export") ElMessage.info("导出功能：待接入 Rust 后端");
   else if (action === "reveal") ElMessage.info("打开所在文件夹：待接入");
   else if (action === "delete") ElMessage.warning("删除（进回收站）：待接入");
 }
@@ -99,7 +121,8 @@ function menuAction(action: string) {
             </button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="export">导出为 .emp</el-dropdown-item>
+                <el-dropdown-item command="copy">复制到剪贴板</el-dropdown-item>
+                <el-dropdown-item command="export">导出为 .mpak</el-dropdown-item>
                 <el-dropdown-item command="reveal">打开所在文件夹</el-dropdown-item>
                 <el-dropdown-item command="delete" divided>删除（进回收站）</el-dropdown-item>
               </el-dropdown-menu>
@@ -107,11 +130,12 @@ function menuAction(action: string) {
           </el-dropdown>
         </header>
 
-        <!-- 大图区（mock 占位） -->
-        <div class="detail-stage" :style="{ background: `linear-gradient(135deg, ${media.thumbFrom}, ${media.thumbTo})` }">
-          <span class="stage-emoji">{{ media.emoji }}</span>
-          <span v-if="media.type === 'gif'" class="stage-badge">GIF</span>
-          <span v-else-if="media.type === 'video'" class="stage-badge">▶ 视频</span>
+        <!-- 大图区 -->
+        <div class="detail-stage">
+          <img v-if="isVisual" :src="stageSrc" class="stage-img" alt="" />
+          <span v-else class="stage-placeholder">🎬 视频预览（待接入）</span>
+          <span v-if="media.mediaType === 'gif'" class="stage-badge">GIF</span>
+          <span v-else-if="media.mediaType === 'video'" class="stage-badge">▶ 视频</span>
         </div>
 
         <!-- 信息区 -->
@@ -152,7 +176,13 @@ function menuAction(action: string) {
             <div><span class="info-label">来源</span>{{ sourceLabel }}</div>
             <div><span class="info-label">时间</span>{{ formatDateTime(media.takenTime) }}</div>
             <div><span class="info-label">大小</span>{{ formatSize(media.fileSize) }}</div>
-            <div><span class="info-label">分辨率</span>{{ formatResolution(media.width, media.height) }}</div>
+            <div><span class="info-label">分辨率</span>{{ formatResolution(media.width ?? 0, media.height ?? 0) }}</div>
+          </div>
+
+          <!-- 位置：完整路径（便于多目录管理时确认来源） -->
+          <div class="info-location">
+            <span class="info-label">位置</span>
+            <span class="info-path text-ellipsis">{{ media.filePath }}</span>
           </div>
         </section>
 
@@ -237,11 +267,19 @@ function menuAction(action: string) {
   margin: 10px;
   border-radius: 12px;
   overflow: hidden;
+  background: var(--input-bg);
 }
 
-.stage-emoji {
-  font-size: 120px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+.stage-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.stage-placeholder {
+  color: var(--text-muted);
+  font-size: 14px;
 }
 
 .stage-badge {
@@ -321,6 +359,24 @@ function menuAction(action: string) {
 .info-grid .info-label {
   display: inline;
   margin-right: 6px;
+}
+
+.info-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--divider);
+  margin-top: 4px;
+}
+
+.info-path {
+  flex: 1;
+  min-width: 0;
+  direction: rtl; /* 长路径省略号靠左显示，保留目录尾部可读 */
+  text-align: left;
 }
 
 .detail-bottom {

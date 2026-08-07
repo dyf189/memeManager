@@ -3,7 +3,9 @@ import { defineStore } from "pinia";
 import type { FilterState, Media, ViewMode } from "../types";
 import { emptyFilter } from "../types";
 import { api } from "../api";
+import { useTagStore } from "./tags";
 import { groupByTime } from "../utils/time";
+import { dirName } from "../utils/format";
 
 /**
  * 相册状态：媒体列表、筛选、搜索、视图模式、多选。
@@ -12,6 +14,7 @@ import { groupByTime } from "../utils/time";
 export const useAlbumStore = defineStore("album", () => {
   const mediaList = ref<Media[]>([]);
   const loaded = ref(false);
+  const loading = ref(false);
 
   const viewMode = ref<ViewMode>("grid");
   const filter = ref<FilterState>(emptyFilter());
@@ -23,9 +26,20 @@ export const useAlbumStore = defineStore("album", () => {
   const multiSelect = ref(false);
   const selectedIds = ref<Set<number>>(new Set());
 
+  const tagStore = useTagStore();
+  /** 保留标签 [已导出] 的 id（用于导出状态筛选） */
+  const exportedTagId = computed(() =>
+    tagStore.tags.find((t) => t.name === "[已导出]")?.id
+  );
+
   async function loadMedia() {
-    mediaList.value = await api.listMedia();
-    loaded.value = true;
+    loading.value = true;
+    try {
+      mediaList.value = await api.listMedia();
+    } finally {
+      loading.value = false;
+      loaded.value = true;
+    }
   }
 
   function setFilter(f: FilterState) {
@@ -44,12 +58,18 @@ export const useAlbumStore = defineStore("album", () => {
     if (tagFilterId.value !== "all") {
       list = list.filter((m) => m.tagIds.includes(tagFilterId.value));
     }
-    if (f.type !== "all") list = list.filter((m) => m.type === f.type);
+    if (f.type !== "all") list = list.filter((m) => m.mediaType === f.type);
     if (f.source !== "all") list = list.filter((m) => m.source === f.source);
+    if (f.dir !== "all") list = list.filter((m) => dirName(m.filePath) === f.dir);
     if (f.hasDescription === "yes") list = list.filter((m) => m.description.trim().length > 0);
     if (f.hasDescription === "no") list = list.filter((m) => m.description.trim().length === 0);
-    if (f.exported === "exported") list = list.filter((m) => m.tagIds.includes(6)); // [已导出] tag id
-    if (f.exported === "not") list = list.filter((m) => !m.tagIds.includes(6));
+    const exTag = exportedTagId.value;
+    if (f.exported === "exported" && exTag !== undefined) {
+      list = list.filter((m) => m.tagIds.includes(exTag));
+    }
+    if (f.exported === "not" && exTag !== undefined) {
+      list = list.filter((m) => !m.tagIds.includes(exTag));
+    }
     if (f.tagIds.length > 0) {
       list = list.filter((m) => f.tagIds.every((t) => m.tagIds.includes(t)));
     }
@@ -76,6 +96,16 @@ export const useAlbumStore = defineStore("album", () => {
   /** 时间降序分组（分组头 = 导出顺序） */
   const grouped = computed(() => groupByTime(filteredMedia.value));
 
+  /** 库中所有来源目录（供筛选器选择） */
+  const dirList = computed(() => {
+    const set = new Set<string>();
+    for (const m of mediaList.value) {
+      const d = dirName(m.filePath);
+      if (d) set.add(d);
+    }
+    return [...set].sort();
+  });
+
   // —— 多选操作 ——
   function enterMultiSelect(id?: number) {
     multiSelect.value = true;
@@ -95,13 +125,23 @@ export const useAlbumStore = defineStore("album", () => {
     selectedIds.value = new Set();
   }
 
+  /** 全选/取消全选（传入当前可见列表的 id 集合） */
   function selectAll(ids: number[]) {
-    selectedIds.value = new Set(ids);
+    const next = new Set(ids);
+    // 若当前已全选，则视为取消全选
+    if (next.size > 0 && selectedIds.value.size === next.size && [...selectedIds.value].every((id) => next.has(id))) {
+      selectedIds.value = new Set();
+      multiSelect.value = false;
+      return;
+    }
+    selectedIds.value = next;
+    if (next.size > 0) multiSelect.value = true;
   }
 
   return {
     mediaList,
     loaded,
+    loading,
     viewMode,
     filter,
     tagFilterId,
@@ -114,6 +154,7 @@ export const useAlbumStore = defineStore("album", () => {
     clearFilter,
     filteredMedia,
     grouped,
+    dirList,
     enterMultiSelect,
     toggleSelect,
     exitMultiSelect,
