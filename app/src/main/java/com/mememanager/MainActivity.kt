@@ -3,6 +3,8 @@ package com.mememanager
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+import android.view.Choreographer
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
@@ -21,6 +23,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -72,6 +75,22 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
         enableEdgeToEdge()
         setContent {
+            // ── 帧卡顿检测（排查用）：主线程掉帧超 50ms 打日志，filter "FrameJank" ──
+            DisposableEffect(Unit) {
+                val cb = object : Choreographer.FrameCallback {
+                    var last = 0L
+                    override fun doFrame(frameTimeNanos: Long) {
+                        if (last != 0L) {
+                            val frameMs = (frameTimeNanos - last) / 1_000_000
+                            if (frameMs > 50) Log.d("FrameJank", "jank=${frameMs}ms")
+                        }
+                        last = frameTimeNanos
+                        Choreographer.getInstance().postFrameCallback(this)
+                    }
+                }
+                Choreographer.getInstance().postFrameCallback(cb)
+                onDispose { Choreographer.getInstance().removeFrameCallback(cb) }
+            }
             val settingsViewModel: SettingsViewModel = androidx.hilt.navigation.compose.hiltViewModel()
             val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
             val forceDark = when (settings.themeMode) {
