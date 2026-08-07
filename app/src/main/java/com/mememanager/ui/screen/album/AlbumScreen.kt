@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -63,6 +64,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.ui.components.ShareMenu
+import com.mememanager.ui.util.TimeGroup
 import com.mememanager.ui.util.TimeGroupUtil
 import com.mememanager.ui.viewmodel.AlbumViewModel
 import com.mememanager.ui.viewmodel.SettingsViewModel
@@ -254,14 +256,21 @@ fun AlbumScreen(
                 // 组合期 items[i] 访问被 Paging 抑制，滚到底不会自动加载下一页。
                 // 监听最后一个可见项，接近末尾时访问末尾索引强制 loadAround。
                 LaunchedEffect(gridState, lazyPagingItems) {
+                    var lastTriggered = -1
                     snapshotFlow {
                         gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
                     }.collect { last ->
-                        if (last != null && last >= lazyPagingItems.itemCount - 2) {
-                            lazyPagingItems[lazyPagingItems.itemCount - 1]
+                        val target = lazyPagingItems.itemCount - 1
+                        // 防抖：同一 itemCount 只触发一次，避免滚动中每帧重复访问
+                        if (last != null && last >= target - 2 && target != lastTriggered) {
+                            lastTriggered = target
+                            lazyPagingItems[target]
                         }
                     }
                 }
+
+                // 分组计算缓存：mediaId → TimeGroup（getGroup 只算一次，重组不再重复）
+                val groupCache = remember { mutableMapOf<Long, TimeGroup>() }
 
                 LazyVerticalGrid(
                     state = gridState,
@@ -284,15 +293,23 @@ fun AlbumScreen(
                         }
 
                         // ── 时间分组粘性头（跨列全宽） ──
-                        val group = TimeGroupUtil.getGroup(mediaWithTags.media.createdAt)
+                        val group = groupCache.getOrPut(mediaWithTags.media.id) {
+                            TimeGroupUtil.getGroup(mediaWithTags.media.createdAt)
+                        }
                         if (lastGroupKey == null || group.sortKey != lastGroupKey) {
                             lastGroupKey = group.sortKey
                             stickyHeader(key = "header_${group.sortKey}") {
-                                val groupIds = items.drop(i).mapNotNull { item ->
-                                    val m = item ?: return@mapNotNull null
-                                    val g = TimeGroupUtil.getGroup(m.media.createdAt)
-                                    if (g.sortKey == group.sortKey) m.media.id else null
-                                }.takeWhile { it != null }.map { it!! }.toSet()
+                                // groupIds 只在多选模式需要（分组全选/取消），
+                                // 平时不扫描，避免每次重组 O(n²) drop
+                                val groupIds = if (uiState.isMultiSelectMode) {
+                                    items.drop(i).mapNotNull { item ->
+                                        val m = item ?: return@mapNotNull null
+                                        val g = groupCache.getOrPut(m.media.id) {
+                                            TimeGroupUtil.getGroup(m.media.createdAt)
+                                        }
+                                        if (g.sortKey == group.sortKey) m.media.id else null
+                                    }.takeWhile { it != null }.map { it!! }.toSet()
+                                } else emptySet()
                                 val allGroupSelected = groupIds.isNotEmpty() && groupIds.all { it in uiState.selectedMediaIds }
                                 TimeGroupHeader(
                                     group = group,
