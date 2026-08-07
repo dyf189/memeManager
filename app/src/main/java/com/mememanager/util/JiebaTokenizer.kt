@@ -13,6 +13,11 @@ object JiebaTokenizer {
 
     private val segmenter by lazy { JiebaSegmenter() }
 
+    /** 确保词典已加载（在 IO 线程执行，未加载则阻塞等待）——所有调用点先调它 */
+    suspend fun ensureLoaded() = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        segmenter // 触发 lazy 初始化（首次加载词典约 10 秒）
+    }
+
     /** 后台预热：触发词典加载，避免首次搜索阻塞 */
     fun warmUp() {
         segmenter.process("预热", JiebaSegmenter.SegMode.SEARCH)

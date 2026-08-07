@@ -13,6 +13,7 @@ import com.mememanager.data.repository.SearchRepository
 import com.mememanager.data.settings.SettingsKeys
 import com.mememanager.util.JiebaTokenizer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class SearchResultItem(
@@ -71,7 +73,10 @@ class SearchViewModel @Inject constructor(
         .flatMapLatest { (rawQuery, useSmart) ->
             if (useSmart) {
                 searchRepository.search(rawQuery).map { pagingData ->
-                    val segments = JiebaTokenizer.segment(rawQuery)
+                    // 分词也走 IO（首次调用含词典加载）
+                    val segments = withContext(Dispatchers.IO) {
+                        JiebaTokenizer.segment(rawQuery)
+                    }
                     pagingData.map { SearchResultItem(it, segments) }
                 }
             } else {

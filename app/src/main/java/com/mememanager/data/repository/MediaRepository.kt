@@ -13,8 +13,10 @@ import com.mememanager.data.local.entity.MediaTagCrossRef
 import com.mememanager.data.local.entity.MediaType
 import com.mememanager.data.local.entity.MediaWithTags
 import com.mememanager.data.local.entity.TagEntity
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -112,8 +114,12 @@ class MediaRepository @Inject constructor(
     }
 
     private suspend fun syncFts(id: Long, name: String, description: String) {
-        val tokenizedName = com.mememanager.util.JiebaTokenizer.toFtsContent(name)
-        val tokenizedDesc = com.mememanager.util.JiebaTokenizer.toFtsContent(description)
+        // Jieba 分词 + 首次词典加载必须在 IO 线程（首次加载约 10 秒，
+        // 在 Main 上会 ANR——导入图片卡死的根因）
+        val (tokenizedName, tokenizedDesc) = withContext(Dispatchers.IO) {
+            com.mememanager.util.JiebaTokenizer.toFtsContent(name) to
+                com.mememanager.util.JiebaTokenizer.toFtsContent(description)
+        }
         try {
             mediaFtsDao.insertFts(
                 SimpleSQLiteQuery(

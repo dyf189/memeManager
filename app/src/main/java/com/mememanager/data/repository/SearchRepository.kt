@@ -7,7 +7,11 @@ import androidx.sqlite.db.SimpleSQLiteQuery
 import com.mememanager.data.local.dao.MediaDao
 import com.mememanager.data.local.dao.MediaFtsDao
 import com.mememanager.data.local.entity.MediaWithTags
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,15 +31,22 @@ class SearchRepository @Inject constructor(
     }
 
     fun search(query: String): Flow<PagingData<MediaWithTags>> {
-        val ftsQuery = com.mememanager.util.JiebaTokenizer.toFtsQuery(query)
-        if (ftsQuery.isEmpty()) return kotlinx.coroutines.flow.emptyFlow()
-
-        return Pager(
-            config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false),
-            pagingSourceFactory = {
-                mediaFtsDao.search(SimpleSQLiteQuery(FTS_SQL, arrayOf(ftsQuery)))
+        // Jieba 分词（含首次词典加载约 10 秒）必须在 IO 线程——
+        // 此函数被 viewModelScope（Main）调用，直接同步分词会 ANR
+        return flow {
+            val ftsQuery = withContext(Dispatchers.IO) {
+                com.mememanager.util.JiebaTokenizer.toFtsQuery(query)
             }
-        ).flow
+            if (ftsQuery.isEmpty()) return@flow
+            emitAll(
+                Pager(
+                    config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false),
+                    pagingSourceFactory = {
+                        mediaFtsDao.search(SimpleSQLiteQuery(FTS_SQL, arrayOf(ftsQuery)))
+                    }
+                ).flow
+            )
+        }
     }
 
     fun searchPlain(query: String): Flow<PagingData<MediaWithTags>> {

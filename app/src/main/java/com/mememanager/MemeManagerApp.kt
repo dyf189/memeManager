@@ -5,7 +5,11 @@ import coil.Coil
 import coil.ImageLoader
 import coil.decode.GifDecoder
 import coil.decode.VideoFrameDecoder
+import com.mememanager.util.JiebaTokenizer
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class MemeManagerApp : Application() {
@@ -19,8 +23,11 @@ class MemeManagerApp : Application() {
             }
             .build()
         Coil.setImageLoader(imageLoader)
-        // 注意：不再启动预热 Jieba——词典 5MB/35 万词条，构建 trie 会引发
-        // 频繁 GC 导致全局卡顿 15-20 秒。智能搜索默认关闭，首次打开时才懒加载
-        // （搜索页已标注"刚启动时打开可能卡顿"）。
+        // Jieba 词典加载（约 10 秒）必须在后台提前完成：
+        // 懒加载会在导入/搜索时于主线程触发（viewModelScope 默认 Main）→ ANR。
+        // 预热放 IO 线程立即开始，期间的 CPU/GC 开销远小于主线程卡死 10 秒。
+        CoroutineScope(Dispatchers.IO).launch {
+            JiebaTokenizer.warmUp()
+        }
     }
 }
