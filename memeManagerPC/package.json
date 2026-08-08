@@ -11,6 +11,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@ckpack/vue-color": "^1.6.0",
     "@element-plus/icons-vue": "^2.3.1",
     "@tauri-apps/api": "^2.2.0",
     "@tauri-apps/plugin-dialog": "^2.7.2",

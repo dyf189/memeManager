@@ -100,8 +100,12 @@ const badge = computed(() => {
   position: absolute;
   right: 5px;
   bottom: 5px;
-  padding: 1px 4px;
+  padding: 4px 4px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.75);
+  /* 覆盖继承的 line-height: 1.5（14px 字号下约 21px），避免行盒把容器撑高 */
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
 }
 </style>

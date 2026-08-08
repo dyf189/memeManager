@@ -4,6 +4,7 @@ import { ElMessage } from "element-plus";
 import { useTagStore } from "../stores/tags";
 import { PRESET_TAG_COLORS } from "../utils/color";
 import TagChip from "../components/TagChip.vue";
+import ColorPickerPop from "../components/ColorPickerPop.vue";
 
 const tagStore = useTagStore();
 
@@ -111,12 +112,10 @@ async function removeTag(id: number) {
         >
           <el-icon class="drag-handle"><Rank /></el-icon>
           <TagChip :tag="t" />
-          <el-color-picker
-            v-model="t.bgColor"
-            size="small"
+          <ColorPickerPop
+            :model-value="t.bgColor"
             class="row-color"
-            :predefine="PRESET_TAG_COLORS"
-            @change="(c: string) => tagStore.setColor(t.id, c)"
+            @update:model-value="(c: string) => tagStore.setColor(t.id, c)"
           />
           <div class="row-spacer" />
           <template v-if="t.isReserved">
@@ -150,8 +149,10 @@ async function removeTag(id: number) {
               :style="{ background: c }"
               @click="createColor = c"
             />
-            <el-color-picker v-model="createColor" size="small" />
+            <ColorPickerPop v-model="createColor" />
           </div>
+        </el-form-item>
+        <el-form-item label="">
           <TagChip :tag="{ id: -1, name: createName || '预览', bgColor: createColor, sortOrder: 0 }" class="color-preview" />
         </el-form-item>
       </el-form>
