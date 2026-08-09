@@ -63,8 +63,17 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 // —— 顶部工具栏状态 ——
+// 筛选面板默认关闭，仅通过工具栏筛选按钮开关
 const showFilter = ref(false);
 const addMenuVisible = ref(false);
+
+/** 顶部标签栏：点击切换选中（多选） */
+function toggleTagFilter(id: number) {
+  const arr = album.tagFilterIds;
+  album.tagFilterIds = arr.includes(id)
+    ? arr.filter((x) => x !== id)
+    : [...arr, id];
+}
 
 // —— 导出状态（进度由 export-progress 事件驱动）——
 const exporting = reactive({ visible: false, current: 0, total: 0 });
@@ -328,30 +337,28 @@ async function startMpakImport(destDir: string) {
       </template>
     </header>
 
-    <!-- 标签胶囊筛选栏 -->
+    <!-- 标签胶囊筛选栏（多选，或逻辑） -->
     <div v-show="!album.isSearchActive" class="tag-filter-bar">
       <TagChip
         :tag="{ id: -1, name: '全部', bgColor: '#f0f2f5', sortOrder: 0 }"
         neutral
-        :active="album.tagFilterId === 'all'"
-        @click="album.tagFilterId = 'all'"
+        :active="album.tagFilterIds.length === 0"
+        @click="album.tagFilterIds = []"
       />
       <TagChip
         v-for="t in tagStore.sorted"
         :key="t.id"
         :tag="t"
-        :active="album.tagFilterId === t.id"
-        @click="album.tagFilterId = t.id"
+        :active="album.tagFilterIds.includes(t.id)"
+        @click="toggleTagFilter(t.id)"
       />
     </div>
 
-    <!-- 筛选面板 -->
+    <!-- 筛选面板（更改即生效，开关只由工具栏按钮控制） -->
     <FilterPanel
       v-if="showFilter"
       :model-value="album.filter"
       @update:model-value="album.setFilter"
-      @apply="showFilter = false"
-      @clear="showFilter = false"
     />
 
     <!-- 内容区 -->

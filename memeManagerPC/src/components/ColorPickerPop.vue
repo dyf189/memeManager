@@ -63,7 +63,7 @@ onBeforeUnmount(() => {
     @click="toggle"
   >
     <span class="trigger-dot" :style="{ background: modelValue }" />
-    <span class="trigger-text">自定义</span>
+    <span class="trigger-text">选取颜色</span>
   </button>
   <Teleport to="body">
     <div

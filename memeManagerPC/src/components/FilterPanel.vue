@@ -11,25 +11,51 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "update:modelValue", v: FilterState): void;
-  (e: "apply"): void;
-  (e: "clear"): void;
 }>();
 
 const tagStore = useTagStore();
 const albumStore = useAlbumStore();
 
-// 本地编辑副本，点「应用筛选」才生效（goals.md）
+// 本地编辑副本：任何更改立即生效（实时筛选，无「应用筛选」）
 const draft = reactive<FilterState>({ ...props.modelValue });
 const startDate = ref<Date | null>(null);
 const endDate = ref<Date | null>(null);
 const sizeMin = ref<number | null>(null);
 const sizeMax = ref<number | null>(null);
 
-watch(
-  () => props.modelValue,
-  (v) => Object.assign(draft, v),
-  { deep: true }
-);
+/** 把本地状态合成 FilterState 并立即广播 */
+function pushUpdate() {
+  const next: FilterState = { ...draft };
+  // 时间/大小需两端都填写才生效，否则视为不筛选
+  next.timeRange =
+    startDate.value && endDate.value
+      ? [startDate.value.getTime(), endDate.value.getTime() + 86_399_999]
+      : null;
+  next.sizeRange =
+    sizeMin.value != null && sizeMax.value != null
+      ? [sizeMin.value * 1024 * 1024, sizeMax.value * 1024 * 1024]
+      : null;
+  emit("update:modelValue", next);
+}
+
+// 面板内任意条件变化 → 立即筛选
+watch(draft, pushUpdate, { deep: true });
+watch([startDate, endDate, sizeMin, sizeMax], pushUpdate);
+
+function clear() {
+  draft.type = "all";
+  draft.source = "all";
+  draft.dir = "all";
+  draft.hasDescription = "all";
+  draft.tagIds = [];
+  draft.timeRange = null;
+  draft.sizeRange = null;
+  startDate.value = null;
+  endDate.value = null;
+  sizeMin.value = null;
+  sizeMax.value = null;
+  // pushUpdate 由上面的 watch 自动触发
+}
 
 const typeOptions: { label: string; value: MediaType | "all" }[] = [
   { label: "全部", value: "all" },
@@ -45,33 +71,6 @@ const sourceOptions: { label: string; value: SourceType | "all" }[] = [
     value: s,
   })),
 ];
-
-function apply() {
-  if (startDate.value && endDate.value) {
-    draft.timeRange = [startDate.value.getTime(), endDate.value.getTime() + 86_399_999];
-  }
-  if (sizeMin.value != null && sizeMax.value != null) {
-    draft.sizeRange = [sizeMin.value * 1024 * 1024, sizeMax.value * 1024 * 1024];
-  }
-  emit("update:modelValue", { ...draft });
-  emit("apply");
-}
-
-function clear() {
-  draft.type = "all";
-  draft.source = "all";
-  draft.dir = "all";
-  draft.hasDescription = "all";
-  draft.tagIds = [];
-  draft.timeRange = null;
-  draft.sizeRange = null;
-  startDate.value = null;
-  endDate.value = null;
-  sizeMin.value = null;
-  sizeMax.value = null;
-  emit("update:modelValue", { ...draft });
-  emit("clear");
-}
 </script>
 
 <template>
@@ -150,7 +149,6 @@ function clear() {
     </div>
 
     <div class="filter-actions">
-      <el-button size="small" type="primary" @click="apply">应用筛选</el-button>
       <el-button size="small" @click="clear">清除全部</el-button>
     </div>
   </div>

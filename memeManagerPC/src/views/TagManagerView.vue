@@ -141,15 +141,6 @@ async function removeTag(id: number) {
         </el-form-item>
         <el-form-item label="颜色">
           <div class="color-options">
-            <button
-              v-for="c in PRESET_TAG_COLORS"
-              :key="c"
-              type="button"
-              class="color-swatch"
-              :class="{ active: createColor === c }"
-              :style="{ background: c }"
-              @click="createColor = c"
-            />
             <ColorPickerPop v-model="createColor" />
           </div>
         </el-form-item>
@@ -264,18 +255,6 @@ async function removeTag(id: number) {
   flex-wrap: wrap;
   gap: 8px;
   padding: 6px 0;
-}
-
-.color-swatch {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-}
-
-.color-swatch.active {
-  border-color: var(--text-main);
 }
 
 .color-preview {

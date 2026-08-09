@@ -19,7 +19,8 @@ export const useAlbumStore = defineStore("album", () => {
 
   const viewMode = ref<ViewMode>("grid");
   const filter = ref<FilterState>(emptyFilter());
-  const tagFilterId = ref<number | "all">("all");
+  /** 顶部标签栏多选（空数组 = 全部）；筛选逻辑为「或」：命中任一标签即显示 */
+  const tagFilterIds = ref<number[]>([]);
   const searchQuery = ref("");
   const isSearchActive = computed(() => searchQuery.value.trim().length > 0);
 
@@ -53,8 +54,9 @@ export const useAlbumStore = defineStore("album", () => {
     let list = mediaList.value.filter((m) => !m.isDeleted);
     const f = filter.value;
 
-    if (tagFilterId.value !== "all") {
-      list = list.filter((m) => m.tagIds.includes(tagFilterId.value));
+    // 顶部标签胶囊：多选，「或」逻辑（命中任一标签即通过）
+    if (tagFilterIds.value.length > 0) {
+      list = list.filter((m) => tagFilterIds.value.some((id) => m.tagIds.includes(id)));
     }
     if (f.type !== "all") list = list.filter((m) => m.mediaType === f.type);
     if (f.source !== "all") list = list.filter((m) => m.source === f.source);
@@ -144,7 +146,7 @@ export const useAlbumStore = defineStore("album", () => {
     loading,
     viewMode,
     filter,
-    tagFilterId,
+    tagFilterIds,
     searchQuery,
     isSearchActive,
     multiSelect,
