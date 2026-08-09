@@ -118,6 +118,12 @@ body {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
+/* 拖拽排序期间：禁止文本选中、显示抓取光标（Pointer Events 拖拽） */
+body.drag-lock {
+  user-select: none;
+  cursor: grabbing;
+}
+
 /* 细滚动条 */
 ::-webkit-scrollbar {
   width: 10px;

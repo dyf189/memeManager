@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { useTagStore } from "../stores/tags";
 import { PRESET_TAG_COLORS } from "../utils/color";
 import TagChip from "../components/TagChip.vue";
 import ColorPickerPop from "../components/ColorPickerPop.vue";
+import { VueDraggable } from "vue-draggable-plus";
+import type { Tag } from "../types";
 
 const tagStore = useTagStore();
 
@@ -56,25 +58,26 @@ async function submitRename() {
   ElMessage.success("已重命名");
 }
 
-// —— 拖拽排序（HTML5 drag）——
-let dragId = 0;
+// —— 拖拽排序（vue-draggable-plus / SortableJS，forceFallback 指针模式兼容 WebView2）——
+/** 行列表（拖拽时由库实时重排，结束后持久化） */
+const rowList = ref<Tag[]>([]);
+watch(
+  () => tagStore.sorted,
+  (v) => {
+    rowList.value = [...v];
+  },
+  { immediate: true }
+);
 
-function onDragStart(id: number) {
-  dragId = id;
+/** 拖拽结束：按当前顺序持久化 */
+function onDragEnd() {
+  tagStore.setOrder(rowList.value.map((t) => t.id));
 }
 
-function onDrop(targetId: number) {
-  if (dragId === 0 || dragId === targetId) return;
-  const arr = tagStore.sorted;
-  const from = arr.findIndex((t) => t.id === dragId);
-  const to = arr.findIndex((t) => t.id === targetId);
-  if (from < 0 || to < 0) return;
-  // 重新编号 sortOrder = 数组索引（目标位置顺序）并持久化
-  const reordered = [...arr];
-  const [moved] = reordered.splice(from, 1);
-  reordered.splice(to, 0, moved);
-  tagStore.setOrder(reordered.map((t) => t.id));
-  dragId = 0;
+/** 拖拽开始：固定被拖行宽度，避免 fallback 克隆（挂在 body 下）宽度塌缩或撑满整页 */
+function onDragStart(evt: { item: HTMLElement }) {
+  const w = evt.item.offsetWidth;
+  if (w > 0) evt.item.style.width = `${w}px`;
 }
 
 async function removeTag(id: number) {
@@ -100,16 +103,19 @@ async function removeTag(id: number) {
     </header>
 
     <div class="tag-body">
-      <div class="tag-list">
-        <div
-          v-for="t in tagStore.sorted"
-          :key="t.id"
-          class="tag-row"
-          draggable="true"
-          @dragstart="onDragStart(t.id)"
-          @dragover.prevent
-          @drop.prevent="onDrop(t.id)"
-        >
+      <VueDraggable
+        v-model="rowList"
+        class="tag-list"
+        :animation="150"
+        :force-fallback="true"
+        :filter="'button, input, textarea, select, a'"
+        ghost-class="tag-ghost"
+        chosen-class="tag-chosen"
+        fallback-class="tag-fallback"
+        @start="onDragStart"
+        @end="onDragEnd"
+      >
+        <div v-for="t in rowList" :key="t.id" class="tag-row">
           <el-icon class="drag-handle"><Rank /></el-icon>
           <TagChip :tag="t" />
           <ColorPickerPop
@@ -129,7 +135,7 @@ async function removeTag(id: number) {
             <el-button size="small" link type="danger" @click="removeTag(t.id)">删除</el-button>
           </template>
         </div>
-      </div>
+      </VueDraggable>
       <p class="tag-hint">拖拽行可调整排序（决定缩略图圆点与筛选栏顺序）</p>
     </div>
 
@@ -222,6 +228,24 @@ async function removeTag(id: number) {
 }
 
 .tag-row:active {
+  cursor: grabbing;
+}
+
+/* SortableJS 拖拽：原位置占位 */
+.tag-ghost {
+  opacity: 0.4;
+  border: 1px dashed var(--text-muted);
+}
+
+/* 被拖行（拖拽中的原行） */
+.tag-chosen {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* 跟随鼠标的幽灵图像（宽度在拖拽开始时由 JS 固定为原行宽度） */
+.tag-fallback {
+  opacity: 0.95;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   cursor: grabbing;
 }
 
