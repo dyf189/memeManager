@@ -126,6 +126,12 @@ fn replace_media_tags(db: State<Db>, media_ids: Vec<i64>, tag_ids: Vec<i64>) -> 
 }
 
 #[tauri::command]
+fn set_media_order(db: State<Db>, ids: Vec<i64>) -> Result<(), String> {
+    let conn = db.0.lock().map_err(|_| "数据库锁异常".to_string())?;
+    media::set_media_order_impl(&conn, &ids)
+}
+
+#[tauri::command]
 fn delete_media(db: State<Db>, ids: Vec<i64>) -> Result<usize, String> {
     let conn = db.0.lock().map_err(|_| "数据库锁异常".to_string())?;
     media::delete_media_impl(&conn, &ids)
@@ -251,6 +257,7 @@ pub fn run() {
             set_description,
             replace_media_tags,
             delete_media,
+            set_media_order,
             restore_media,
             purge_media,
             get_settings,

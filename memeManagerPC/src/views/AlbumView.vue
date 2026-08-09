@@ -323,6 +323,14 @@ async function startMpakImport(destDir: string) {
             <CircleCloseFilled />
           </el-icon>
         </div>
+        <button
+          class="icon-btn"
+          :class="{ on: album.sortMode }"
+          title="拖拽排序（开启后拖拽缩略图进行排序，关闭时拖拽拖出文件）"
+          @click="album.toggleSortMode"
+        >
+          <el-icon :size="18"><Sort /></el-icon>
+        </button>
         <button class="icon-btn" :class="{ on: showFilter }" title="筛选" @click="showFilter = !showFilter">
           <el-icon :size="18"><Filter /></el-icon>
         </button>
@@ -379,9 +387,11 @@ async function startMpakImport(destDir: string) {
           :multi-select="album.multiSelect"
           :selected-ids="album.selectedIds"
           :columns="settingsStore.settings.gridCols"
+          :sort-mode="album.sortMode"
           @open="openDetail"
           @select="(m: Media) => album.toggleSelect(m.id)"
           @multi="(m: Media) => album.enterMultiSelect(m.id)"
+          @reorder="album.applyOrder"
         />
         <MediaList
           v-else

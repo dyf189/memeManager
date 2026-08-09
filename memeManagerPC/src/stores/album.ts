@@ -24,6 +24,23 @@ export const useAlbumStore = defineStore("album", () => {
   const tagFilterIds = ref<number[]>([]);
   const searchQuery = ref("");
   const isSearchActive = computed(() => searchQuery.value.trim().length > 0);
+  /** 拖拽排序模式：开启时拖拽 = 排序（持久化），关闭时拖拽 = 拖出文件 */
+  const sortMode = ref(false);
+
+  function toggleSortMode() {
+    sortMode.value = !sortMode.value;
+  }
+
+  /** 拖拽排序结束：按当前可见顺序持久化 */
+  async function applyOrder(ids: number[]) {
+    if (ids.length === 0) return;
+    try {
+      await api.setMediaOrder(ids);
+      await loadMedia();
+    } catch (e) {
+      console.warn("[sort] 排序持久化失败:", e);
+    }
+  }
 
   // —— 多选状态 ——
   const multiSelect = ref(false);
@@ -152,6 +169,9 @@ export const useAlbumStore = defineStore("album", () => {
     tagFilterIds,
     searchQuery,
     isSearchActive,
+    sortMode,
+    toggleSortMode,
+    applyOrder,
     multiSelect,
     selectedIds,
     loadMedia,

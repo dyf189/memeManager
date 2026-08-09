@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS media (
   height        INTEGER,
   sha256        TEXT,
   is_deleted    INTEGER NOT NULL DEFAULT 0,
-  deleted_time  INTEGER
+  deleted_time  INTEGER,
+  sort_order    INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_media_taken    ON media(taken_time DESC);
 CREATE INDEX IF NOT EXISTS idx_media_deleted  ON media(is_deleted);
@@ -54,6 +55,11 @@ CREATE TABLE IF NOT EXISTS settings (
 /// 在给定连接上建表 + 写入默认数据
 pub fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(SCHEMA)?;
+    // 旧库迁移：添加 sort_order 列（已存在则忽略）
+    let _ = conn.execute(
+        "ALTER TABLE media ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+        [],
+    );
     // 清理旧版本的 [已导出] 保留标签（该标签已废弃，保留标签机制仍保留）
     let _ = conn.execute("DELETE FROM tag WHERE name = '[已导出]' AND is_reserved = 1", []);
     Ok(())

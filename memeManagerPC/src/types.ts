@@ -42,6 +42,8 @@ export interface Media {
   sha256: string | null;
   isDeleted: boolean;
   deletedTime: number | null;
+  /** 手动排序位置（0 = 未手动排序） */
+  sortOrder?: number;
   tagIds: number[];
 }
 

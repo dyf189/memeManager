@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
+import { VueDraggable } from "vue-draggable-plus";
 import type { Media } from "../types";
 import { groupByTime } from "../utils/time";
 import { dragMediaOut } from "../utils/drag";
@@ -11,12 +12,15 @@ const props = defineProps<{
   selectedIds: Set<number>;
   /** 固定列数（来自设置）；缺省时自适应 */
   columns?: number;
+  /** 拖拽排序模式：开启时拖拽 = 排序，关闭时拖拽 = 拖出文件 */
+  sortMode?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "open", media: Media): void;
   (e: "select", media: Media): void;
   (e: "multi", media: Media): void; // 右键进入多选
+  (e: "reorder", ids: number[]): void; // 排序模式拖拽结束
 }>();
 
 // 必须用 computed：items 是异步加载的，普通变量不会随 props 更新
@@ -26,6 +30,21 @@ const gridStyle = computed(() =>
     ? `repeat(${props.columns}, minmax(0, 1fr))`
     : "repeat(auto-fill, minmax(96px, 1fr))"
 );
+
+// —— 排序模式：平铺列表（无时间分组），SortableJS 拖拽重排 ——
+const sortItems = ref<Media[]>([]);
+watch(
+  () => props.items,
+  (v) => {
+    sortItems.value = [...v];
+  },
+  { immediate: true }
+);
+
+function onSortEnd() {
+  if (sortItems.value.length === 0) return;
+  emit("reorder", sortItems.value.map((m) => m.id));
+}
 
 function onItemClick(m: Media) {
   if (props.multiSelect) emit("select", m);
@@ -39,23 +58,50 @@ function onContextMenu(m: Media) {
 
 <template>
   <div class="media-grid">
-    <template v-for="(g, gi) in groups" :key="gi">
-      <!-- 粘性时间分组头 -->
-      <div class="grid-header">{{ g.label }}</div>
-      <div class="grid-row" :class="{ 'row-separated': gi > 0 }" :style="{ gridTemplateColumns: gridStyle }">
-        <div
-          v-for="m in g.items"
-          :key="m.id"
-          class="grid-cell"
-          :class="{ selected: selectedIds.has(m.id) }"
-          draggable="true"
-          @click="onItemClick(m)"
-          @contextmenu.prevent="onContextMenu(m)"
-          @dragstart="(e: DragEvent) => dragMediaOut(e, m)"
-        >
-          <MediaThumb :media="m" show-dots show-badge />
-        </div>
+    <!-- 排序模式：平铺网格，拖拽重排（forceFallback 指针模式，不触发原生拖拽） -->
+    <VueDraggable
+      v-if="sortMode"
+      v-model="sortItems"
+      class="sort-grid"
+      :style="{ gridTemplateColumns: gridStyle }"
+      :animation="150"
+      :force-fallback="true"
+      ghost-class="grid-ghost"
+      chosen-class="grid-chosen"
+      fallback-class="grid-fallback"
+      @end="onSortEnd"
+    >
+      <div
+        v-for="m in sortItems"
+        :key="m.id"
+        class="grid-cell"
+        :class="{ selected: selectedIds.has(m.id) }"
+        @click="onItemClick(m)"
+        @contextmenu.prevent="onContextMenu(m)"
+      >
+        <MediaThumb :media="m" show-dots show-badge />
       </div>
+    </VueDraggable>
+
+    <!-- 默认模式：时间分组视图，拖拽 = 拖出文件 -->
+    <template v-else>
+      <template v-for="(g, gi) in groups" :key="gi">
+        <div class="grid-header">{{ g.label }}</div>
+        <div class="grid-row" :class="{ 'row-separated': gi > 0 }" :style="{ gridTemplateColumns: gridStyle }">
+          <div
+            v-for="m in g.items"
+            :key="m.id"
+            class="grid-cell"
+            :class="{ selected: selectedIds.has(m.id) }"
+            draggable="true"
+            @click="onItemClick(m)"
+            @contextmenu.prevent="onContextMenu(m)"
+            @dragstart="(e: DragEvent) => dragMediaOut(e, m)"
+          >
+            <MediaThumb :media="m" show-dots show-badge />
+          </div>
+        </div>
+      </template>
     </template>
   </div>
 </template>
@@ -63,6 +109,12 @@ function onContextMenu(m: Media) {
 <style scoped>
 .media-grid {
   padding: 4px 8px 12px;
+}
+
+.sort-grid {
+  display: grid;
+  gap: 6px;
+  padding: 4px 4px 8px;
 }
 
 .grid-header {
@@ -109,5 +161,18 @@ function onContextMenu(m: Media) {
   background: var(--selected-bg);
 }
 
-/* 多选模式下未选中的做压暗处理 */
+/* SortableJS 拖拽反馈样式 */
+.grid-ghost {
+  opacity: 0.4;
+  border-color: var(--accent) !important;
+}
+
+.grid-chosen {
+  border-color: var(--accent) !important;
+  transform: scale(1.05);
+}
+
+.grid-fallback {
+  box-shadow: var(--shadow-md);
+}
 </style>

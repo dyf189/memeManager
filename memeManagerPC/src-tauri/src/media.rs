@@ -28,6 +28,8 @@ pub struct Media {
     pub sha256: Option<String>,
     pub is_deleted: bool,
     pub deleted_time: Option<i64>,
+    /// 手动排序位置（0 = 未手动排序，按时间）
+    pub sort_order: i64,
     pub tag_ids: Vec<i64>,
 }
 
@@ -211,11 +213,12 @@ fn row_to_media(row: &rusqlite::Row) -> rusqlite::Result<Media> {
         sha256: row.get(13)?,
         is_deleted: row.get::<_, i64>(14)? != 0,
         deleted_time: row.get(15)?,
+        sort_order: row.get(16)?,
         tag_ids: Vec::new(),
     })
 }
 
-const MEDIA_COLUMNS: &str = "id, file_name, file_path, storage_type, media_type, mime_type, source, description, taken_time, import_time, file_size, width, height, sha256, is_deleted, deleted_time";
+const MEDIA_COLUMNS: &str = "id, file_name, file_path, storage_type, media_type, mime_type, source, description, taken_time, import_time, file_size, width, height, sha256, is_deleted, deleted_time, sort_order";
 
 fn tag_ids_of(conn: &Connection, media_id: i64) -> Vec<i64> {
     let mut stmt = match conn.prepare("SELECT tag_id FROM media_tag WHERE media_id = ?1 ORDER BY tag_id") {
@@ -243,9 +246,13 @@ fn load_media(conn: &Connection, query: &str, params: &[&dyn rusqlite::ToSql]) -
     Ok(list)
 }
 
-/// 相册媒体（时间降序，不含回收站）
+/// 相册媒体（手动排序优先，未手动排序的按时间降序；不含回收站）
 pub fn list_media_impl(conn: &Connection) -> Result<Vec<Media>, String> {
-    load_media(conn, "WHERE is_deleted = 0 ORDER BY taken_time DESC", &[])
+    load_media(
+        conn,
+        "WHERE is_deleted = 0 ORDER BY sort_order ASC, taken_time DESC",
+        &[],
+    )
 }
 
 /// 回收站媒体
@@ -413,6 +420,20 @@ pub fn replace_media_tags_impl(conn: &Connection, media_ids: &[i64], tag_ids: &[
             )
             .map_err(|e| e.to_string())?;
         }
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// 按给定 id 顺序整体重写 sort_order（相册拖拽排序持久化）
+pub fn set_media_order_impl(conn: &Connection, ids: &[i64]) -> Result<(), String> {
+    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    for (i, id) in ids.iter().enumerate() {
+        tx.execute(
+            "UPDATE media SET sort_order = ?1 WHERE id = ?2",
+            params![i as i64 + 1, id],
+        )
+        .map_err(|e| e.to_string())?;
     }
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
@@ -783,6 +804,33 @@ mod tests {
         add_index_dir_impl(&conn, "/a").unwrap(); // 去重
         let dirs = list_index_dirs_impl(&conn).unwrap();
         assert_eq!(dirs, vec!["/a".to_string(), "/b".to_string()]);
+    }
+
+    #[test]
+    fn test_media_order_persist() {
+        let conn = mem_db();
+        let dir = std::env::temp_dir().join(format!("mm_order_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        make_file(&dir, "a.png", b"aaa");
+        make_file(&dir, "b.png", b"bbb");
+        make_file(&dir, "c.png", b"ccc");
+        scan_folder_impl(&conn, dir.to_str().unwrap(), false).unwrap();
+
+        let list = list_media_impl(&conn).unwrap();
+        assert_eq!(list.len(), 3);
+        assert!(list.iter().all(|m| m.sort_order == 0));
+
+        // 反转顺序并持久化
+        let reversed: Vec<i64> = list.iter().map(|m| m.id).rev().collect();
+        set_media_order_impl(&conn, &reversed).unwrap();
+
+        let list2 = list_media_impl(&conn).unwrap();
+        let ids2: Vec<i64> = list2.iter().map(|m| m.id).collect();
+        assert_eq!(ids2, reversed);
+        assert!(list2.iter().all(|m| m.sort_order > 0));
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -37,6 +37,8 @@ export const api = {
   deleteMedia: (ids: number[]) => invoke<number>("delete_media", { ids }),
   restoreMedia: (ids: number[]) => invoke<number>("restore_media", { ids }),
   purgeMedia: (ids: number[]) => invoke<number>("purge_media", { ids }),
+  /** 按 id 顺序持久化相册排序（拖拽排序） */
+  setMediaOrder: (ids: number[]) => invoke<void>("set_media_order", { ids }),
 
   // —— 标签 ——
   listTags: () => invoke<Tag[]>("list_tags"),
