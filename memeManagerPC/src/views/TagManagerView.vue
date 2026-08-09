@@ -1,20 +1,16 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { useTagStore } from "../stores/tags";
 import { PRESET_TAG_COLORS } from "../utils/color";
 import TagChip from "../components/TagChip.vue";
 import ColorPickerPop from "../components/ColorPickerPop.vue";
+import { VueDraggable } from "vue-draggable-plus";
+import type { Tag } from "../types";
 
 const tagStore = useTagStore();
 
-onMounted(() => {
-  tagStore.loadTags();
-  // 拖拽中窗口失焦（如 Alt+Tab）时重置状态，避免 drag-lock 残留
-  window.addEventListener("blur", onWindowBlur);
-});
-
-onUnmounted(() => window.removeEventListener("blur", onWindowBlur));
+onMounted(() => tagStore.loadTags());
 
 // —— 新建对话框 ——
 const createDialog = ref(false);
@@ -62,60 +58,26 @@ async function submitRename() {
   ElMessage.success("已重命名");
 }
 
-// —— 拖拽排序（Pointer Events 实现，兼容 WebView2；HTML5 drag 被 Tauri OLE 拖放系统劫持，见 tauri#13171）——
-const dragId = ref(0);
-const dragStartY = ref(0);
-const dragging = ref(false); // 是否已越过启动阈值
-const dropTargetId = ref(0); // 当前悬停目标行 id（高亮提示放置位置）
+// —— 拖拽排序（vue-draggable-plus / SortableJS，forceFallback 指针模式兼容 WebView2）——
+/** 行列表（拖拽时由库实时重排，结束后持久化） */
+const rowList = ref<Tag[]>([]);
+watch(
+  () => tagStore.sorted,
+  (v) => {
+    rowList.value = [...v];
+  },
+  { immediate: true }
+);
 
-function onPointerDown(e: PointerEvent, id: number) {
-  // 从按钮/输入框等交互控件按下时不启动拖拽
-  const target = e.target as HTMLElement;
-  if (target.closest("button, input, textarea, select, a, .el-input")) return;
-  dragId.value = id;
-  dragStartY.value = e.clientY;
-  dragging.value = false;
-  dropTargetId.value = 0;
-  // 捕获指针：移动/松开事件持续送达源行，即使移出列表
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+/** 拖拽结束：按当前顺序持久化 */
+function onDragEnd() {
+  tagStore.setOrder(rowList.value.map((t) => t.id));
 }
 
-function onPointerMove(e: PointerEvent) {
-  if (dragId.value === 0) return;
-  const dy = e.clientY - dragStartY.value;
-  if (!dragging.value) {
-    if (Math.abs(dy) < 6) return; // 小于阈值为普通点击
-    dragging.value = true;
-    document.body.classList.add("drag-lock");
-  }
-  // 命中测试：当前指针落在哪一行
-  const el = document.elementFromPoint(e.clientX, e.clientY);
-  const row = el?.closest<HTMLElement>(".tag-row");
-  dropTargetId.value = row ? Number(row.dataset.id) : 0;
-}
-
-function onPointerUp() {
-  if (dragId.value === 0) return;
-  document.body.classList.remove("drag-lock");  const fromId = dragId.value;
-  const targetId = dropTargetId.value;
-  dragId.value = 0;
-  dropTargetId.value = 0;
-  dragging.value = false;
-  if (fromId === 0 || fromId === targetId || targetId === 0) return;
-  const arr = tagStore.sorted;
-  const from = arr.findIndex((t) => t.id === fromId);
-  const to = arr.findIndex((t) => t.id === targetId);
-  if (from < 0 || to < 0) return;
-  // 重新编号 sortOrder = 数组索引（目标位置顺序）并持久化
-  const reordered = [...arr];
-  const [moved] = reordered.splice(from, 1);
-  reordered.splice(to, 0, moved);
-  tagStore.setOrder(reordered.map((t) => t.id));
-}
-
-/** 窗口失焦时中断拖拽 */
-function onWindowBlur() {
-  if (dragId.value !== 0) onPointerUp();
+/** 拖拽开始：固定被拖行宽度，避免 fallback 克隆（挂在 body 下）宽度塌缩或撑满整页 */
+function onDragStart(evt: { item: HTMLElement }) {
+  const w = evt.item.offsetWidth;
+  if (w > 0) evt.item.style.width = `${w}px`;
 }
 
 async function removeTag(id: number) {
@@ -141,20 +103,19 @@ async function removeTag(id: number) {
     </header>
 
     <div class="tag-body">
-      <div
+      <VueDraggable
+        v-model="rowList"
         class="tag-list"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @pointercancel="onPointerUp"
+        :animation="150"
+        :force-fallback="true"
+        :filter="'button, input, textarea, select, a'"
+        ghost-class="tag-ghost"
+        chosen-class="tag-chosen"
+        fallback-class="tag-fallback"
+        @start="onDragStart"
+        @end="onDragEnd"
       >
-        <div
-          v-for="t in tagStore.sorted"
-          :key="t.id"
-          class="tag-row"
-          :data-id="t.id"
-          :class="{ dragging: t.id === dragId, 'drag-over': t.id === dropTargetId }"
-          @pointerdown="onPointerDown($event, t.id)"
-        >
+        <div v-for="t in rowList" :key="t.id" class="tag-row">
           <el-icon class="drag-handle"><Rank /></el-icon>
           <TagChip :tag="t" />
           <ColorPickerPop
@@ -174,7 +135,7 @@ async function removeTag(id: number) {
             <el-button size="small" link type="danger" @click="removeTag(t.id)">删除</el-button>
           </template>
         </div>
-      </div>
+      </VueDraggable>
       <p class="tag-hint">拖拽行可调整排序（决定缩略图圆点与筛选栏顺序）</p>
     </div>
 
@@ -278,19 +239,22 @@ async function removeTag(id: number) {
   cursor: grabbing;
 }
 
-/* 拖拽中的源行：半透明 + 轻微抬起 */
-.tag-row.dragging {
-  opacity: 0.5;
-  position: relative;
-  z-index: 10;
-  box-shadow: var(--shadow-sm);
-  transform: scale(1.02);
+/* SortableJS 拖拽：原位置占位 */
+.tag-ghost {
+  opacity: 0.4;
+  border: 1px dashed var(--text-muted);
 }
 
-/* 悬停目标行：高亮边框提示放置位置 */
-.tag-row.drag-over {
-  border-color: var(--text-main);
-  background: var(--input-bg);
+/* 被拖行（拖拽中的原行） */
+.tag-chosen {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* 跟随鼠标的幽灵图像（宽度在拖拽开始时由 JS 固定为原行宽度） */
+.tag-fallback {
+  opacity: 0.95;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  cursor: grabbing;
 }
 
 .drag-handle {
