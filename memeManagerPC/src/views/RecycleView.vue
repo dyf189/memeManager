@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "../api";
 import type { Media } from "../types";
 import { useSettingsStore } from "../stores/settings";
+import { dragMediaOut } from "../utils/drag";
 import MediaThumb from "../components/MediaThumb.vue";
 
 const settingsStore = useSettingsStore();
@@ -137,7 +138,9 @@ const gridStyle = computed(() =>
           :key="m.id"
           class="recycle-cell"
           :class="{ selected: selectedIds.has(m.id) }"
+          draggable="true"
           @click="toggle(m.id)"
+          @dragstart="(e: DragEvent) => dragMediaOut(e, m)"
         >
           <MediaThumb :media="m" show-dots show-badge />
         </div>

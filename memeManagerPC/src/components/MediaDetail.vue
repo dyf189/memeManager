@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { dragMediaOut } from "../utils/drag";
 import type { Media } from "../types";
 import { useTagStore } from "../stores/tags";
 import { api } from "../api";
@@ -155,9 +156,16 @@ function menuAction(action: string) {
           </el-dropdown>
         </header>
 
-        <!-- 大图区 -->
+        <!-- 大图区（可直接拖拽到其它应用/桌面） -->
         <div class="detail-stage">
-          <img v-if="isVisual" :src="stageSrc" class="stage-img" alt="" />
+          <img
+            v-if="isVisual"
+            :src="stageSrc"
+            class="stage-img"
+            alt=""
+            draggable="true"
+            @dragstart="(e: DragEvent) => dragMediaOut(e, media)"
+          />
           <span v-else class="stage-placeholder">🎬 视频预览（待接入）</span>
           <span v-if="media.mediaType === 'gif'" class="stage-badge">GIF</span>
           <span v-else-if="media.mediaType === 'video'" class="stage-badge">▶ 视频</span>

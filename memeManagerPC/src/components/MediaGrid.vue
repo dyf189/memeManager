@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { Media } from "../types";
 import { groupByTime } from "../utils/time";
+import { dragMediaOut } from "../utils/drag";
 import MediaThumb from "./MediaThumb.vue";
 
 const props = defineProps<{
@@ -47,8 +48,10 @@ function onContextMenu(m: Media) {
           :key="m.id"
           class="grid-cell"
           :class="{ selected: selectedIds.has(m.id) }"
+          draggable="true"
           @click="onItemClick(m)"
           @contextmenu.prevent="onContextMenu(m)"
+          @dragstart="(e: DragEvent) => dragMediaOut(e, m)"
         >
           <MediaThumb :media="m" show-dots show-badge />
         </div>

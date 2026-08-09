@@ -194,6 +194,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_drag::init())
         .setup(|app| {
             // 数据库放在应用数据目录：~/.local/share/com.dyf189.mememanager/
             let dir = app

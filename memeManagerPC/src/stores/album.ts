@@ -5,6 +5,7 @@ import { emptyFilter } from "../types";
 import { api } from "../api";
 import { useTagStore } from "./tags";
 import { useSettingsStore } from "./settings";
+import { prewarmIcons } from "../utils/drag";
 import { groupByTime } from "../utils/time";
 import { dirName } from "../utils/format";
 
@@ -38,6 +39,8 @@ export const useAlbumStore = defineStore("album", () => {
     } finally {
       loading.value = false;
       loaded.value = true;
+      // 预热拖拽预览图标（前 200 张），拖拽时直接命中缓存
+      prewarmIcons(mediaList.value);
     }
   }
 

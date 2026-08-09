@@ -7,6 +7,7 @@ import { useTagStore } from "../stores/tags";
 import { useSettingsStore } from "../stores/settings";
 import { api } from "../api";
 import type { Media } from "../types";
+import { prewarmIcon } from "../utils/drag";
 import MediaGrid from "../components/MediaGrid.vue";
 import MediaList from "../components/MediaList.vue";
 import SearchResults from "../components/SearchResults.vue";
@@ -88,6 +89,8 @@ const detailMedia = computed<Media | null>(() =>
 function openDetail(m: Media) {
   detailIndex.value = album.filteredMedia.findIndex((x) => x.id === m.id);
   detailVisible.value = true;
+  // 预热当前大图的拖拽图标
+  prewarmIcon(m);
 }
 
 function stepDetail(dir: 1 | -1) {

@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { Media } from "../types";
 import { groupByTime } from "../utils/time";
+import { dragMediaOut } from "../utils/drag";
 import { dirName, formatDateTime, formatSize } from "../utils/format";
 import MediaThumb from "./MediaThumb.vue";
 import TagDots from "./TagDots.vue";
@@ -36,8 +37,10 @@ function onItemClick(m: Media) {
         :key="m.id"
         class="list-item"
         :class="{ selected: selectedIds.has(m.id) }"
+        draggable="true"
         @click="onItemClick(m)"
         @contextmenu.prevent="emit('multi', m)"
+        @dragstart="(e: DragEvent) => dragMediaOut(e, m)"
       >
         <div class="item-thumb">
           <MediaThumb :media="m" show-badge />

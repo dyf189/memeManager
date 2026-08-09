@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Media } from "../types";
+import { dragMediaOut } from "../utils/drag";
 import { formatDateTime, formatSize } from "../utils/format";
 import { splitByMatches } from "../utils/highlight";
 import MediaThumb from "./MediaThumb.vue";
@@ -37,7 +38,9 @@ function escapeHtml(s: string): string {
       v-for="m in items"
       :key="m.id"
       class="result-item"
+      draggable="true"
       @click="emit('open', m)"
+      @dragstart="(e: DragEvent) => dragMediaOut(e, m)"
     >
       <div class="result-thumb">
         <MediaThumb :media="m" show-dots show-badge />
