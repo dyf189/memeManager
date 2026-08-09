@@ -57,6 +57,7 @@ onBeforeUnmount(() => {
 <template>
   <button
     ref="triggerEl"
+    type="button"
     class="color-trigger"
     :title="modelValue"
     @click="toggle"

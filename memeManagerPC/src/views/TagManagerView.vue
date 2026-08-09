@@ -135,7 +135,7 @@ async function removeTag(id: number) {
 
     <!-- 新建标签 -->
     <el-dialog v-model="createDialog" title="新建标签" width="80%" align-center>
-      <el-form label-width="60px">
+      <el-form label-width="60px" @submit.prevent>
         <el-form-item label="名称">
           <el-input v-model="createName" placeholder="标签名（唯一）" maxlength="12" />
         </el-form-item>
@@ -144,6 +144,7 @@ async function removeTag(id: number) {
             <button
               v-for="c in PRESET_TAG_COLORS"
               :key="c"
+              type="button"
               class="color-swatch"
               :class="{ active: createColor === c }"
               :style="{ background: c }"
