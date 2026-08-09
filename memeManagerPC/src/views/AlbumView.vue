@@ -415,7 +415,9 @@ async function startMpakImport(destDir: string) {
       :default-dir="mpakState.defaultDir"
       @choose-default="startMpakImport(mpakState.defaultDir)"
       @choose-custom="
-        api.pickDirectory().then((dir) => dir && startMpakImport(dir))
+        api.pickDirectory().then((dir) => {
+          if (dir) return startMpakImport(dir);
+        })
       "
     />
     <ImportingDialog v-model:visible="mpakState.importing" :stage="mpakState.stage" />
@@ -425,7 +427,6 @@ async function startMpakImport(destDir: string) {
       :total="exporting.total"
       @cancel="exporting.visible = false"
     />
-    <ExportProgressDialog v-model:visible="exportVisible" />
 
     <MediaDetail
       :visible="detailVisible"

@@ -126,15 +126,6 @@ fn build_shard_bytes(
     Ok(out)
 }
 
-/// 分片打包入口（无进度回调，测试/简单调用用）
-pub fn export_pak(
-    items: Vec<ExportItem>,
-    max_size: u64,
-    dest_dir: &str,
-) -> Result<ExportResult, String> {
-    export_pak_inner(items, max_size, dest_dir, |_, _| {})
-}
-
 /// 分片打包入口（带进度回调：on_progress(已处理数, 总数)，用于前端进度展示）
 pub fn export_pak_with_progress(
     items: Vec<ExportItem>,
@@ -263,7 +254,8 @@ mod tests {
     #[test]
     fn test_empty_export_rejected() {
         let dir = tmp_dir("empty");
-        let err = export_pak(vec![], 1024, dir.to_str().unwrap()).unwrap_err();
+        let err = export_pak_with_progress(vec![], 1024, dir.to_str().unwrap(), |_, _| {})
+            .unwrap_err();
         assert!(err.contains("未选择"));
     }
 
@@ -279,7 +271,9 @@ mod tests {
         ];
 
         let out_dir = dir.join("out");
-        let result = export_pak(items, 1024 * 1024, out_dir.to_str().unwrap()).unwrap();
+        let result =
+            export_pak_with_progress(items, 1024 * 1024, out_dir.to_str().unwrap(), |_, _| {})
+                .unwrap();
         assert_eq!(result.shards.len(), 1);
         assert_eq!(result.total_media, 2);
         assert!(Path::new(&result.shards[0]).exists());
@@ -313,7 +307,8 @@ mod tests {
             });
         }
         let out_dir = dir.join("out");
-        let result = export_pak(items, 3 * 1024, out_dir.to_str().unwrap()).unwrap();
+        let result = export_pak_with_progress(items, 3 * 1024, out_dir.to_str().unwrap(), |_, _| {})
+            .unwrap();
         assert!(result.shards.len() >= 2, "5×1KB 按 3KB 上限应分 ≥2 片");
     }
 }
