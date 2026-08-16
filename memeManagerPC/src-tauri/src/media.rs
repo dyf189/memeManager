@@ -5,7 +5,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::mpak::sha256_hex;
+use crate::mpak::sha256_file;
 
 // ===== 结构体（返回前端）=====
 
@@ -67,11 +67,13 @@ fn classify(path: &Path) -> Option<(&'static str, &'static str)> {
 }
 
 /// 递归（可选）收集目录下所有媒体文件路径
+/// 目录判断用 entry.file_type()（不跟随符号链接），避免符号链接环导致无限递归
 fn collect_media_files(dir: &Path, recursive: bool, out: &mut Vec<PathBuf>) {
     let Ok(rd) = fs::read_dir(dir) else { return };
     for entry in rd.flatten() {
         let p = entry.path();
-        if p.is_dir() {
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if is_dir {
             if recursive {
                 collect_media_files(&p, true, out);
             }
@@ -103,15 +105,25 @@ pub fn scan_folder_impl(conn: &Connection, dir: &str, recursive: bool) -> Result
     let mut skipped = 0usize;
     let mut removed = 0usize;
 
-    // 库中属于该目录的已有记录（file_path → id）
+    // 库中属于该目录的已有记录（file_path → id）。
+    // LIKE 模式需转义 \% \_（目录名中的通配符字符），并用 ESCAPE '\' 声明转义符，
+    // 否则目录名含 _ 或 % 时可能误匹配兄弟目录的记录并把它们当"已消失"删掉。
     let dir_norm = dir.trim_end_matches(['/', '\\']);
-    let pattern = format!("{}{}%", dir_norm, std::path::MAIN_SEPARATOR);
+    let esc = dir_norm.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_");
+    // 路径分隔符本身在 ESCAPE '\' 语义下也要转义（Windows 的 \），否则结尾的 \% 会被当成字面百分号
+    let sep = if std::path::MAIN_SEPARATOR == '\\' { "\\\\" } else { "/" };
+    let pattern = format!("{}{}%", esc, sep);
     let mut existing: Vec<(i64, String)> = Vec::new();
-    if let Ok(mut stmt) = conn.prepare("SELECT id, file_path FROM media WHERE file_path LIKE ?1") {
-        if let Ok(rows) = stmt.query_map(params![pattern], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))) {
-            for r in rows.flatten() {
-                existing.push(r);
-            }
+    {
+        // 查询失败必须上抛：吞掉错误会把 existing 当空表，误删该目录全部记录
+        let mut stmt = conn
+            .prepare("SELECT id, file_path FROM media WHERE file_path LIKE ?1 ESCAPE '\\'")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![pattern], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?;
+        for r in rows {
+            existing.push(r.map_err(|e| e.to_string())?);
         }
     }
 
@@ -163,7 +175,7 @@ pub fn scan_folder_impl(conn: &Connection, dir: &str, recursive: bool) -> Result
                 skipped += 1;
                 continue;
             }
-            let sha = fs::read(path).ok().map(|b| sha256_hex(&b));
+            let sha = sha256_file(path);
             let res = conn.execute(
                 "UPDATE media SET file_size = ?1, sha256 = ?2, media_type = ?3, mime_type = ?4, taken_time = ?5, file_name = ?6 WHERE id = ?7",
                 params![file_size, sha, media_type, media_type, taken_time, file_name, id],
@@ -177,7 +189,7 @@ pub fn scan_folder_impl(conn: &Connection, dir: &str, recursive: bool) -> Result
         }
 
         // 新文件 → 插入
-        let sha = fs::read(path).ok().map(|b| sha256_hex(&b));
+        let sha = sha256_file(path);
         let res = conn.execute(
             "INSERT INTO media (file_name, file_path, storage_type, media_type, mime_type, source, description, taken_time, import_time, file_size, sha256, is_deleted)
              VALUES (?1, ?2, 'user', ?3, ?4, 'custom', '', ?5, ?6, ?7, ?8, 0)",
@@ -831,6 +843,47 @@ mod tests {
         assert!(list2.iter().all(|m| m.sort_order > 0));
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_scan_like_escape_sibling_dirs() {
+        // 目录名含 LIKE 通配符字符（_、%）时，扫描一个目录不能误删兄弟目录的记录
+        let conn = mem_db();
+        let base = std::env::temp_dir().join(format!("mm_like_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let d1 = base.join("my_dir"); // 含 _
+        let d2 = base.join("myXdir"); // 与 d1 只差一个字符，未转义时会被 _ 通配命中
+        let d3 = base.join("100%"); // 含 %
+        let d4 = base.join("100abc"); // 会被 % 通配命中
+        for d in [&d1, &d2, &d3, &d4] {
+            fs::create_dir_all(d).unwrap();
+        }
+        make_file(&d1, "a.png", b"a");
+        make_file(&d2, "b.png", b"b");
+        make_file(&d3, "c.png", b"c");
+        make_file(&d4, "d.png", b"d");
+
+        // 全部入库
+        for d in [&d1, &d2, &d3, &d4] {
+            scan_folder_impl(&conn, d.to_str().unwrap(), false).unwrap();
+        }
+        assert_eq!(list_media_impl(&conn).unwrap().len(), 4);
+
+        // 再扫描 d1 / d3：兄弟目录（d2、d4）的记录必须原样保留
+        scan_folder_impl(&conn, d1.to_str().unwrap(), false).unwrap();
+        scan_folder_impl(&conn, d3.to_str().unwrap(), false).unwrap();
+        let names: Vec<String> = list_media_impl(&conn)
+            .unwrap()
+            .into_iter()
+            .map(|m| m.file_name)
+            .collect();
+        assert_eq!(names.len(), 4);
+        assert!(names.contains(&"a.png".to_string()));
+        assert!(names.contains(&"b.png".to_string()));
+        assert!(names.contains(&"c.png".to_string()));
+        assert!(names.contains(&"d.png".to_string()));
+
+        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]

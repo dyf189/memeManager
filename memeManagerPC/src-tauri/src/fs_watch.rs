@@ -20,17 +20,17 @@ pub struct SyncTimes(pub Mutex<HashMap<String, Instant>>);
 
 /// 对目录执行一次增量同步，成功后通知前端刷新
 fn sync_dir(handle: &AppHandle, dir: &str) {
-    // 防抖：800ms 内重复事件合并为一次同步
+    // 防抖：800ms 内重复事件合并为一次同步。
+    // 只有同步成功才记录时间：失败时保持窗口关闭，后续事件可立即重试。
     let now = Instant::now();
     {
         let state = handle.state::<SyncTimes>();
-        let mut times = state.0.lock().unwrap();
+        let times = state.0.lock().unwrap();
         if let Some(last) = times.get(dir) {
             if now.duration_since(*last) < Duration::from_millis(800) {
                 return;
             }
         }
-        times.insert(dir.to_string(), now);
     }
 
     let state = handle.state::<Db>();
@@ -42,6 +42,12 @@ fn sync_dir(handle: &AppHandle, dir: &str) {
         return;
     }
     drop(conn);
+
+    {
+        let state = handle.state::<SyncTimes>();
+        let mut times = state.0.lock().unwrap();
+        times.insert(dir.to_string(), now);
+    }
 
     // 通知前端刷新（外部文件变化立即反映到相册）
     let _ = handle.emit("media-changed", ());

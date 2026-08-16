@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{read_u16, read_u32, read_u64, sha256_hex, FORMAT_ID, HASH_LEN, HEADER_LEN, MAGIC, VERSION, Metadata};
+use super::{read_u16, read_u32, read_u64, sha256_file, sha256_hex, FORMAT_ID, HASH_LEN, HEADER_LEN, MAGIC, VERSION, Metadata};
 
 /// 成功导入的媒体条目（用于落库时恢复元数据）
 #[derive(serde::Serialize, Debug)]
@@ -121,7 +121,7 @@ fn already_exists(existing: &[(u64, PathBuf)], size: u64, sha: &str) -> bool {
     existing
         .iter()
         .filter(|(s, _)| *s == size)
-        .any(|(_, p)| fs::read(p).map(|b| sha256_hex(&b) == sha).unwrap_or(false))
+        .any(|(_, p)| sha256_file(p).map(|h| h == sha).unwrap_or(false))
 }
 
 /// 导入入口

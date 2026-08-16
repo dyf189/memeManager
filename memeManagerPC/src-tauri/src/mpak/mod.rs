@@ -7,6 +7,8 @@ pub mod export;
 pub mod import;
 
 use sha2::{Digest, Sha256};
+use std::io::Read;
+use std::path::Path;
 
 /// 魔数 "MPAK"
 pub const MAGIC: [u8; 4] = *b"MPAK";
@@ -57,6 +59,21 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut h = Sha256::new();
     h.update(bytes);
     hex::encode(h.finalize())
+}
+
+/// 流式计算文件 SHA-256（避免大文件整读进内存）
+pub fn sha256_file(path: &Path) -> Option<String> {
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut h = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = f.read(&mut buf).ok()?;
+        if n == 0 {
+            break;
+        }
+        h.update(&buf[..n]);
+    }
+    Some(hex::encode(h.finalize()))
 }
 
 /// 当前 Unix 毫秒时间戳
