@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import type { Media } from "../types";
+import { fileSrc } from "../utils/asset";
 import TagDots from "./TagDots.vue";
 import GifThumb from "./GifThumb.vue";
 
@@ -13,8 +13,8 @@ const props = defineProps<{
   showBadge?: boolean;
 }>();
 
-/** 真实文件 → asset 协议 URL（Tauri 本地图片显示） */
-const src = computed(() => convertFileSrc(props.media.filePath));
+/** 真实文件 → asset 协议 URL（Tauri 本地图片显示；mock 数据 URL 直接放行） */
+const src = computed(() => fileSrc(props.media.filePath));
 
 /** 图片加载失败时显示占位（不再显示破图问号） */
 const imgFailed = ref(false);
@@ -91,9 +91,10 @@ const badge = computed(() => {
   color: #fff;
   font-size: 9px;
   font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
   letter-spacing: 0.5px;
+  backdrop-filter: blur(2px);
 }
 
 .thumb-dots {
@@ -102,7 +103,8 @@ const badge = computed(() => {
   bottom: 5px;
   padding: 4px 4px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--chip-overlay);
+  backdrop-filter: blur(2px);
   /* 覆盖继承的 line-height: 1.5（14px 字号下约 21px），避免行盒把容器撑高 */
   display: inline-flex;
   align-items: center;

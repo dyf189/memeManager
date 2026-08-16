@@ -34,6 +34,7 @@ const chipStyle = computed(() =>
     :style="chipStyle"
     @click.stop="emit('click')"
   >
+    <el-icon v-if="active" :size="11" class="tag-chip-check"><Check /></el-icon>
     {{ tag.name }}
     <el-icon v-if="closable" :size="11" class="tag-chip-close" @click.stop="emit('close')">
       <Close />
@@ -42,6 +43,10 @@ const chipStyle = computed(() =>
 </template>
 
 <style scoped>
+.tag-chip-check {
+  flex: none;
+}
+
 .tag-chip-close {
   cursor: pointer;
   opacity: 0.7;

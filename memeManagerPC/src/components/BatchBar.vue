@@ -13,11 +13,6 @@ const emit = defineEmits<{
   (e: "select-all"): void;
   (e: "share"): void;
 }>();
-
-// 桌面端无系统分享，占位提示（后续接复制/打开目录）
-function share() {
-  ElMessage.info("桌面端分享：待接入（复制到剪贴板 / 打开所在文件夹）");
-}
 </script>
 
 <template>
@@ -26,7 +21,7 @@ function share() {
       <el-icon><ArrowLeft /></el-icon>
       <span>取消</span>
     </button>
-    <span class="batch-count">已选 {{ count }} / {{ total }} 项</span>
+    <span class="batch-count">已选 <strong>{{ count }}</strong> / {{ total }} 项</span>
     <button class="batch-select-all" @click="emit('select-all')">
       <el-icon><Finished /></el-icon>
       <span>全选</span>
@@ -70,6 +65,7 @@ function share() {
   padding: 0 10px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--divider);
+  box-shadow: var(--shadow-sm);
 }
 
 .batch-back {
@@ -81,13 +77,24 @@ function share() {
   font-size: 14px;
   color: var(--text-main);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.batch-back:hover {
+  background: var(--hover-bg);
 }
 
 .batch-count {
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.batch-count strong {
+  color: var(--accent);
+  font-size: 15px;
 }
 
 .batch-select-all {

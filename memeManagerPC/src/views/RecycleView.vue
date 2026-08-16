@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { api } from "../api";
 import type { Media } from "../types";
@@ -18,6 +18,25 @@ async function load() {
 }
 
 onMounted(load);
+
+// 快捷键：Esc 退出多选，Ctrl/Cmd+A 全选/取消全选（与相册页一致）
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape" && multiSelect.value) {
+    exitMulti();
+    return;
+  }
+  if (
+    multiSelect.value &&
+    (e.ctrlKey || e.metaKey) &&
+    e.key.toLowerCase() === "a"
+  ) {
+    e.preventDefault();
+    selectAll();
+  }
+}
+
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 function toggle(id: number) {
   if (!multiSelect.value) {
@@ -143,11 +162,14 @@ const gridStyle = computed(() =>
           @dragstart="(e: DragEvent) => dragMediaOut(e, m)"
         >
           <MediaThumb :media="m" show-dots show-badge />
+          <span class="select-check"><el-icon :size="12"><Check /></el-icon></span>
         </div>
       </div>
 
       <div v-if="items.length === 0" class="empty-state">
-        <el-empty description="回收站是空的" />
+        <div class="empty-emoji">🗑️</div>
+        <div class="empty-title">回收站是空的</div>
+        <div class="empty-sub">删除的媒体会在保留期内存放于此，可随时还原</div>
       </div>
     </div>
   </div>
@@ -235,18 +257,20 @@ const gridStyle = computed(() =>
 
 .recycle-cell {
   aspect-ratio: 1;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
   position: relative;
   border: 2.5px solid transparent;
-  transition: transform 0.12s ease, border-color 0.12s ease;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.15s ease;
   content-visibility: auto;
   contain-intrinsic-size: 110px;
 }
 
 .recycle-cell:hover {
   transform: scale(1.03);
+  box-shadow: var(--shadow-md);
+  z-index: 1;
 }
 
 .recycle-cell.selected {
@@ -254,7 +278,53 @@ const gridStyle = computed(() =>
   background: var(--selected-bg);
 }
 
+.select-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+
+.recycle-cell.selected .select-check {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .empty-state {
-  padding: 80px 0;
+  padding: 60px 0 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.empty-emoji {
+  font-size: 52px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.empty-sub {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 </style>

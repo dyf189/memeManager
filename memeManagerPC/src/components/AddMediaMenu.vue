@@ -45,7 +45,7 @@ async function pick(i: number) {
 
 <template>
   <teleport to="body">
-    <el-dialog v-model="dialogVisible" title="添加媒体" width="80%" align-center>
+    <el-dialog v-model="dialogVisible" title="添加媒体" width="min(480px, 92%)" align-center>
       <div class="add-menu">
         <button v-for="(it, i) in items" :key="it.label" class="add-item" @click="pick(i)">
           <el-icon :size="22" class="add-icon"><component :is="it.icon" /></el-icon>

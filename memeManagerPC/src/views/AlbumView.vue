@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { listen } from "@tauri-apps/api/event";
 import { useAlbumStore } from "../stores/album";
@@ -28,10 +28,11 @@ onMounted(async () => {
   await Promise.all([album.loadMedia(), tagStore.loadTags(), settingsStore.load()]);
   window.addEventListener("keydown", onKeydown);
   // 已索引目录文件变化（外部复制/删除）→ 自动刷新相册（防抖合并）
+  // 监听失败（如浏览器调试环境无事件系统）不阻塞页面功能
   unlistenMediaChanged = await listen("media-changed", () => {
     if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
     refreshTimer = window.setTimeout(() => album.loadMedia(), 300);
-  });
+  }).catch(() => undefined);
   // 导出进度事件
   unlistenExportProgress = await listen<[number, number]>(
     "export-progress",
@@ -39,7 +40,7 @@ onMounted(async () => {
       exporting.current = e.payload[0];
       exporting.total = e.payload[1];
     }
-  );
+  ).catch(() => undefined);
 });
 
 let unlistenMediaChanged: (() => void) | undefined;
@@ -53,20 +54,50 @@ onBeforeUnmount(() => {
   if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
 });
 
-// 多选快捷键：Ctrl/Cmd+A 全选可见项，Esc 退出多选
-function onKeydown(e: KeyboardEvent) {
-  if (album.multiSelect && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
-    e.preventDefault();
-    album.selectAll(album.filteredMedia.map((m) => m.id));
-  } else if (e.key === "Escape" && album.multiSelect) {
-    album.exitMultiSelect();
-  }
-}
-
 // —— 顶部工具栏状态 ——
 // 筛选面板默认关闭，仅通过工具栏筛选按钮开关
 const showFilter = ref(false);
 const addMenuVisible = ref(false);
+const searchInputEl = ref<HTMLInputElement | null>(null);
+
+/** 多选快捷键：Ctrl/Cmd+A 全选可见项，Esc 退出多选；Ctrl/Cmd+F 聚焦搜索框 */
+function onKeydown(e: KeyboardEvent) {
+  const inEditable =
+    e.target instanceof HTMLElement &&
+    (e.target.tagName === "INPUT" ||
+      e.target.tagName === "TEXTAREA" ||
+      e.target.isContentEditable);
+
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+    e.preventDefault();
+    searchInputEl.value?.focus();
+    searchInputEl.value?.select();
+    return;
+  }
+  if (e.key === "Escape") {
+    if (album.multiSelect) album.exitMultiSelect();
+    else if (album.isSearchActive && !inEditable) {
+      album.searchQuery = "";
+    }
+    return;
+  }
+  if (album.multiSelect && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+    album.selectAll(album.filteredMedia.map((m) => m.id));
+  }
+}
+
+/** 搜索框内按 Esc：有内容先清空，空内容失焦交还全局（退出多选等） */
+function onSearchKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape") {
+    if (album.searchQuery) {
+      e.stopPropagation();
+      album.searchQuery = "";
+    } else {
+      searchInputEl.value?.blur();
+    }
+  }
+}
 
 /** 顶部标签栏：点击切换选中（多选） */
 function toggleTagFilter(id: number) {
@@ -97,6 +128,19 @@ function stepDetail(dir: 1 | -1) {
   const next = detailIndex.value + dir;
   if (next >= 0 && next < album.filteredMedia.length) detailIndex.value = next;
 }
+
+// 列表变化（如详情页内删除、外部刷新）→ 校正详情索引：越界则回退到最后一张，清空则关闭
+watch(
+  () => album.filteredMedia.length,
+  (len) => {
+    if (!detailVisible.value) return;
+    if (len === 0) {
+      detailVisible.value = false;
+    } else if (detailIndex.value > len - 1) {
+      detailIndex.value = len - 1;
+    }
+  }
+);
 
 // —— 批量操作 ——
 const batchTagDialog = ref(false);
@@ -314,10 +358,12 @@ async function startMpakImport(destDir: string) {
         <div class="search-box">
           <el-icon class="search-icon"><Search /></el-icon>
           <input
+            ref="searchInputEl"
             v-model="album.searchQuery"
             class="search-input"
             type="text"
-            placeholder="搜索文件名、描述、标签..."
+            placeholder="搜索文件名、描述、标签…（Ctrl+F）"
+            @keydown="onSearchKeydown"
           />
           <el-icon v-if="album.searchQuery" class="search-clear" @click="album.searchQuery = ''">
             <CircleCloseFilled />
@@ -404,13 +450,42 @@ async function startMpakImport(destDir: string) {
         />
       </template>
 
-      <!-- 空状态 -->
+      <!-- 空状态：区分「库为空」与「搜索/筛选无结果」 -->
       <div v-if="album.filteredMedia.length === 0" class="empty-state">
-        <el-empty description="没有媒体，导入一个文件夹开始管理" />
-        <el-button type="primary" round :loading="importing" @click="importFolder">
-          <el-icon><FolderOpened /></el-icon>
-          <span>导入文件夹</span>
-        </el-button>
+        <template v-if="album.mediaList.length === 0">
+          <div class="empty-emoji">🗂️</div>
+          <div class="empty-title">还没有任何媒体</div>
+          <div class="empty-sub">导入一个文件夹，开始整理你的表情包库</div>
+          <el-button type="primary" round :loading="importing" @click="importFolder">
+            <el-icon><FolderOpened /></el-icon>
+            <span>导入文件夹</span>
+          </el-button>
+        </template>
+        <template v-else>
+          <div class="empty-emoji">🔍</div>
+          <div class="empty-title">没有匹配的媒体</div>
+          <div class="empty-sub">换个关键词，或清除当前筛选条件试试</div>
+          <div class="empty-actions">
+            <el-button v-if="album.isSearchActive" round @click="album.searchQuery = ''">
+              <el-icon><CircleCloseFilled /></el-icon>
+              <span>清除搜索</span>
+            </el-button>
+            <el-button
+              v-if="album.tagFilterIds.length > 0"
+              round
+              @click="album.tagFilterIds = []"
+            >
+              <span>清除标签筛选</span>
+            </el-button>
+            <el-button
+              v-if="album.filterActive"
+              round
+              @click="album.clearFilter(); showFilter = false"
+            >
+              <span>清除筛选条件</span>
+            </el-button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -454,7 +529,7 @@ async function startMpakImport(destDir: string) {
     />
 
     <!-- 批量打标签 -->
-    <el-dialog v-model="batchTagDialog" title="批量打标签" width="80%" align-center>
+    <el-dialog v-model="batchTagDialog" title="批量打标签" width="min(460px, 92%)" align-center>
       <el-checkbox-group v-model="batchTagDraft" class="batch-tags">
         <el-checkbox v-for="t in tagStore.sorted" :key="t.id" :value="t.id">
           {{ t.name }}
@@ -551,6 +626,7 @@ async function startMpakImport(destDir: string) {
   border-radius: 8px;
   cursor: pointer;
   color: var(--text-main);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
 }
 
 .icon-btn:hover {
@@ -563,23 +639,47 @@ async function startMpakImport(destDir: string) {
 }
 
 .add-btn {
-  color: var(--accent);
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 2px 6px rgba(246, 130, 31, 0.35);
+}
+
+.add-btn:hover {
+  color: #fff;
+  background: var(--accent-strong);
 }
 
 .view-switch {
   display: flex;
   gap: 2px;
+  padding: 2px;
+  background: var(--input-bg);
+  border-radius: 9px;
+}
+
+.view-switch .icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+}
+
+.view-switch .icon-btn.on {
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
 }
 
 .tag-filter-bar {
   flex: none;
   display: flex;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 10px 14px;
   overflow-x: auto;
   background: var(--card-bg);
   border-bottom: 1px solid var(--divider);
   scrollbar-width: none;
+  /* 两端渐隐提示可横向滚动 */
+  mask-image: linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 14px), transparent);
 }
 
 .tag-filter-bar::-webkit-scrollbar {
@@ -593,11 +693,49 @@ async function startMpakImport(destDir: string) {
 }
 
 .empty-state {
-  padding: 80px 0;
+  padding: 60px 0 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+  text-align: center;
+}
+
+.empty-emoji {
+  font-size: 52px;
+  line-height: 1;
+  margin-bottom: 10px;
+  /* 轻微呼吸动画，避免大面积留白显得死板 */
+  animation: empty-float 3s ease-in-out infinite;
+}
+
+@keyframes empty-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.empty-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .batch-tags {

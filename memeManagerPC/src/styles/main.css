@@ -24,6 +24,9 @@
   --border: #e3e6ea;
   --input-bg: #f0f2f5;
   --header-bg: rgba(255, 255, 255, 0.9);
+  --checker: #e2e5ea;
+  /* 缩略图上的浮层（角标/圆点容器） */
+  --chip-overlay: rgba(255, 255, 255, 0.78);
 
   /* 交互 */
   --hover-bg: rgba(20, 24, 30, 0.05);
@@ -57,6 +60,8 @@
   --border: #31353b;
   --input-bg: #2a2d32;
   --header-bg: rgba(32, 34, 38, 0.9);
+  --checker: #232629;
+  --chip-overlay: rgba(18, 20, 24, 0.62);
 
   --hover-bg: rgba(255, 255, 255, 0.06);
   --active-bg: rgba(255, 255, 255, 0.1);
@@ -178,8 +183,15 @@ mark.hl {
   transition: all 0.15s ease;
 }
 
+.tag-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(20, 24, 30, 0.14);
+}
+
 .tag-chip.active {
-  border-color: var(--text-main);
+  border-color: currentColor;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(20, 24, 30, 0.18);
 }
 
 /* 缩略图右下角标签圆点 */
@@ -194,10 +206,12 @@ mark.hl {
   height: 5px;
   border-radius: 50%;
   flex: none;
+  /* 在浅/深色浮层上都保持可见 */
+  box-shadow: 0 0 0 1px rgba(120, 120, 130, 0.35);
 }
 
 .tag-dot-more {
   font-size: 7px;
-  color: #b0b3b8;
+  color: var(--text-secondary);
   line-height: 1;
 }

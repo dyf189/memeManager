@@ -11,6 +11,7 @@ const items = [
 <template>
   <aside class="side-nav">
     <div class="brand">
+      <span class="brand-logo"><el-icon :size="15"><Picture /></el-icon></span>
       <span class="brand-text">表情包管理器</span>
     </div>
 
@@ -45,10 +46,24 @@ const items = [
 .brand {
   display: flex;
   align-items: center;
+  gap: 9px;
   padding: 20px 16px 16px;
   font-size: 15px;
   font-weight: 700;
   color: var(--text-main);
+}
+
+.brand-logo {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 2px 6px rgba(246, 130, 31, 0.35);
 }
 
 .nav-list {

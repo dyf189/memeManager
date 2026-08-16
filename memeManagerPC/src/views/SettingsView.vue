@@ -226,7 +226,7 @@ function todo() {
     </div>
 
     <!-- ===== 设置面板对话框 ===== -->
-    <el-dialog v-model="dialogVisible" :title="panelTitle" width="80%" align-center>
+    <el-dialog v-model="dialogVisible" :title="panelTitle" width="min(480px, 92%)" align-center>
       <!-- 默认存储类型 -->
       <el-radio-group v-if="openPanel === 'storage'" v-model="settings.defaultStorage" class="panel-options">
         <el-radio value="user">用户目录（~/ 用户主目录，便于手动备份）</el-radio>

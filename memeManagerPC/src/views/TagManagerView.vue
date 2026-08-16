@@ -140,7 +140,7 @@ async function removeTag(id: number) {
     </div>
 
     <!-- 新建标签 -->
-    <el-dialog v-model="createDialog" title="新建标签" width="80%" align-center>
+    <el-dialog v-model="createDialog" title="新建标签" width="min(420px, 92%)" align-center>
       <el-form label-width="60px" @submit.prevent>
         <el-form-item label="名称">
           <el-input v-model="createName" placeholder="标签名（唯一）" maxlength="12" />
@@ -161,7 +161,7 @@ async function removeTag(id: number) {
     </el-dialog>
 
     <!-- 重命名 -->
-    <el-dialog v-model="renameDialog" title="重命名标签" width="80%" align-center>
+    <el-dialog v-model="renameDialog" title="重命名标签" width="min(420px, 92%)" align-center>
       <el-input v-model="renameName" maxlength="12" @keyup.enter="submitRename" />
       <template #footer>
         <el-button @click="renameDialog = false">取消</el-button>
@@ -250,8 +250,13 @@ async function removeTag(id: number) {
 }
 
 .drag-handle {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: grab;
+  transition: color 0.15s;
+}
+
+.tag-row:hover .drag-handle {
+  color: var(--accent);
 }
 
 .row-color {

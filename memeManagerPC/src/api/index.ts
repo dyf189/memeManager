@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Media, Tag } from "../types";
+import { mockApi } from "./mock";
 
 /** 导入导出摘要类型（对应 Rust 端返回结构） */
 export interface ScanSummary {
@@ -23,8 +24,11 @@ export interface ExportResult {
 /**
  * API 层：统一封装 Rust 后端 tauri command。
  * Tauri 会自动把 JS 的 camelCase 参数名映射为 Rust 的 snake_case 参数名。
+ *
+ * 非 Tauri 环境（vite dev 直接用浏览器打开）时自动切换为 mock 实现，
+ * 便于脱离桌面壳进行 UI / 交互开发调试。
  */
-export const api = {
+const tauriApi = {
   // —— 媒体 ——
   listMedia: () => invoke<Media[]>("list_media"),
   listRecycle: () => invoke<Media[]>("list_recycle"),
@@ -107,3 +111,9 @@ export const api = {
   copyToClipboard: (path: string) =>
     invoke<string>("copy_to_clipboard", { path }),
 };
+
+/** 是否运行在 Tauri WebView 内（有 IPC 通道才算） */
+const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+export const api = inTauri ? tauriApi : mockApi;
+export type Api = typeof tauriApi;

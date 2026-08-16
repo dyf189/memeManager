@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { dragMediaOut } from "../utils/drag";
+import { fileSrc } from "../utils/asset";
 import type { Media } from "../types";
 import { useTagStore } from "../stores/tags";
 import { api } from "../api";
@@ -30,21 +30,44 @@ const emit = defineEmits<{
 const tagStore = useTagStore();
 
 const stageSrc = computed(() =>
-  props.media ? convertFileSrc(props.media.filePath) : ""
+  props.media ? fileSrc(props.media.filePath) : ""
 );
 const isVisual = computed(() => props.media?.mediaType !== "video");
+
+// 点击大图：切换 原始尺寸 / 适应窗口
+const zoomed = ref(false);
+watch(
+  () => props.media,
+  () => {
+    zoomed.value = false;
+    editingDesc.value = false;
+    descDraft.value = props.media?.description ?? "";
+  }
+);
+
+// 键盘导航：←/→ 切换上一张/下一张，Esc 关闭（输入框聚焦时不拦截）
+function onKeydown(e: KeyboardEvent) {
+  const t = e.target as HTMLElement | null;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key === "ArrowLeft") emit("prev");
+  else if (e.key === "ArrowRight") emit("next");
+  else if (e.key === "Escape" && !tagDialog.value) emit("close");
+}
+
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) window.addEventListener("keydown", onKeydown);
+    else window.removeEventListener("keydown", onKeydown);
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
 // 编辑描述
 const editingDesc = ref(false);
 const descDraft = ref("");
-
-watch(
-  () => props.media,
-  (m) => {
-    editingDesc.value = false;
-    descDraft.value = m?.description ?? "";
-  }
-);
 
 // 打标签对话框
 const tagDialog = ref(false);
@@ -118,13 +141,12 @@ function menuAction(action: string) {
       ElMessage.error(`打开所在文件夹失败：${e}`)
     );
   } else if (action === "delete") {
-    // 删除（进回收站）
+    // 删除（进回收站）后不直接关闭：父级刷新列表并校正索引，自动展示下一张
     api
       .deleteMedia([props.media!.id])
       .then(async () => {
         ElMessage.success("已移入回收站");
         emit("changed");
-        emit("close");
       })
       .catch((e) => ElMessage.error(`删除失败：${e}`));
   }
@@ -156,15 +178,17 @@ function menuAction(action: string) {
           </el-dropdown>
         </header>
 
-        <!-- 大图区（可直接拖拽到其它应用/桌面） -->
-        <div class="detail-stage">
+        <!-- 大图区（可直接拖拽到其它应用/桌面；点击切换 原始尺寸/适应窗口） -->
+        <div class="detail-stage" :class="{ zoomed }">
           <img
             v-if="isVisual"
             :src="stageSrc"
             class="stage-img"
             alt=""
             draggable="true"
-            @dragstart="(e: DragEvent) => dragMediaOut(e, media)"
+            :title="zoomed ? '点击缩小' : '点击查看原始尺寸'"
+            @click="zoomed = !zoomed"
+            @dragstart="(e: DragEvent) => media && dragMediaOut(e, media)"
           />
           <span v-else class="stage-placeholder">🎬 视频预览（待接入）</span>
           <span v-if="media.mediaType === 'gif'" class="stage-badge">GIF</span>
@@ -224,14 +248,20 @@ function menuAction(action: string) {
           <button class="nav-btn" :disabled="index <= 0" @click="emit('prev')">
             <el-icon><ArrowLeft /></el-icon> 上一张
           </button>
-          <el-button type="primary" round @click="menuAction('export')">导出</el-button>
+          <div class="detail-center">
+            <span class="detail-pos" :title="'← / → 键快速切换'">{{ index + 1 }} / {{ total }}</span>
+            <el-button type="primary" round @click="menuAction('export')">
+              <el-icon><Download /></el-icon>
+              <span>导出</span>
+            </el-button>
+          </div>
           <button class="nav-btn" :disabled="index >= total - 1" @click="emit('next')">
             下一张 <el-icon><ArrowRight /></el-icon>
           </button>
         </footer>
 
         <!-- 打标签对话框 -->
-        <el-dialog v-model="tagDialog" title="管理标签" width="80%">
+        <el-dialog v-model="tagDialog" title="管理标签" width="min(460px, 92%)">
           <el-checkbox-group v-model="tagDraft" class="tag-checkboxes">
             <el-checkbox v-for="t in tagStore.sorted" :key="t.id" :value="t.id">
               {{ t.name }}
@@ -301,6 +331,22 @@ function menuAction(action: string) {
   border-radius: 12px;
   overflow: hidden;
   background: var(--input-bg);
+  /* 棋盘格：透明 PNG 边界可见，也让大图区与信息区形成层次 */
+  background-image: conic-gradient(
+    var(--checker) 0 25%,
+    transparent 0 50%,
+    var(--checker) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+}
+
+/* 放大模式：容器滚动，图片按原始像素显示 */
+.detail-stage.zoomed {
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: auto;
+  cursor: zoom-out;
 }
 
 .stage-img {
@@ -308,6 +354,15 @@ function menuAction(action: string) {
   max-height: 100%;
   object-fit: contain;
   display: block;
+  cursor: zoom-in;
+}
+
+.detail-stage.zoomed .stage-img {
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  cursor: zoom-out;
 }
 
 .stage-placeholder {
@@ -424,18 +479,36 @@ function menuAction(action: string) {
 .nav-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   border: none;
   background: none;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-main);
   cursor: pointer;
-  padding: 6px 8px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  transition: background 0.15s;
+}
+
+.nav-btn:not(:disabled):hover {
+  background: var(--hover-bg);
 }
 
 .nav-btn:disabled {
   color: var(--text-muted);
   cursor: not-allowed;
+}
+
+.detail-center {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.detail-pos {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .tag-checkboxes {
