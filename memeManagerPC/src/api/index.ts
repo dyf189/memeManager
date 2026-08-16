@@ -66,6 +66,8 @@ export const api = {
   // —— .mpak 导入导出 ——
   exportPak: (items: unknown[], maxSize: number, destDir: string) =>
     invoke<ExportResult>("export_pak", { items, maxSize, destDir }),
+  /** 取消进行中的导出（后端中止任务并清理半成品分片） */
+  cancelExport: () => invoke<void>("cancel_export"),
   importPak: (path: string, destDir: string) =>
     invoke<ImportResult>("import_pak", { path, destDir }),
 

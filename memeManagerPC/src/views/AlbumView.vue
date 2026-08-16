@@ -216,10 +216,19 @@ async function runExport(items: Media[]) {
       `导出完成：${result.shards.length} 个分片，共 ${result.totalMedia} 张`
     );
   } catch (e) {
-    ElMessage.error(`导出失败：${e}`);
+    if (String(e).includes("取消")) {
+      ElMessage.info("已取消导出");
+    } else {
+      ElMessage.error(`导出失败：${e}`);
+    }
   } finally {
     exporting.visible = false;
   }
+}
+
+/** 取消导出：对话框保持到后端任务返回（成功中止或完成）后由 finally 关闭 */
+function cancelExport() {
+  api.cancelExport().catch(() => {});
 }
 
 // —— 导入单张/批量文件 ——
@@ -446,7 +455,7 @@ async function startMpakImport(destDir: string) {
       v-model:visible="exporting.visible"
       :current="exporting.current"
       :total="exporting.total"
-      @cancel="exporting.visible = false"
+      @cancel="cancelExport"
     />
 
     <MediaDetail

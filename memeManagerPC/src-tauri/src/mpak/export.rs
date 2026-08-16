@@ -1,9 +1,13 @@
-//! .mpak 导出：读取媒体文件 → 计算哈希 → 按分片算法打包写入
+//! .mpak 导出：预扫描（元数据 + 流式哈希）→ 按分片算法规划 → 流式写出。
+//! 全程不把媒体文件整体读进内存，支持随时取消。
 
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::{now_ms, sha256_hex, HEADER_LEN, MAGIC, VERSION, MediaEntry, Metadata};
+use sha2::{Digest, Sha256};
+
+use super::{now_ms, sha256_file, HEADER_LEN, MAGIC, VERSION, MediaEntry, Metadata};
 
 /// 前端传入的待导出媒体（字段与前端 Media 对应）
 #[derive(serde::Deserialize, Clone)]
@@ -65,27 +69,47 @@ fn safe_bin_name(index: usize, path: &str, media_type: &str) -> String {
     format!("meme_{:04}{}", index, ext_for(path, media_type))
 }
 
-/// 构造一个分片的完整字节流（文件头 + JSON + 媒体数据段 + 尾部哈希）
-fn build_shard_bytes(
-    prepared: &[(ExportItem, Vec<u8>, String, String)],
-    indices: &[usize],
-) -> Result<Vec<u8>, String> {
-    // —— JSON 段 ——
+/// 预扫描结果：只保留元数据与哈希，不持有文件内容
+struct Prepared {
+    item: ExportItem,
+    size: u64,
+    sha: String,
+    bin_name: String,
+}
+
+/// 边写边算哈希的包装器（用于尾部 SHA-256 覆盖全部已写内容）
+struct HashWriter<W: Write> {
+    inner: W,
+    hasher: Sha256,
+}
+
+impl<W: Write> Write for HashWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.hasher.update(buf);
+        self.inner.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+/// 写单个分片：文件头 + JSON 段 + 逐文件流式拷贝 + 尾部哈希
+fn write_shard(prepared: &[Prepared], indices: &[usize], path: &Path) -> Result<(), String> {
     let media_entries: Vec<MediaEntry> = indices
         .iter()
         .map(|&i| {
-            let (item, bytes, sha, bin_name) = &prepared[i];
+            let p = &prepared[i];
             MediaEntry {
-                file_name: bin_name.clone(),
-                name: item.name.clone(),
-                media_type: map_type(&item.media_type),
-                size: bytes.len() as u64,
-                sha256: sha.clone(),
-                width: item.width,
-                height: item.height,
-                description: item.description.clone(),
-                created_at: item.created_at,
-                tags: item.tags.clone(),
+                file_name: p.bin_name.clone(),
+                name: p.item.name.clone(),
+                media_type: map_type(&p.item.media_type),
+                size: p.size,
+                sha256: p.sha.clone(),
+                width: p.item.width,
+                height: p.item.height,
+                description: p.item.description.clone(),
+                created_at: p.item.created_at,
+                tags: p.item.tags.clone(),
             }
         })
         .collect();
@@ -100,30 +124,38 @@ fn build_shard_bytes(
     let json_bytes = serde_json::to_vec(&metadata)
         .map_err(|e| format!("元数据 JSON 序列化失败: {}", e))?;
 
+    let file = File::create(path).map_err(|e| format!("创建分片失败「{}」: {}", path.display(), e))?;
+    let mut w = HashWriter { inner: file, hasher: Sha256::new() };
+
     // —— 文件头（全大端）——
-    let mut out: Vec<u8> = Vec::with_capacity(HEADER_LEN + json_bytes.len());
-    out.extend_from_slice(&MAGIC);
-    out.extend_from_slice(&VERSION.to_be_bytes());
-    out.extend_from_slice(&(indices.len() as u32).to_be_bytes());
-    out.extend_from_slice(&(json_bytes.len() as u32).to_be_bytes());
+    w.write_all(&MAGIC).map_err(io_err(path))?;
+    w.write_all(&VERSION.to_be_bytes()).map_err(io_err(path))?;
+    w.write_all(&(indices.len() as u32).to_be_bytes()).map_err(io_err(path))?;
+    w.write_all(&(json_bytes.len() as u32).to_be_bytes()).map_err(io_err(path))?;
 
     // —— JSON 段 ——
-    out.extend_from_slice(&json_bytes);
+    w.write_all(&json_bytes).map_err(io_err(path))?;
 
-    // —— 媒体数据段 ——
+    // —— 媒体数据段（流式拷贝，不整读进内存）——
     for &i in indices {
-        let (_, bytes, _, bin_name) = &prepared[i];
-        out.extend_from_slice(&(bin_name.len() as u16).to_be_bytes());
-        out.extend_from_slice(bin_name.as_bytes());
-        out.extend_from_slice(&(bytes.len() as u64).to_be_bytes());
-        out.extend_from_slice(bytes);
+        let p = &prepared[i];
+        w.write_all(&(p.bin_name.len() as u16).to_be_bytes()).map_err(io_err(path))?;
+        w.write_all(p.bin_name.as_bytes()).map_err(io_err(path))?;
+        w.write_all(&(p.size).to_be_bytes()).map_err(io_err(path))?;
+        let mut src = File::open(&p.item.file_path)
+            .map_err(|e| format!("读取文件失败「{}」: {}", p.item.file_path, e))?;
+        std::io::copy(&mut src, &mut w).map_err(io_err(path))?;
     }
 
-    // —— 尾部哈希（覆盖以上全部内容）——
-    let hash = sha256_hex(&out);
-    let hash_bytes = hex::decode(&hash).map_err(|e| format!("哈希编码异常: {}", e))?;
-    out.extend_from_slice(&hash_bytes);
-    Ok(out)
+    // —— 尾部哈希（直接写 inner，避免把哈希自身计入哈希）——
+    let digest = w.hasher.finalize();
+    w.inner.write_all(&digest).map_err(io_err(path))?;
+    w.inner.flush().map_err(io_err(path))?;
+    Ok(())
+}
+
+fn io_err(path: &Path) -> impl Fn(std::io::Error) -> String + '_ {
+    move |e| format!("写入分片失败「{}」: {}", path.display(), e)
 }
 
 /// 分片打包入口（带进度回调：on_progress(已处理数, 总数)，用于前端进度展示）
@@ -131,17 +163,37 @@ pub fn export_pak_with_progress(
     items: Vec<ExportItem>,
     max_size: u64,
     dest_dir: &str,
-    mut on_progress: impl FnMut(usize, usize),
+    on_progress: impl FnMut(usize, usize),
 ) -> Result<ExportResult, String> {
-    export_pak_inner(items, max_size, dest_dir, &mut on_progress)
+    export_pak_inner(items, max_size, dest_dir, on_progress, || false)
 }
 
-fn export_pak_inner(
+/// 可取消版本：cancelled() 返回 true 时中止并清理已写的分片文件
+pub fn export_pak_cancellable<P, C>(
     items: Vec<ExportItem>,
     max_size: u64,
     dest_dir: &str,
-    mut on_progress: impl FnMut(usize, usize),
-) -> Result<ExportResult, String> {
+    mut on_progress: P,
+    cancelled: C,
+) -> Result<ExportResult, String>
+where
+    P: FnMut(usize, usize),
+    C: Fn() -> bool,
+{
+    export_pak_inner(items, max_size, dest_dir, |d, t| on_progress(d, t), cancelled)
+}
+
+fn export_pak_inner<P, C>(
+    items: Vec<ExportItem>,
+    max_size: u64,
+    dest_dir: &str,
+    mut on_progress: P,
+    cancelled: C,
+) -> Result<ExportResult, String>
+where
+    P: FnMut(usize, usize),
+    C: Fn() -> bool,
+{
     if items.is_empty() {
         // 规范 6.2：空导出不生成文件
         return Err("未选择任何媒体".into());
@@ -150,15 +202,18 @@ fn export_pak_inner(
         return Err("分片大小上限必须大于 0".into());
     }
 
-    // 预读所有文件：字节 + SHA-256 + 二进制段文件名
-    // prepared[i] = (item, bytes, sha256, bin_name)
-    let mut prepared: Vec<(ExportItem, Vec<u8>, String, String)> = Vec::with_capacity(items.len());
+    // —— 预扫描：大小 + 流式哈希 + 二进制段文件名（不持有文件内容）——
+    let mut prepared: Vec<Prepared> = Vec::with_capacity(items.len());
     for (i, item) in items.iter().enumerate() {
-        let bytes = fs::read(&item.file_path)
-            .map_err(|e| format!("读取文件失败「{}」: {}", item.file_path, e))?;
-        let sha = sha256_hex(&bytes);
+        if cancelled() {
+            return Err("导出已取消".into());
+        }
+        let meta = fs::metadata(&item.file_path)
+            .map_err(|e| format!("读取文件信息失败「{}」: {}", item.file_path, e))?;
+        let sha = sha256_file(Path::new(&item.file_path))
+            .ok_or_else(|| format!("读取文件失败「{}」", item.file_path))?;
         let bin_name = safe_bin_name(i + 1, &item.file_path, &item.media_type);
-        prepared.push((item.clone(), bytes, sha, bin_name));
+        prepared.push(Prepared { item: item.clone(), size: meta.len(), sha, bin_name });
         on_progress(i + 1, items.len());
     }
 
@@ -169,8 +224,9 @@ fn export_pak_inner(
     let mut current: Vec<usize> = Vec::new();
     let mut used: u64 = HEADER_LEN as u64;
     for idx in 0..prepared.len() {
-        let (_, bytes, _, bin_name) = &prepared[idx];
-        let new_size = used + 2 + bin_name.len() as u64 + 8 + bytes.len() as u64;
+        let p = &prepared[idx];
+        let entry_size = 2 + p.bin_name.len() as u64 + 8 + p.size;
+        let new_size = used + entry_size;
         if new_size <= max_size {
             current.push(idx);
             used = new_size;
@@ -180,7 +236,7 @@ fn export_pak_inner(
             used = new_size;
         } else {
             shards.push(std::mem::take(&mut current));
-            used = HEADER_LEN as u64 + 2 + bin_name.len() as u64 + 8 + bytes.len() as u64;
+            used = HEADER_LEN as u64 + entry_size;
             current.push(idx);
         }
     }
@@ -192,6 +248,9 @@ fn export_pak_inner(
 
     let mut written: Vec<String> = Vec::with_capacity(shards.len());
     for (si, shard) in shards.iter().enumerate() {
+        if cancelled() {
+            return Err("导出已取消".into());
+        }
         // 避免覆盖已存在文件：meme_0001.mpak、meme_0001_2.mpak ...
         let mut path = PathBuf::from(dest_dir).join(format!("meme_{:04}.mpak", si + 1));
         let mut n = 2;
@@ -199,8 +258,11 @@ fn export_pak_inner(
             path = PathBuf::from(dest_dir).join(format!("meme_{:04}_{}.mpak", si + 1, n));
             n += 1;
         }
-        let data = build_shard_bytes(&prepared, shard)?;
-        fs::write(&path, &data).map_err(|e| format!("写入分片失败「{}」: {}", path.display(), e))?;
+        if let Err(e) = write_shard(&prepared, shard, &path) {
+            // 失败时移除半成品，避免留下损坏分片
+            let _ = fs::remove_file(&path);
+            return Err(e);
+        }
         written.push(path.to_string_lossy().into_owned());
     }
 
@@ -281,6 +343,30 @@ mod tests {
         // 尾部哈希必须为 32 字节
         let bytes = fs::read(&result.shards[0]).unwrap();
         assert!(bytes.len() >= super::super::HEADER_LEN + super::super::HASH_LEN);
+
+        // 流式写出的分片能被导入端完整解析
+        let dest = dir.join("dest");
+        let imported = crate::mpak::import::import_pak(&result.shards[0], dest.to_str().unwrap()).unwrap();
+        assert_eq!(imported.succeeded, 2);
+        assert_eq!(imported.failed, 0);
+        let roundtrip = fs::read(dest.join("猫咪图.png")).unwrap();
+        assert_eq!(roundtrip, b"content-of-a.png");
+    }
+
+    #[test]
+    fn test_cancellable_export() {
+        let dir = tmp_dir("cancel");
+        let media_dir = dir.join("media");
+        fs::create_dir_all(&media_dir).unwrap();
+        let items: Vec<ExportItem> = (0..3).map(|i| make_item(&media_dir, &format!("f{}.png", i), "x")).collect();
+
+        let out_dir = dir.join("out");
+        // 第一个文件预扫描后即取消
+        let err = export_pak_cancellable(items, 1024 * 1024, out_dir.to_str().unwrap(), |_, _| {}, || true)
+            .unwrap_err();
+        assert!(err.contains("取消"));
+        // 未生成任何分片
+        assert!(fs::read_dir(&out_dir).map(|d| d.count()).unwrap_or(0) == 0);
     }
 
     #[test]

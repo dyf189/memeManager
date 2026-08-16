@@ -30,18 +30,42 @@ fn auto_purge_recycle(app: tauri::AppHandle) {
 
 // ===== .mpak 导入导出 =====
 
-/// 导出 .mpak 分片（前端传入待导出媒体列表 + 分片上限 + 输出目录）
+/// 导出取消标志（同一时间只允许一个导出任务在跑）
+pub struct ExportCancel(pub std::sync::Arc<std::sync::atomic::AtomicBool>);
+
+/// 导出 .mpak 分片（前端传入待导出媒体列表 + 分片上限 + 输出目录）。
+/// 阻塞工作放 spawn_blocking，避免占用主线程导致取消命令无法响应。
 #[tauri::command]
-fn export_pak(
+async fn export_pak(
     app: tauri::AppHandle,
+    cancel: State<'_, ExportCancel>,
     items: Vec<mpak::export::ExportItem>,
     max_size: u64,
     dest_dir: String,
 ) -> Result<mpak::export::ExportResult, String> {
     use tauri::Emitter;
-    mpak::export::export_pak_with_progress(items, max_size, &dest_dir, |done, total| {
-        let _ = app.emit("export-progress", (done, total));
+    cancel.0.store(false, std::sync::atomic::Ordering::Relaxed);
+    let flag = cancel.0.clone();
+    let emit_app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        mpak::export::export_pak_cancellable(
+            items,
+            max_size,
+            &dest_dir,
+            move |done, total| {
+                let _ = emit_app.emit("export-progress", (done, total));
+            },
+            move || flag.load(std::sync::atomic::Ordering::Relaxed),
+        )
     })
+    .await
+    .map_err(|e| format!("导出任务异常: {}", e))?
+}
+
+/// 取消进行中的导出
+#[tauri::command]
+fn cancel_export(cancel: State<ExportCancel>) {
+    cancel.0.store(true, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// 导入 .mpak 分片（校验 → 解析 → 提取到目标目录 → 扫描入库 → 元数据合并）
@@ -230,6 +254,9 @@ pub fn run() {
             let conn = db::init(&dir.join("mememanager.db"))
                 .map_err(|e| format!("初始化数据库失败: {}", e))?;
             app.manage(Db(std::sync::Mutex::new(conn)));
+            app.manage(ExportCancel(std::sync::Arc::new(
+                std::sync::atomic::AtomicBool::new(false),
+            )));
             app.manage(fs_watch::Watchers(std::sync::Mutex::new(
                 std::collections::HashMap::new(),
             )));
@@ -271,6 +298,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             export_pak,
+            cancel_export,
             import_pak,
             scan_folder,
             list_media,
