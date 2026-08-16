@@ -3,20 +3,30 @@ import { defineStore } from "pinia";
 import type { Tag } from "../types";
 import { api } from "../api";
 import { PRESET_TAG_COLORS } from "../utils/color";
+import { useSettingsStore } from "./settings";
 
 /** 标签管理器状态（读写均持久化到 SQLite） */
 export const useTagStore = defineStore("tags", () => {
   const tags = ref<Tag[]>([]);
   const loaded = ref(false);
 
+  const settingsStore = useSettingsStore();
+
   const sorted = computed(() => [...tags.value].sort((a, b) => a.sortOrder - b.sortOrder));
+
+  /** 预设色（来自设置，用户清空时回退内置色） */
+  const presetColors = computed(() => {
+    const c = settingsStore.settings.presetColors;
+    return c.length > 0 ? c : PRESET_TAG_COLORS;
+  });
 
   /** 新建标签时按预设色循环分配（goals.md：删除后不影响循环） */
   const nextColor = computed(() => {
-    if (tags.value.length === 0) return PRESET_TAG_COLORS[0];
+    const colors = presetColors.value;
+    if (tags.value.length === 0) return colors[0];
     const last = tags.value[tags.value.length - 1];
-    const idx = PRESET_TAG_COLORS.indexOf(last.bgColor);
-    return PRESET_TAG_COLORS[(idx + 1) % PRESET_TAG_COLORS.length];
+    const idx = colors.indexOf(last.bgColor);
+    return colors[(idx + 1) % colors.length];
   });
 
   async function loadTags() {
@@ -86,6 +96,7 @@ export const useTagStore = defineStore("tags", () => {
     tags,
     loaded,
     sorted,
+    presetColors,
     nextColor,
     loadTags,
     addTag,

@@ -157,6 +157,18 @@ async function batchDelete() {
 // —— 导入文件夹 ——
 const importing = ref(false);
 
+/** 时间分组依据（来自设置：拍摄/导入日期），传给网格/列表 */
+const groupField = computed<"takenTime" | "importTime">(() =>
+  settingsStore.settings.groupBy === "import" ? "importTime" : "takenTime"
+);
+
+/** 导入目标目录：设置默认存储为自定义目录时用之，否则程序默认媒体目录 */
+async function resolveImportDest(): Promise<string> {
+  const s = settingsStore.settings;
+  if (s.defaultStorage === "custom" && s.customDir) return s.customDir;
+  return api.defaultMediaDir();
+}
+
 async function importFolder() {
   const dir = await api.pickDirectory();
   if (!dir) return;
@@ -236,7 +248,7 @@ async function importFiles(paths: string[]) {
   if (paths.length === 0) return;
   importing.value = true;
   try {
-    const destDir = await api.defaultMediaDir();
+    const destDir = await resolveImportDest();
     const sum = await api.importFiles(paths, destDir);
     await album.loadMedia();
     ElMessage.success(`已导入 ${sum.added} 张，更新 ${sum.updated} 张`);
@@ -280,7 +292,7 @@ async function importMpak() {
   const file = await api.pickMpakFile();
   if (!file) return;
   mpakState.file = file;
-  mpakState.defaultDir = await api.defaultMediaDir();
+  mpakState.defaultDir = await resolveImportDest();
   mpakState.destDialog = true;
 }
 
@@ -405,6 +417,7 @@ async function startMpakImport(destDir: string) {
           :selected-ids="album.selectedIds"
           :columns="settingsStore.settings.gridCols"
           :sort-mode="album.sortMode"
+          :group-field="groupField"
           @open="openDetail"
           @select="(m: Media) => album.toggleSelect(m.id)"
           @multi="(m: Media) => album.enterMultiSelect(m.id)"
@@ -415,6 +428,7 @@ async function startMpakImport(destDir: string) {
           :items="album.filteredMedia"
           :multi-select="album.multiSelect"
           :selected-ids="album.selectedIds"
+          :group-field="groupField"
           @open="openDetail"
           @select="(m: Media) => album.toggleSelect(m.id)"
           @multi="(m: Media) => album.enterMultiSelect(m.id)"

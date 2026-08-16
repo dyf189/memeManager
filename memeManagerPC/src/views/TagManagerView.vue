@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { useTagStore } from "../stores/tags";
 import { PRESET_TAG_COLORS } from "../utils/color";
@@ -9,6 +9,7 @@ import { VueDraggable } from "vue-draggable-plus";
 import type { Tag } from "../types";
 
 const tagStore = useTagStore();
+const swatches = computed(() => tagStore.presetColors);
 
 onMounted(() => tagStore.loadTags());
 
@@ -120,6 +121,7 @@ async function removeTag(id: number) {
           <TagChip :tag="t" />
           <ColorPickerPop
             :model-value="t.bgColor"
+            :preset-colors="swatches"
             class="row-color"
             @update:model-value="(c: string) => tagStore.setColor(t.id, c)"
           />
@@ -147,7 +149,7 @@ async function removeTag(id: number) {
         </el-form-item>
         <el-form-item label="颜色">
           <div class="color-options">
-            <ColorPickerPop v-model="createColor" />
+            <ColorPickerPop v-model="createColor" :preset-colors="swatches" />
           </div>
         </el-form-item>
         <el-form-item label="">

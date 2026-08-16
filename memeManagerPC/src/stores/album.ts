@@ -4,9 +4,7 @@ import type { FilterState, Media, ViewMode } from "../types";
 import { emptyFilter } from "../types";
 import { api } from "../api";
 import { useTagStore } from "./tags";
-import { useSettingsStore } from "./settings";
 import { prewarmIcons } from "../utils/drag";
-import { groupByTime } from "../utils/time";
 import { dirName } from "../utils/format";
 
 /**
@@ -47,7 +45,6 @@ export const useAlbumStore = defineStore("album", () => {
   const selectedIds = ref<Set<number>>(new Set());
 
   const tagStore = useTagStore();
-  const settingsStore = useSettingsStore();
 
   async function loadMedia() {
     loading.value = true;
@@ -111,13 +108,6 @@ export const useAlbumStore = defineStore("album", () => {
     return list;
   });
 
-  /** 时间分组（依据设置：拍摄日期 / 导入日期） */
-  const grouped = computed(() => {
-    const field =
-      settingsStore.settings.groupBy === "import" ? "importTime" : "takenTime";
-    return groupByTime(filteredMedia.value, Date.now(), field);
-  });
-
   /** 库中所有来源目录（供筛选器选择） */
   const dirList = computed(() => {
     const set = new Set<string>();
@@ -178,7 +168,6 @@ export const useAlbumStore = defineStore("album", () => {
     setFilter,
     clearFilter,
     filteredMedia,
-    grouped,
     dirList,
     enterMultiSelect,
     toggleSelect,

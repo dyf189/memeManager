@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import { Sketch } from "@ckpack/vue-color";
 import { PRESET_TAG_COLORS } from "../utils/color";
 
-const props = defineProps<{ modelValue: string }>();
+const props = defineProps<{
+  modelValue: string;
+  /** 预设色（来自设置）；缺省用内置预设 */
+  presetColors?: string[];
+}>();
 const emit = defineEmits<{ (e: "update:modelValue", v: string): void }>();
+
+const swatches = computed(() =>
+  props.presetColors && props.presetColors.length > 0 ? props.presetColors : PRESET_TAG_COLORS
+);
 
 const open = ref(false);
 const pos = ref({ top: 0, left: 0 });
@@ -74,7 +82,7 @@ onBeforeUnmount(() => {
     >
       <Sketch
         :model-value="modelValue"
-        :preset-colors="PRESET_TAG_COLORS"
+        :preset-colors="swatches"
         :disable-alpha="true"
         @update:model-value="onSketchUpdate"
       />

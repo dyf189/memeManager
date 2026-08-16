@@ -210,7 +210,9 @@ function todo() {
         </div>
         <div class="item">
           <span class="item-label">同步维护 JSON 数据文件</span>
-          <el-switch v-model="settings.jsonSync" size="small" />
+          <el-tooltip content="待接入 Rust 后端" placement="left">
+            <el-switch :model-value="settings.jsonSync" size="small" disabled />
+          </el-tooltip>
         </div>
       </section>
 

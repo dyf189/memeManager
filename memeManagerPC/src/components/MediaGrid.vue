@@ -14,6 +14,8 @@ const props = defineProps<{
   columns?: number;
   /** 拖拽排序模式：开启时拖拽 = 排序，关闭时拖拽 = 拖出文件 */
   sortMode?: boolean;
+  /** 时间分组依据（来自设置：拍摄/导入日期） */
+  groupField?: "takenTime" | "importTime";
 }>();
 
 const emit = defineEmits<{
@@ -24,7 +26,7 @@ const emit = defineEmits<{
 }>();
 
 // 必须用 computed：items 是异步加载的，普通变量不会随 props 更新
-const groups = computed(() => groupByTime(props.items));
+const groups = computed(() => groupByTime(props.items, Date.now(), props.groupField ?? "takenTime"));
 const gridStyle = computed(() =>
   props.columns
     ? `repeat(${props.columns}, minmax(0, 1fr))`

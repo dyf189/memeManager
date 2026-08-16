@@ -11,6 +11,8 @@ const props = defineProps<{
   items: Media[];
   multiSelect: boolean;
   selectedIds: Set<number>;
+  /** 时间分组依据（来自设置：拍摄/导入日期） */
+  groupField?: "takenTime" | "importTime";
 }>();
 
 const emit = defineEmits<{
@@ -20,7 +22,7 @@ const emit = defineEmits<{
 }>();
 
 // 必须用 computed：items 是异步加载的，普通变量不会随 props 更新
-const groups = computed(() => groupByTime(props.items));
+const groups = computed(() => groupByTime(props.items, Date.now(), props.groupField ?? "takenTime"));
 
 function onItemClick(m: Media) {
   if (props.multiSelect) emit("select", m);
