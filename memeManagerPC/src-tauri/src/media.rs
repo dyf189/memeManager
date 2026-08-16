@@ -627,18 +627,38 @@ pub fn apply_imported_metadata_impl(
     }
     Ok(())
 }
-/// 把用户选中的文件复制到目标目录（文件名清洗 + 冲突后缀），随后扫描入库
+/// 单文件/批量文件导入结果：真正复制进目标目录的文件数 + 目录扫描摘要
+#[derive(serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportFilesResult {
+    /// 成功复制到目标目录的媒体文件数
+    pub copied: usize,
+    /// 目标目录扫描摘要（统计覆盖整个目录，不代表本次导入量）
+    pub scan: ScanSummary,
+}
+
+/// 把用户选中的文件复制到目标目录（文件名清洗 + 冲突后缀），随后扫描入库。
+/// 只接受受支持的媒体扩展名，非媒体文件直接拒绝，避免悄悄往媒体目录塞垃圾文件。
 pub fn import_files_impl(
     conn: &Connection,
     paths: &[String],
     dest_dir: &str,
-) -> Result<ScanSummary, String> {
+) -> Result<ImportFilesResult, String> {
     if paths.is_empty() {
         return Err("未选择任何文件".into());
     }
+    let valid: Vec<&String> = paths
+        .iter()
+        .filter(|p| classify(Path::new(p)).is_some())
+        .collect();
+    if valid.is_empty() {
+        return Err("所选文件中没有支持的媒体类型（图片/GIF/视频）".into());
+    }
+
     fs::create_dir_all(dest_dir).map_err(|e| format!("创建目录失败「{}」: {}", dest_dir, e))?;
 
-    for p in paths {
+    let mut copied = 0usize;
+    for p in valid {
         let src = Path::new(p);
         let name = src
             .file_name()
@@ -646,10 +666,12 @@ pub fn import_files_impl(
             .unwrap_or_default();
         let target = crate::mpak::import::resolve_target(dest_dir, &name);
         fs::copy(src, &target).map_err(|e| format!("复制文件失败「{}」: {}", p, e))?;
+        copied += 1;
     }
 
     // 复制完成后扫描目标目录入库（新增/更新/清理统计）
-    scan_folder_impl(conn, dest_dir, true)
+    let scan = scan_folder_impl(conn, dest_dir, true)?;
+    Ok(ImportFilesResult { copied, scan })
 }
 
 // ===== 已索引目录（文件系统监视范围）=====
@@ -1091,6 +1113,39 @@ mod tests {
         assert_eq!(names, ["a.png", "b.png", "new.png"]);
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_import_files_filters_non_media() {
+        let conn = mem_db();
+        let src = std::env::temp_dir().join(format!("mm_impf_src_{}", std::process::id()));
+        let dest = std::env::temp_dir().join(format!("mm_impf_dst_{}", std::process::id()));
+        for d in [&src, &dest] {
+            let _ = fs::remove_dir_all(d);
+            fs::create_dir_all(d).unwrap();
+        }
+        make_file(&src, "a.png", b"a");
+        make_file(&src, "b.txt", b"not media");
+
+        // 混入非媒体文件：只复制媒体，非媒体被过滤
+        let paths = vec![
+            src.join("a.png").to_string_lossy().into_owned(),
+            src.join("b.txt").to_string_lossy().into_owned(),
+        ];
+        let res = import_files_impl(&conn, &paths, dest.to_str().unwrap()).unwrap();
+        assert_eq!(res.copied, 1);
+        assert!(dest.join("a.png").exists());
+        assert!(!dest.join("b.txt").exists(), "非媒体文件不应被复制进媒体目录");
+        assert_eq!(res.scan.added, 1);
+
+        // 全是非媒体文件：直接报错
+        let err = import_files_impl(&conn, &[src.join("b.txt").to_string_lossy().into_owned()], dest.to_str().unwrap())
+            .unwrap_err();
+        assert!(err.contains("媒体类型"));
+
+        for d in [&src, &dest] {
+            let _ = fs::remove_dir_all(d);
+        }
     }
 
     #[test]

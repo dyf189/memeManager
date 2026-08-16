@@ -19,6 +19,11 @@ export interface ExportResult {
   shards: string[];
   totalMedia: number;
 }
+/** 文件导入结果（对应 Rust 端 ImportFilesResult） */
+export interface ImportFilesResult {
+  copied: number;
+  scan: ScanSummary;
+}
 
 /**
  * API 层：统一封装 Rust 后端 tauri command。
@@ -108,7 +113,7 @@ export const api = {
   },
   /** 导入用户选择的文件到目标目录并入库 */
   importFiles: (paths: string[], destDir: string) =>
-    invoke<ScanSummary>("import_files", { paths, destDir }),
+    invoke<ImportFilesResult>("import_files", { paths, destDir }),
   /** 复制文件到系统剪贴板（图片复制图像，视频复制路径） */
   copyToClipboard: (path: string) =>
     invoke<string>("copy_to_clipboard", { path }),

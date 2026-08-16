@@ -224,7 +224,7 @@ fn import_files(
     db: State<Db>,
     paths: Vec<String>,
     dest_dir: String,
-) -> Result<media::ScanSummary, String> {
+) -> Result<media::ImportFilesResult, String> {
     let conn = db.0.lock().map_err(|_| "数据库锁异常".to_string())?;
     let sum = media::import_files_impl(&conn, &paths, &dest_dir)?;
     media::add_index_dir_impl(&conn, &dest_dir).map_err(|e| e.to_string())?;

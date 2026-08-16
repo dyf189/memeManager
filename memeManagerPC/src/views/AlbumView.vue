@@ -249,9 +249,9 @@ async function importFiles(paths: string[]) {
   importing.value = true;
   try {
     const destDir = await resolveImportDest();
-    const sum = await api.importFiles(paths, destDir);
+    const res = await api.importFiles(paths, destDir);
     await album.loadMedia();
-    ElMessage.success(`已导入 ${sum.added} 张，更新 ${sum.updated} 张`);
+    ElMessage.success(`已导入 ${res.copied} 张，库新增 ${res.scan.added} 条`);
   } catch (e) {
     ElMessage.error(`导入失败：${e}`);
   } finally {
