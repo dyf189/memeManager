@@ -44,18 +44,25 @@ fn export_pak(
     })
 }
 
-/// 导入 .mpak 分片（校验 → 解析 → 提取到目标目录 → 元数据合并入库）
+/// 导入 .mpak 分片（校验 → 解析 → 提取到目标目录 → 扫描入库 → 元数据合并）
 #[tauri::command]
 fn import_pak(
+    app: tauri::AppHandle,
     db: State<Db>,
     path: String,
     dest_dir: String,
 ) -> Result<mpak::import::ImportResult, String> {
     let result = mpak::import::import_pak(&path, &dest_dir)?;
-    // 提取出的元数据（描述/标签/时间/尺寸）合并到媒体库
+    // 提取出的元数据（描述/标签/时间/尺寸）合并到媒体库。
+    // 必须先扫描入库再合并：apply 按 file_path 反查记录，
+    // 若目标目录尚未索引（自定义目录/监视未触发），记录不存在会导致元数据全部丢失。
     if !result.items.is_empty() {
         let conn = db.0.lock().map_err(|_| "数据库锁异常".to_string())?;
+        media::scan_folder_impl(&conn, &dest_dir, true)?;
         media::apply_imported_metadata_impl(&conn, &result.items)?;
+        media::add_index_dir_impl(&conn, &dest_dir).map_err(|e| e.to_string())?;
+        drop(conn);
+        fs_watch::start_watching(&app, &dest_dir);
     }
     Ok(result)
 }

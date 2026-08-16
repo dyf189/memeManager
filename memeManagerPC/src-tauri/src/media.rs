@@ -583,9 +583,10 @@ pub fn apply_imported_metadata_impl(
         };
 
         let _ = conn.execute(
-            "UPDATE media SET description = ?1, taken_time = ?2, width = ?3, height = ?4 WHERE id = ?5",
+            // 描述/尺寸缺失时保留库中原值，避免用空值覆盖已有内容
+            "UPDATE media SET description = COALESCE(?1, description), taken_time = ?2, width = COALESCE(?3, width), height = COALESCE(?4, height) WHERE id = ?5",
             params![
-                item.description.as_deref().unwrap_or(""),
+                item.description.as_deref(),
                 item.created_at,
                 item.width,
                 item.height,
@@ -972,6 +973,54 @@ mod tests {
         assert!(names.contains(&"d.png".to_string()));
 
         let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_mpak_roundtrip_metadata_landed() {
+        // 导出带标签/描述的媒体 → 导入到全新目录 → 先扫描再合并元数据，
+        // 验证元数据在目标目录未预先索引的情况下也能落库（导入流程顺序回归测试）
+        let conn = mem_db();
+        let pid = std::process::id();
+        let src = std::env::temp_dir().join(format!("mm_mpak_src_{}", pid));
+        let out = std::env::temp_dir().join(format!("mm_mpak_out_{}", pid));
+        let dest = std::env::temp_dir().join(format!("mm_mpak_dst_{}", pid));
+        for d in [&src, &out, &dest] {
+            let _ = fs::remove_dir_all(d);
+            fs::create_dir_all(d).unwrap();
+        }
+        make_file(&src, "cat.png", b"cat-image-bytes");
+        scan_folder_impl(&conn, src.to_str().unwrap(), false).unwrap();
+
+        let item = crate::mpak::export::ExportItem {
+            name: "cat.png".into(),
+            media_type: "image".into(),
+            file_path: src.join("cat.png").to_string_lossy().into_owned(),
+            width: Some(100),
+            height: Some(80),
+            description: Some("一只猫".into()),
+            created_at: 1_785_000_001_000,
+            tags: vec!["可爱".into()],
+        };
+        let result = crate::mpak::export::export_pak_with_progress(vec![item], 1024 * 1024, out.to_str().unwrap(), |_, _| {})
+            .unwrap();
+
+        let imported = crate::mpak::import::import_pak(&result.shards[0], dest.to_str().unwrap()).unwrap();
+        assert_eq!(imported.succeeded, 1);
+
+        // 修复后的顺序：先扫描入库，再合并元数据
+        scan_folder_impl(&conn, dest.to_str().unwrap(), true).unwrap();
+        apply_imported_metadata_impl(&conn, &imported.items).unwrap();
+
+        let list = list_media_impl(&conn).unwrap();
+        let m = list.iter().find(|m| m.file_path.starts_with(dest.to_string_lossy().as_ref())).unwrap();
+        assert_eq!(m.description, "一只猫");
+        assert_eq!(m.width, Some(100));
+        assert_eq!(m.taken_time, 1_785_000_001_000);
+        assert_eq!(m.tag_ids.len(), 1, "导入应按标签名创建并关联标签");
+
+        for d in [&src, &out, &dest] {
+            let _ = fs::remove_dir_all(d);
+        }
     }
 
     #[test]
