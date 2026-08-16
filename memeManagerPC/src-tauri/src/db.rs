@@ -69,6 +69,16 @@ pub fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
         "DELETE FROM media_tag WHERE media_id NOT IN (SELECT id FROM media);
          DELETE FROM media_tag WHERE tag_id NOT IN (SELECT id FROM tag);",
     )?;
+    // 旧库迁移：修正误把 media_type 写进 mime_type 的行（image/gif/video → 真实 MIME）
+    conn.execute(
+        "UPDATE media SET mime_type = CASE media_type
+             WHEN 'gif' THEN 'image/gif'
+             WHEN 'video' THEN 'video/mp4'
+             ELSE 'image/jpeg'
+         END
+         WHERE mime_type IN ('image', 'gif', 'video')",
+        [],
+    )?;
     Ok(())
 }
 

@@ -152,7 +152,7 @@ pub fn scan_folder_impl(conn: &Connection, dir: &str, recursive: bool) -> Result
             continue;
         };
         let file_size = meta.len() as i64;
-        let (media_type, _mime) = classify(path).unwrap_or(("image", "image/jpeg"));
+        let (media_type, mime_type) = classify(path).unwrap_or(("image", "image/jpeg"));
         let file_name = path
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
@@ -178,7 +178,7 @@ pub fn scan_folder_impl(conn: &Connection, dir: &str, recursive: bool) -> Result
             let sha = sha256_file(path);
             let res = conn.execute(
                 "UPDATE media SET file_size = ?1, sha256 = ?2, media_type = ?3, mime_type = ?4, taken_time = ?5, file_name = ?6 WHERE id = ?7",
-                params![file_size, sha, media_type, media_type, taken_time, file_name, id],
+                params![file_size, sha, media_type, mime_type, taken_time, file_name, id],
             );
             if res.is_ok() {
                 updated += 1;
@@ -193,7 +193,7 @@ pub fn scan_folder_impl(conn: &Connection, dir: &str, recursive: bool) -> Result
         let res = conn.execute(
             "INSERT INTO media (file_name, file_path, storage_type, media_type, mime_type, source, description, taken_time, import_time, file_size, sha256, is_deleted)
              VALUES (?1, ?2, 'user', ?3, ?4, 'custom', '', ?5, ?6, ?7, ?8, 0)",
-            params![file_name, file_path, media_type, media_type, taken_time, now, file_size, sha],
+            params![file_name, file_path, media_type, mime_type, taken_time, now, file_size, sha],
         );
         if res.is_ok() {
             added += 1;
@@ -671,6 +671,11 @@ mod tests {
         assert!(types.contains(&"image") && types.contains(&"gif") && types.contains(&"video"));
         // sha256 已计算
         assert!(list.iter().all(|m| m.sha256.is_some()));
+        // mime_type 存真实 MIME（而非 media_type）
+        let gif = list.iter().find(|m| m.file_name == "b.gif").unwrap();
+        assert_eq!(gif.mime_type.as_deref(), Some("image/gif"));
+        let mp4 = list.iter().find(|m| m.file_name == "c.mp4").unwrap();
+        assert_eq!(mp4.mime_type.as_deref(), Some("video/mp4"));
 
         // 重复扫描：全部跳过
         let sum2 = scan_folder_impl(&conn, dir.to_str().unwrap(), false).unwrap();
