@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS settings (
 
 /// 在给定连接上建表 + 写入默认数据
 pub fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
+    // 外键约束（级联删除）默认关闭，必须每个连接显式开启
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     conn.execute_batch(SCHEMA)?;
     // 旧库迁移：添加 sort_order 列（已存在则忽略）
     let _ = conn.execute(
@@ -62,6 +64,11 @@ pub fn init_schema(conn: &Connection) -> rusqlite::Result<()> {
     );
     // 清理旧版本的 [已导出] 保留标签（该标签已废弃，保留标签机制仍保留）
     let _ = conn.execute("DELETE FROM tag WHERE name = '[已导出]' AND is_reserved = 1", []);
+    // 清理历史孤儿关联（外键此前未启用，删除媒体/标签时留下了悬空行）
+    conn.execute_batch(
+        "DELETE FROM media_tag WHERE media_id NOT IN (SELECT id FROM media);
+         DELETE FROM media_tag WHERE tag_id NOT IN (SELECT id FROM tag);",
+    )?;
     Ok(())
 }
 
@@ -93,5 +100,57 @@ mod tests {
         init_schema(&conn).unwrap();
         let total: i64 = conn.query_row("SELECT COUNT(*) FROM tag", [], |r| r.get(0)).unwrap();
         assert_eq!(total, 0);
+    }
+
+    #[test]
+    fn test_foreign_keys_cascade() {
+        let conn = Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+
+        conn.execute(
+            "INSERT INTO media (file_name, file_path, media_type, taken_time, import_time, file_size)
+             VALUES ('a.png', '/t/a.png', 'image', 0, 0, 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO tag (name, bg_color, sort_order) VALUES ('T', '#fff', 1)", [])
+            .unwrap();
+        conn.execute("INSERT INTO media_tag (media_id, tag_id) VALUES (1, 1)", []).unwrap();
+
+        // 删除媒体 → 关联级联清除
+        conn.execute("DELETE FROM media WHERE id = 1", []).unwrap();
+        let n: i64 = conn.query_row("SELECT COUNT(*) FROM media_tag", [], |r| r.get(0)).unwrap();
+        assert_eq!(n, 0);
+
+        // 删除标签 → 关联级联清除
+        conn.execute(
+            "INSERT INTO media (file_name, file_path, media_type, taken_time, import_time, file_size)
+             VALUES ('b.png', '/t/b.png', 'image', 0, 0, 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO media_tag (media_id, tag_id) VALUES (2, 1)", []).unwrap();
+        conn.execute("DELETE FROM tag WHERE id = 1", []).unwrap();
+        let n: i64 = conn.query_row("SELECT COUNT(*) FROM media_tag", [], |r| r.get(0)).unwrap();
+        assert_eq!(n, 0);
+    }
+
+    #[test]
+    fn test_orphan_cleanup_migration() {
+        let conn = Connection::open_in_memory().unwrap();
+        init_schema(&conn).unwrap();
+        // 先关掉外键模拟旧库写入悬空关联
+        conn.execute_batch("PRAGMA foreign_keys = OFF;").unwrap();
+        conn.execute(
+            "INSERT INTO media (file_name, file_path, media_type, taken_time, import_time, file_size)
+             VALUES ('a.png', '/t/a.png', 'image', 0, 0, 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute("INSERT INTO media_tag (media_id, tag_id) VALUES (1, 999)", []).unwrap();
+        // 再次 init_schema 应清掉孤儿行
+        init_schema(&conn).unwrap();
+        let n: i64 = conn.query_row("SELECT COUNT(*) FROM media_tag", [], |r| r.get(0)).unwrap();
+        assert_eq!(n, 0);
     }
 }
