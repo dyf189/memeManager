@@ -258,13 +258,13 @@ fn load_media(conn: &Connection, query: &str, params: &[&dyn rusqlite::ToSql]) -
     Ok(list)
 }
 
-/// 相册媒体（手动排序优先，未手动排序的按时间降序；不含回收站）
+/// 相册排序：手动排序（sort_order > 0）的项优先按用户排的顺序展示，
+/// 未手动排序（sort_order = 0）的排在后面、按时间降序（新导入不打乱手动顺序）
+const MEDIA_ORDER: &str = "(sort_order = 0), sort_order, taken_time DESC, id ASC";
+
+/// 相册媒体（不含回收站）
 pub fn list_media_impl(conn: &Connection) -> Result<Vec<Media>, String> {
-    load_media(
-        conn,
-        "WHERE is_deleted = 0 ORDER BY sort_order ASC, taken_time DESC",
-        &[],
-    )
+    load_media(conn, &format!("WHERE is_deleted = 0 ORDER BY {}", MEDIA_ORDER), &[])
 }
 
 /// 回收站媒体
@@ -437,10 +437,38 @@ pub fn replace_media_tags_impl(conn: &Connection, media_ids: &[i64], tag_ids: &[
     Ok(())
 }
 
-/// 按给定 id 顺序整体重写 sort_order（相册拖拽排序持久化）
+/// 按给定 id 顺序重写 sort_order（相册拖拽排序持久化）。
+/// ids 可能只是当前可见子集（筛选/标签过滤下拖拽）：把全库当前顺序中
+/// 出现在子集里的"槽位"按新顺序回填，其余项保持原相对位置，
+/// 避免子集重编号 1..n 与未展示项的旧序号冲突打乱全局顺序。
 pub fn set_media_order_impl(conn: &Connection, ids: &[i64]) -> Result<(), String> {
+    let mut stmt = conn
+        .prepare(&format!("SELECT id FROM media WHERE is_deleted = 0 ORDER BY {}", MEDIA_ORDER))
+        .map_err(|e| e.to_string())?;
+    let current: Vec<i64> = stmt
+        .query_map([], |r| r.get::<_, i64>(0))
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .collect();
+    drop(stmt);
+
+    let id_set: std::collections::HashSet<&i64> = ids.iter().collect();
+    let mut next_idx = 0usize;
+    let mut full_order: Vec<i64> = Vec::with_capacity(current.len());
+    for id in current {
+        if id_set.contains(&id) {
+            // 该槽位由子集的新顺序依次回填；防御性跳过子集中不存在的残余
+            if next_idx < ids.len() {
+                full_order.push(ids[next_idx]);
+                next_idx += 1;
+            }
+        } else {
+            full_order.push(id);
+        }
+    }
+
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-    for (i, id) in ids.iter().enumerate() {
+    for (i, id) in full_order.iter().enumerate() {
         tx.execute(
             "UPDATE media SET sort_order = ?1 WHERE id = ?2",
             params![i as i64 + 1, id],
@@ -1021,6 +1049,70 @@ mod tests {
         for d in [&src, &out, &dest] {
             let _ = fs::remove_dir_all(d);
         }
+    }
+
+    #[test]
+    fn test_media_order_subset_refill() {
+        // 全库排好序后，只重排可见子集：其余项的相对位置必须保持不变
+        let conn = mem_db();
+        let dir = std::env::temp_dir().join(format!("mm_subset_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        for name in ["a.png", "b.png", "c.png", "d.png", "e.png", "f.png"] {
+            make_file(&dir, name, name.as_bytes());
+        }
+        scan_folder_impl(&conn, dir.to_str().unwrap(), false).unwrap();
+        // 抹平 mtime 差异，让初始顺序确定（taken_time 相同 → id 升序兜底）
+        conn.execute("UPDATE media SET taken_time = 1000", []).unwrap();
+
+        let by_name = |conn: &Connection| -> Vec<String> {
+            list_media_impl(conn).unwrap().into_iter().map(|m| m.file_name).collect()
+        };
+
+        // 初始全 0 → 按 id 顺序（taken_time 相同时 id 兜底）
+        assert_eq!(by_name(&conn), ["a.png", "b.png", "c.png", "d.png", "e.png", "f.png"]);
+
+        // 子集 [b,d,f] 重排为 [f,d,b]：槽位回填，其余项原位
+        let id_of = |name: &str| -> i64 {
+            list_media_impl(&conn).unwrap().iter().find(|m| m.file_name == name).unwrap().id
+        };
+        let subset = [id_of("b.png"), id_of("d.png"), id_of("f.png")];
+        let reordered = [subset[2], subset[1], subset[0]];
+        set_media_order_impl(&conn, &reordered).unwrap();
+        assert_eq!(
+            by_name(&conn),
+            ["a.png", "f.png", "c.png", "d.png", "e.png", "b.png"],
+            "子集重排只应调整子集槽位，其余项保持原相对顺序"
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_media_order_manual_first() {
+        // 手动排序后新导入的媒体排在手动顺序之后，不打乱已有排序
+        let conn = mem_db();
+        let dir = std::env::temp_dir().join(format!("mm_manual_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        make_file(&dir, "a.png", b"a");
+        make_file(&dir, "b.png", b"b");
+        scan_folder_impl(&conn, dir.to_str().unwrap(), false).unwrap();
+        // 抹平 mtime 差异，让顺序确定
+        conn.execute("UPDATE media SET taken_time = 1000", []).unwrap();
+
+        let ids: Vec<i64> = list_media_impl(&conn).unwrap().iter().map(|m| m.id).collect();
+        set_media_order_impl(&conn, &ids).unwrap();
+        let names: Vec<String> = list_media_impl(&conn).unwrap().iter().map(|m| m.file_name.clone()).collect();
+        assert_eq!(names, ["a.png", "b.png"]);
+
+        // 新导入（sort_order=0）应排在手动排序项之后
+        make_file(&dir, "new.png", b"n");
+        scan_folder_impl(&conn, dir.to_str().unwrap(), false).unwrap();
+        let names: Vec<String> = list_media_impl(&conn).unwrap().iter().map(|m| m.file_name.clone()).collect();
+        assert_eq!(names, ["a.png", "b.png", "new.png"]);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
