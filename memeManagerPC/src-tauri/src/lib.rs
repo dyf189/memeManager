@@ -9,6 +9,25 @@ use tauri::Manager;
 
 use db::Db;
 
+/// 按设置中的保留天数清理过期回收站条目，有清理时通知前端刷新
+fn auto_purge_recycle(app: tauri::AppHandle) {
+    let state = app.state::<Db>();
+    let Ok(conn) = state.0.lock() else { return };
+    let days = media::get_recycle_days_impl(&conn);
+    if days <= 0 {
+        return; // 0 = 不进回收站（前端直接永久删除），无需定时清理
+    }
+    let purged = match media::auto_purge_recycle_impl(&conn, days) {
+        Ok(n) => n,
+        Err(_) => return,
+    };
+    drop(conn);
+    if purged > 0 {
+        use tauri::Emitter;
+        let _ = app.emit("media-changed", ());
+    }
+}
+
 // ===== .mpak 导入导出 =====
 
 /// 导出 .mpak 分片（前端传入待导出媒体列表 + 分片上限 + 输出目录）
@@ -239,6 +258,14 @@ pub fn run() {
                     fs_watch::start_watching(&handle, &d);
                 }
             }
+
+            // 回收站自动清理：启动时清一次，之后每 30 分钟检查（goals.md 定期任务）
+            auto_purge_recycle(app.handle().clone());
+            let timer_handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(30 * 60));
+                auto_purge_recycle(timer_handle.clone());
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -480,15 +480,58 @@ pub fn restore_media_impl(conn: &Connection, ids: &[i64]) -> Result<usize, Strin
     Ok(n)
 }
 
-/// 彻底删除（回收站记录 + 关联标签；不删源文件，由调用方决定）
+/// 彻底删除：连同物理文件一起移除（关联标签由外键级联清除）。
+/// 若文件仍存在但删除失败（被占用等），保留记录并跳过该项，
+/// 避免出现"记录已删、文件仍在"导致下次扫描复活的局面。
 pub fn purge_media_impl(conn: &Connection, ids: &[i64]) -> Result<usize, String> {
     let mut n = 0usize;
     for &id in ids {
-        n += conn
-            .execute("DELETE FROM media WHERE id = ?1", params![id])
-            .map_err(|e| e.to_string())? as usize;
+        let path: Option<String> = conn
+            .query_row("SELECT file_path FROM media WHERE id = ?1", params![id], |r| r.get(0))
+            .optional()
+            .map_err(|e| e.to_string())?;
+        let Some(path) = path else { continue };
+        let p = Path::new(&path);
+        if p.exists() && fs::remove_file(p).is_err() {
+            continue;
+        }
+        conn.execute("DELETE FROM media WHERE id = ?1", params![id])
+            .map_err(|e| e.to_string())?;
+        n += 1;
     }
     Ok(n)
+}
+
+/// 读取回收站保留天数设置（缺失/非法时用默认 30；0 = 不进回收站）
+pub fn get_recycle_days_impl(conn: &Connection) -> i64 {
+    conn.query_row(
+        "SELECT value FROM settings WHERE key = 'recycleDays'",
+        [],
+        |r| r.get::<_, String>(0),
+    )
+    .optional()
+    .ok()
+    .flatten()
+    .and_then(|s| s.parse::<i64>().ok())
+    .unwrap_or(30)
+}
+
+/// 自动清理回收站中超过保留天数的条目（连同物理文件）
+pub fn auto_purge_recycle_impl(conn: &Connection, keep_days: i64) -> Result<usize, String> {
+    if keep_days <= 0 {
+        return Ok(0);
+    }
+    let cutoff = crate::mpak::now_ms() - keep_days * 86_400_000;
+    let mut stmt = conn
+        .prepare("SELECT id FROM media WHERE is_deleted = 1 AND deleted_time IS NOT NULL AND deleted_time < ?1")
+        .map_err(|e| e.to_string())?;
+    let expired: Vec<i64> = stmt
+        .query_map(params![cutoff], |r| r.get::<_, i64>(0))
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .collect();
+    drop(stmt);
+    purge_media_impl(conn, &expired)
 }
 
 // ===== 设置 =====
@@ -759,10 +802,50 @@ mod tests {
         restore_media_impl(&conn, &[id]).unwrap();
         assert_eq!(list_media_impl(&conn).unwrap().len(), 1);
 
-        // 再删除并彻底清除
+        // 再删除并彻底清除（连同物理文件，防止下次扫描复活）
         delete_media_impl(&conn, &[id]).unwrap();
         purge_media_impl(&conn, &[id]).unwrap();
         assert!(list_recycle_impl(&conn).unwrap().is_empty());
+        assert!(!dir.join("x.png").exists(), "彻底删除应移除物理文件");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_auto_purge_recycle_by_days() {
+        let conn = mem_db();
+        let dir = std::env::temp_dir().join(format!("mm_auto_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        make_file(&dir, "old.png", b"o");
+        make_file(&dir, "new.png", b"n");
+        scan_folder_impl(&conn, dir.to_str().unwrap(), false).unwrap();
+
+        // old.png 的删除时间伪造为 40 天前，new.png 为现在（直接按文件名标记，避免列表顺序不稳定）
+        let old_ms = crate::mpak::now_ms() - 40 * 86_400_000;
+        let now = crate::mpak::now_ms();
+        conn.execute(
+            "UPDATE media SET is_deleted = 1, deleted_time = ?1 WHERE file_name = 'old.png'",
+            params![old_ms],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE media SET is_deleted = 1, deleted_time = ?1 WHERE file_name = 'new.png'",
+            params![now],
+        )
+        .unwrap();
+
+        // 保留 30 天：只有 old.png 被清理
+        let n = auto_purge_recycle_impl(&conn, 30).unwrap();
+        assert_eq!(n, 1);
+        let rc = list_recycle_impl(&conn).unwrap();
+        assert_eq!(rc.len(), 1);
+        assert_eq!(rc[0].file_name, "new.png");
+        assert!(!dir.join("old.png").exists(), "过期清理应移除物理文件");
+        assert!(dir.join("new.png").exists());
+
+        // 0 天 = 不自动清理
+        assert_eq!(auto_purge_recycle_impl(&conn, 0).unwrap(), 0);
 
         let _ = fs::remove_dir_all(&dir);
     }

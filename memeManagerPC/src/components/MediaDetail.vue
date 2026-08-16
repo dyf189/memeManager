@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { dragMediaOut } from "../utils/drag";
 import type { Media } from "../types";
 import { useTagStore } from "../stores/tags";
+import { useSettingsStore } from "../stores/settings";
 import { api } from "../api";
 import { formatDateTime, formatResolution, formatSize } from "../utils/format";
 import { SOURCE_LABELS } from "../utils/constants";
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>();
 
 const tagStore = useTagStore();
+const settingsStore = useSettingsStore();
 
 const stageSrc = computed(() =>
   props.media ? convertFileSrc(props.media.filePath) : ""
@@ -96,7 +98,7 @@ async function removeTag(tagId: number) {
 }
 
 // 右上角菜单操作
-function menuAction(action: string) {
+async function menuAction(action: string) {
   if (action === "copy") {
     const path = props.media!.filePath;
     api
@@ -118,11 +120,23 @@ function menuAction(action: string) {
       ElMessage.error(`打开所在文件夹失败：${e}`)
     );
   } else if (action === "delete") {
-    // 删除（进回收站）
+    // 保留天数为 0：直接永久删除（连同源文件）；否则进回收站
+    const permanent = settingsStore.settings.recycleDays === 0;
+    if (permanent) {
+      try {
+        await ElMessageBox.confirm(
+          "当前设置保留天数为 0，该媒体将被永久删除（连同源文件），不可恢复。",
+          "永久删除",
+          { type: "warning", confirmButtonText: "永久删除", cancelButtonText: "取消" }
+        );
+      } catch {
+        return;
+      }
+    }
     api
-      .deleteMedia([props.media!.id])
+      .deleteMediaOrPurge([props.media!.id], permanent)
       .then(async () => {
-        ElMessage.success("已移入回收站");
+        ElMessage.success(permanent ? "已永久删除" : "已移入回收站");
         emit("changed");
         emit("close");
       })

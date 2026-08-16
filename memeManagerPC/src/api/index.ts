@@ -35,6 +35,11 @@ export const api = {
   replaceMediaTags: (mediaIds: number[], tagIds: number[]) =>
     invoke<void>("replace_media_tags", { mediaIds, tagIds }),
   deleteMedia: (ids: number[]) => invoke<number>("delete_media", { ids }),
+  /** 删除媒体：permanent=true 彻底删除（含源文件），否则移入回收站 */
+  deleteMediaOrPurge: (ids: number[], permanent: boolean) =>
+    permanent
+      ? invoke<number>("purge_media", { ids })
+      : invoke<number>("delete_media", { ids }),
   restoreMedia: (ids: number[]) => invoke<number>("restore_media", { ids }),
   purgeMedia: (ids: number[]) => invoke<number>("purge_media", { ids }),
   /** 按 id 顺序持久化相册排序（拖拽排序） */

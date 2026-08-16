@@ -35,12 +35,18 @@ export const useSettingsStore = defineStore("settings", () => {
 
   async function load() {
     const saved = await api.getSettings();
+    // 数值解析：空/缺失用默认值，合法数字（含 0）原样保留
+    const numOr = (raw: string | undefined, def: number): number => {
+      if (raw === undefined || raw === "") return def;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : def;
+    };
     if (saved.defaultStorage) settings.defaultStorage = saved.defaultStorage;
     if (saved.customDir) settings.customDir = saved.customDir;
-    if (saved.shardSize) settings.shardSize = Number(saved.shardSize) || defaults.shardSize;
+    settings.shardSize = Math.max(1, numOr(saved.shardSize, defaults.shardSize));
     if (saved.groupBy) settings.groupBy = saved.groupBy;
-    if (saved.gridCols) settings.gridCols = Number(saved.gridCols) || defaults.gridCols;
-    if (saved.recycleDays) settings.recycleDays = Number(saved.recycleDays) || defaults.recycleDays;
+    settings.gridCols = Math.max(4, numOr(saved.gridCols, defaults.gridCols));
+    settings.recycleDays = numOr(saved.recycleDays, defaults.recycleDays);
     if (saved.jsonSync) settings.jsonSync = saved.jsonSync === "true";
     if (saved.presetColors) {
       try {

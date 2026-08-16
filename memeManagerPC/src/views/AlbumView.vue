@@ -129,21 +129,29 @@ function saveBatchTag() {
 
 async function batchDelete() {
   const n = album.selectedIds.size;
+  // 回收站保留天数设为 0：删除即永久删除（连同源文件），不进回收站
+  const permanent = settingsStore.settings.recycleDays === 0;
   try {
     await ElMessageBox.confirm(
-      `确定将选中的 ${n} 项媒体移入回收站吗？`,
-      "删除确认",
-      { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" }
+      permanent
+        ? `当前设置保留天数为 0，选中的 ${n} 项媒体将被永久删除（连同源文件），不可恢复。`
+        : `确定将选中的 ${n} 项媒体移入回收站吗？`,
+      permanent ? "永久删除" : "删除确认",
+      { type: "warning", confirmButtonText: permanent ? "永久删除" : "删除", cancelButtonText: "取消" }
     );
   } catch {
     return;
   }
   const ids = [...album.selectedIds];
-  api.deleteMedia(ids).then(async () => {
+  const req = permanent ? api.purgeMedia(ids) : api.deleteMedia(ids);
+  try {
+    await req;
     album.exitMultiSelect();
-    ElMessage.success("已移入回收站");
+    ElMessage.success(permanent ? "已永久删除" : "已移入回收站");
     await album.loadMedia();
-  });
+  } catch (e) {
+    ElMessage.error(`删除失败：${e}`);
+  }
 }
 
 // —— 导入文件夹 ——
