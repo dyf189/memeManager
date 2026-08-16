@@ -127,7 +127,7 @@ function onContextMenu(m: Media) {
   top: 0;
   z-index: 2;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   padding: 14px 6px 8px;
   background: var(--header-bg);
@@ -138,12 +138,15 @@ function onContextMenu(m: Media) {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
+  line-height: 1.2;
 }
 
 .grid-header-count {
   font-size: 11px;
   color: var(--text-muted);
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
+  transform: translateY(0.5px);
 }
 
 .grid-row {
@@ -163,16 +166,24 @@ function onContextMenu(m: Media) {
   cursor: pointer;
   position: relative;
   border: 2.5px solid transparent;
-  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.15s ease;
+  transition: transform 0.14s var(--ease-out), border-color 0.12s ease-out, box-shadow 0.18s ease-out;
   /* 长列表渲染优化：视口外的项跳过布局/绘制 */
   content-visibility: auto;
   contain-intrinsic-size: 110px;
 }
 
-.grid-cell:hover {
-  transform: scale(1.03);
-  box-shadow: var(--shadow-md);
-  z-index: 1;
+/* 悬停位移仅限精确指针设备 */
+@media (hover: hover) and (pointer: fine) {
+  .grid-cell:hover {
+    transform: scale(1.03);
+    box-shadow: var(--shadow-md);
+    z-index: 1;
+  }
+}
+
+/* 按压反馈：手指/鼠标按下即缩小（apple-design §1） */
+.grid-cell:active {
+  transform: scale(0.97);
 }
 
 .grid-cell.selected {

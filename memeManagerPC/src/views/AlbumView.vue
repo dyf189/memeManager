@@ -562,7 +562,9 @@ async function startMpakImport(destDir: string) {
   align-items: center;
   gap: 6px;
   padding: 0 14px;
-  background: var(--card-bg);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--divider);
 }
 
@@ -570,6 +572,7 @@ async function startMpakImport(destDir: string) {
   flex: none;
   font-size: 16px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   margin-right: 10px;
   color: var(--text-main);
 }
@@ -580,20 +583,21 @@ async function startMpakImport(destDir: string) {
 
 .search-box {
   flex: 1;
+  max-width: 480px;
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 10px;
+  height: 32px;
+  padding: 0 12px;
   background: var(--input-bg);
-  border-radius: 17px;
+  border-radius: 16px;
   border: 1px solid transparent;
-  transition: border-color 0.15s, background 0.15s;
+  transition: box-shadow 0.15s ease;
 }
 
+/* 聚焦：iOS 式蓝色光晕，底色保持系统填充 */
 .search-box:focus-within {
-  border-color: var(--accent);
-  background: var(--card-bg);
+  box-shadow: 0 0 0 3.5px var(--accent-bg);
 }
 
 .search-icon {
@@ -626,11 +630,20 @@ async function startMpakImport(destDir: string) {
   border-radius: 8px;
   cursor: pointer;
   color: var(--text-main);
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  transition:
+    background 0.15s ease-out,
+    color 0.15s ease-out,
+    box-shadow 0.15s ease-out,
+    transform 0.12s var(--ease-out);
 }
 
 .icon-btn:hover {
   background: var(--hover-bg);
+}
+
+/* 按压即时反馈（apple-design §1） */
+.icon-btn:active {
+  transform: scale(0.94);
 }
 
 .icon-btn.on {
@@ -641,7 +654,7 @@ async function startMpakImport(destDir: string) {
 .add-btn {
   color: #fff;
   background: var(--accent);
-  box-shadow: 0 2px 6px rgba(246, 130, 31, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.3);
 }
 
 .add-btn:hover {
@@ -674,7 +687,9 @@ async function startMpakImport(destDir: string) {
   gap: 8px;
   padding: 10px 14px;
   overflow-x: auto;
-  background: var(--card-bg);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--divider);
   scrollbar-width: none;
   /* 两端渐隐提示可横向滚动 */

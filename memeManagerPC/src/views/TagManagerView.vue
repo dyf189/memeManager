@@ -189,13 +189,16 @@ async function removeTag(id: number) {
   align-items: center;
   justify-content: space-between;
   padding: 0 14px;
-  background: var(--card-bg);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--divider);
 }
 
 .tag-title {
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .tag-body {

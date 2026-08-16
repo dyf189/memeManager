@@ -63,7 +63,9 @@ const emit = defineEmits<{
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  background: var(--card-bg);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--divider);
   box-shadow: var(--shadow-sm);
 }
@@ -133,10 +135,15 @@ const emit = defineEmits<{
   color: var(--text-main);
   font-size: 18px;
   cursor: pointer;
+  transition: background 0.15s ease-out, color 0.15s ease-out, transform 0.12s var(--ease-out);
 }
 
 .batch-btn:hover {
   background: var(--hover-bg);
+}
+
+.batch-btn:active {
+  transform: scale(0.92);
 }
 
 .batch-btn.danger:hover {

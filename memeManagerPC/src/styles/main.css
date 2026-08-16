@@ -1,99 +1,106 @@
 /* ============================================================
    全局样式与主题变量（浅色 / 暗色）
-   设计参考：Cloudflare Dashboard —— 浅灰底 + 白卡片 + 橙色强调
+   设计语言：Apple Human Interface —— 系统蓝强调 + 中性灰 +
+   半透明材质（vibrancy）+ 发丝线分隔 + 柔和圆角阴影
    ============================================================ */
 
 :root {
-  /* 品牌强调色（Cloudflare 橙） */
-  --accent: #f6821f;
-  --accent-strong: #e06b0e;
-  --accent-bg: rgba(246, 130, 31, 0.13);
+  /* 品牌强调色（Apple 系统蓝） */
+  --accent: #007aff;
+  --accent-strong: #0062cc;
+  --accent-bg: rgba(0, 122, 255, 0.1);
 
-  /* 页面层级 */
-  --app-bg: #f3f4f6;
+  /* 页面层级（Apple 系统灰） */
+  --app-bg: #f5f5f7;
   --card-bg: #ffffff;
-  --sidebar-bg: #f7f8fa;
+  --sidebar-bg: rgba(246, 246, 248, 0.82);
 
   /* 文字 */
-  --text-main: #26282b;
-  --text-secondary: #5c6470;
-  --text-muted: #9aa2ae;
+  --text-main: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-muted: #aeaeb2;
 
   /* 线条与面板 */
-  --divider: #e6e8ec;
-  --border: #e3e6ea;
-  --input-bg: #f0f2f5;
-  --header-bg: rgba(255, 255, 255, 0.9);
-  --checker: #e2e5ea;
+  --divider: rgba(0, 0, 0, 0.08);
+  --border: rgba(0, 0, 0, 0.1);
+  /* iOS 系统填充色（搜索框 / 输入控件底） */
+  --input-bg: rgba(118, 118, 128, 0.1);
+  --header-bg: rgba(255, 255, 255, 0.78);
+  --checker: #e8e8ea;
   /* 缩略图上的浮层（角标/圆点容器） */
   --chip-overlay: rgba(255, 255, 255, 0.78);
 
   /* 交互 */
-  --hover-bg: rgba(20, 24, 30, 0.05);
-  --active-bg: rgba(20, 24, 30, 0.08);
-  --selected-bg: rgba(246, 130, 31, 0.09);
+  --hover-bg: rgba(0, 0, 0, 0.045);
+  --active-bg: rgba(0, 0, 0, 0.08);
+  --selected-bg: rgba(0, 122, 255, 0.08);
 
-  /* 阴影与滚动条 */
-  --shadow-sm: 0 1px 2px rgba(20, 24, 30, 0.06);
-  --shadow-md: 0 4px 16px rgba(20, 24, 30, 0.08);
-  --scroll-thumb: #c8cdd4;
+  /* 阴影与滚动条（Apple 极轻环境光阴影） */
+  --shadow-sm: 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 0 0 0.5px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.1);
+  --scroll-thumb: rgba(0, 0, 0, 0.22);
   --scroll-track: transparent;
 
   --app-topbar-height: 56px;
+
+  /* Apple 风格缓动曲线（emil-design-eng：内置 ease 太弱，入场一律 ease-out） */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
   color-scheme: light;
 }
 
 [data-theme="dark"] {
-  --accent: #f8933c;
-  --accent-strong: #ffab5e;
-  --accent-bg: rgba(248, 147, 60, 0.18);
+  --accent: #0a84ff;
+  --accent-strong: #409cff;
+  --accent-bg: rgba(10, 132, 255, 0.18);
 
-  --app-bg: #17181b;
-  --card-bg: #202226;
-  --sidebar-bg: #1b1d20;
+  --app-bg: #161618;
+  --card-bg: #1e1e21;
+  --sidebar-bg: rgba(28, 28, 31, 0.82);
 
-  --text-main: #e7eaee;
-  --text-secondary: #a2abb6;
-  --text-muted: #6c7480;
+  --text-main: #f5f5f7;
+  --text-secondary: #98989d;
+  --text-muted: #636366;
 
-  --divider: #2b2e33;
-  --border: #31353b;
-  --input-bg: #2a2d32;
-  --header-bg: rgba(32, 34, 38, 0.9);
-  --checker: #232629;
-  --chip-overlay: rgba(18, 20, 24, 0.62);
+  --divider: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.12);
+  --input-bg: rgba(118, 118, 128, 0.22);
+  --header-bg: rgba(30, 30, 33, 0.78);
+  --checker: #232326;
+  --chip-overlay: rgba(20, 20, 23, 0.62);
 
   --hover-bg: rgba(255, 255, 255, 0.06);
   --active-bg: rgba(255, 255, 255, 0.1);
-  --selected-bg: rgba(248, 147, 60, 0.16);
+  --selected-bg: rgba(10, 132, 255, 0.16);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
-  --scroll-thumb: #3c4046;
+  --shadow-sm: 0 0 0 0.5px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 0 0 0.5px rgba(255, 255, 255, 0.06), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --scroll-thumb: rgba(255, 255, 255, 0.25);
   --scroll-track: transparent;
 
   color-scheme: dark;
 }
 
-/* ===== Element Plus 主色覆盖为品牌橙 ===== */
+/* ===== Element Plus 主色覆盖为系统蓝 ===== */
 :root {
-  --el-color-primary: #f6821f;
-  --el-color-primary-light-3: #f8a254;
-  --el-color-primary-light-5: #fac08f;
-  --el-color-primary-light-7: #fcdcc4;
-  --el-color-primary-light-8: #fde9d9;
-  --el-color-primary-light-9: #fef4ec;
-  --el-color-primary-dark-2: #c56819;
+  --el-color-primary: #007aff;
+  --el-color-primary-light-3: #4da2ff;
+  --el-color-primary-light-5: #80c0ff;
+  --el-color-primary-light-7: #b3d9ff;
+  --el-color-primary-light-8: #cce5ff;
+  --el-color-primary-light-9: #e6f2ff;
+  --el-color-primary-dark-2: #0062cc;
 }
 
 [data-theme="dark"] {
-  --el-color-primary: #f8933c;
-  --el-color-primary-light-3: #c97c3a;
-  --el-color-primary-light-5: #8f6137;
-  --el-color-primary-light-7: #5c4a36;
-  --el-color-primary-light-8: #454033;
-  --el-color-primary-light-9: #33332f;
-  --el-color-primary-dark-2: #ffab5e;
+  --el-color-primary: #0a84ff;
+  --el-color-primary-light-3: #0868c4;
+  --el-color-primary-light-5: #064d8d;
+  --el-color-primary-light-7: #043259;
+  --el-color-primary-light-8: #042a49;
+  --el-color-primary-light-9: #03203a;
+  --el-color-primary-dark-2: #409cff;
 }
 
 /* ===== 基础 ===== */
@@ -111,7 +118,7 @@ body,
 
 body {
   font-family:
-    "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
     "Microsoft YaHei", "Noto Sans CJK SC", "Helvetica Neue", Arial,
     sans-serif;
   background: var(--app-bg);
@@ -180,12 +187,20 @@ mark.hl {
   user-select: none;
   white-space: nowrap;
   border: 1.5px solid transparent;
-  transition: all 0.15s ease;
+  transition:
+    transform 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    border-color 0.15s ease-out;
 }
 
 .tag-chip:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(20, 24, 30, 0.14);
+}
+
+/* 按压即时反馈（apple-design §1：反馈在按下瞬间，不在松开） */
+.tag-chip:active {
+  transform: scale(0.96);
 }
 
 .tag-chip.active {
@@ -214,4 +229,35 @@ mark.hl {
   font-size: 7px;
   color: var(--text-secondary);
   line-height: 1;
+}
+
+/* ===== 无障碍：减弱动态效果（apple-design §14：降级为柔和淡入，非零反馈） ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 触屏设备不触发 hover 位移（emil-design-eng：hover 需限定精确指针） */
+@media not all and (hover: hover) and (pointer: fine) {
+  .tag-chip:hover {
+    transform: none;
+  }
+}
+
+/* ===== Element Plus 圆角 Apple 化 ===== */
+.el-dialog {
+  --el-dialog-border-radius: 14px;
+}
+
+.el-message {
+  --el-message-border-radius: 999px;
+}
+
+.el-button {
+  --el-border-radius-base: 8px;
 }

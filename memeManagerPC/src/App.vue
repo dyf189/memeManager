@@ -31,10 +31,13 @@ import SideNav from "./components/SideNav.vue";
   background: var(--app-bg);
 }
 
-/* 页面切换：轻微淡入上移，避免生硬跳变 */
-.view-fade-enter-active,
+/* 页面切换：轻微淡入上移（ease-out 即时响应感） */
+.view-fade-enter-active {
+  transition: opacity 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+}
+
 .view-fade-leave-active {
-  transition: opacity 0.14s ease, transform 0.14s ease;
+  transition: opacity 0.1s ease-out;
 }
 
 .view-fade-enter-from {

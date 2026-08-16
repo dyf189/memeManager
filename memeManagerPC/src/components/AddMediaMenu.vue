@@ -76,10 +76,15 @@ async function pick(i: number) {
   border-radius: 10px;
   cursor: pointer;
   text-align: left;
+  transition: background 0.15s ease-out, transform 0.12s var(--ease-out);
 }
 
 .add-item:hover {
   background: var(--hover-bg);
+}
+
+.add-item:active {
+  transform: scale(0.98);
 }
 
 .add-icon {

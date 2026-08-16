@@ -193,13 +193,16 @@ const gridStyle = computed(() =>
   align-items: center;
   justify-content: space-between;
   padding: 0 14px;
-  background: var(--card-bg);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--divider);
 }
 
 .page-title {
   font-size: 16px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text-main);
 }
 
@@ -262,15 +265,21 @@ const gridStyle = computed(() =>
   cursor: pointer;
   position: relative;
   border: 2.5px solid transparent;
-  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.15s ease;
+  transition: transform 0.14s var(--ease-out), border-color 0.12s ease-out, box-shadow 0.18s ease-out;
   content-visibility: auto;
   contain-intrinsic-size: 110px;
 }
 
-.recycle-cell:hover {
-  transform: scale(1.03);
-  box-shadow: var(--shadow-md);
-  z-index: 1;
+@media (hover: hover) and (pointer: fine) {
+  .recycle-cell:hover {
+    transform: scale(1.03);
+    box-shadow: var(--shadow-md);
+    z-index: 1;
+  }
+}
+
+.recycle-cell:active {
+  transform: scale(0.97);
 }
 
 .recycle-cell.selected {

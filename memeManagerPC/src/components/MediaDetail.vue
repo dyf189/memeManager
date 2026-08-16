@@ -308,16 +308,22 @@ function menuAction(action: string) {
   border-radius: 8px;
   cursor: pointer;
   color: var(--text-main);
+  transition: background 0.15s ease-out, transform 0.12s var(--ease-out);
 }
 
 .icon-btn:hover {
   background: var(--hover-bg);
 }
 
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
 .detail-title {
   flex: 1;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .detail-stage {
@@ -487,11 +493,15 @@ function menuAction(action: string) {
   cursor: pointer;
   padding: 9px 14px;
   border-radius: 9px;
-  transition: background 0.15s;
+  transition: background 0.15s ease-out, transform 0.12s var(--ease-out);
 }
 
 .nav-btn:not(:disabled):hover {
   background: var(--hover-bg);
+}
+
+.nav-btn:not(:disabled):active {
+  transform: scale(0.96);
 }
 
 .nav-btn:disabled {
@@ -517,12 +527,20 @@ function menuAction(action: string) {
   gap: 4px 14px;
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
+/* 进场：从 0.985 缩放 + 淡入（真实物体不会从虚无中出现） */
+.fade-enter-active {
+  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
 }
 
-.fade-enter-from,
+.fade-leave-active {
+  transition: opacity 0.13s ease-out;
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: scale(0.985);
+}
+
 .fade-leave-to {
   opacity: 0;
 }
