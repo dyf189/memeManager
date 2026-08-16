@@ -158,7 +158,9 @@ fn io_err(path: &Path) -> impl Fn(std::io::Error) -> String + '_ {
     move |e| format!("写入分片失败「{}」: {}", path.display(), e)
 }
 
-/// 分片打包入口（带进度回调：on_progress(已处理数, 总数)，用于前端进度展示）
+/// 分片打包入口（带进度回调：on_progress(已处理数, 总数)，用于前端进度展示）。
+/// 不可取消的便捷封装，主要供测试使用；应用内导出走 export_pak_cancellable。
+#[allow(dead_code)]
 pub fn export_pak_with_progress(
     items: Vec<ExportItem>,
     max_size: u64,
