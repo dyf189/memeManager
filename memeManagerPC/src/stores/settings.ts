@@ -67,14 +67,19 @@ export const useSettingsStore = defineStore("settings", () => {
   }
 
   function save() {
-    api.setSetting("defaultStorage", settings.defaultStorage);
-    api.setSetting("customDir", settings.customDir);
-    api.setSetting("shardSize", String(settings.shardSize));
-    api.setSetting("groupBy", settings.groupBy);
-    api.setSetting("gridCols", String(settings.gridCols));
-    api.setSetting("recycleDays", String(settings.recycleDays));
-    api.setSetting("jsonSync", String(settings.jsonSync));
-    api.setSetting("presetColors", JSON.stringify(settings.presetColors));
+    const pairs: [string, string][] = [
+      ["defaultStorage", settings.defaultStorage],
+      ["customDir", settings.customDir],
+      ["shardSize", String(settings.shardSize)],
+      ["groupBy", settings.groupBy],
+      ["gridCols", String(settings.gridCols)],
+      ["recycleDays", String(settings.recycleDays)],
+      ["jsonSync", String(settings.jsonSync)],
+      ["presetColors", JSON.stringify(settings.presetColors)],
+    ];
+    for (const [key, value] of pairs) {
+      api.setSetting(key, value).catch((e) => console.warn(`[settings] 保存 ${key} 失败:`, e));
+    }
   }
 
   watch(settings, scheduleSave, { deep: true });

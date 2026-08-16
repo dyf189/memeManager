@@ -10,7 +10,7 @@ export function formatSize(bytes: number): string {
 export function formatDateTime(ts: number): string {
   const d = new Date(ts);
   const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function formatResolution(w: number, h: number): string {

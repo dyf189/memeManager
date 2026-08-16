@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { useTagStore } from "../stores/tags";
 import { PRESET_TAG_COLORS } from "../utils/color";
 import TagChip from "../components/TagChip.vue";
@@ -70,8 +70,9 @@ watch(
   { immediate: true }
 );
 
-/** 拖拽结束：按当前顺序持久化 */
-function onDragEnd() {
+/** 拖拽结束：按当前顺序持久化，并还原拖拽开始时固定的行宽 */
+function onDragEnd(evt: { item: HTMLElement }) {
+  evt.item.style.width = "";
   tagStore.setOrder(rowList.value.map((t) => t.id));
 }
 
@@ -86,6 +87,15 @@ async function removeTag(id: number) {
   if (!t) return;
   if (t.isReserved) {
     ElMessage.warning("保留标签不可删除");
+    return;
+  }
+  try {
+    await ElMessageBox.confirm(
+      `删除标签「${t.name}」？它会被从所有媒体上移除。`,
+      "删除标签",
+      { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" }
+    );
+  } catch {
     return;
   }
   const ok = await tagStore.removeTag(id);
@@ -127,10 +137,9 @@ async function removeTag(id: number) {
           />
           <div class="row-spacer" />
           <template v-if="t.isReserved">
-            <el-tooltip content="保留标签：不可删除、不可重名">
+            <el-tooltip content="保留标签：不可删除、不可重命名，仅可调整颜色">
               <el-icon class="lock-icon"><Lock /></el-icon>
             </el-tooltip>
-            <el-button size="small" link type="primary" @click="openRename(t.id)">编辑</el-button>
           </template>
           <template v-else>
             <el-button size="small" link type="primary" @click="openRename(t.id)">编辑</el-button>

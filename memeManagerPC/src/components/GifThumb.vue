@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 /**
  * GIF 静态缩略图：用 canvas 只绘制第一帧，
@@ -9,7 +9,7 @@ const props = defineProps<{ src: string }>();
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 
-onMounted(() => {
+function load() {
   const img = new Image();
   img.decoding = "async";
   img.onload = () => {
@@ -24,7 +24,11 @@ onMounted(() => {
   };
   // 解码失败时留空 canvas（显示占位背景）
   img.src = props.src;
-});
+}
+
+onMounted(load);
+// 组件复用（如虚拟滚动/:key 复位）导致 src 变化时重绘，避免残留旧帧
+watch(() => props.src, load);
 </script>
 
 <template>

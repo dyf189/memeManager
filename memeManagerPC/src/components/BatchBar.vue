@@ -13,11 +13,6 @@ const emit = defineEmits<{
   (e: "select-all"): void;
   (e: "share"): void;
 }>();
-
-// 桌面端无系统分享，占位提示（后续接复制/打开目录）
-function share() {
-  ElMessage.info("桌面端分享：待接入（复制到剪贴板 / 打开所在文件夹）");
-}
 </script>
 
 <template>

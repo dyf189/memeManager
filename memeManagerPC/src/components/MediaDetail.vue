@@ -40,11 +40,13 @@ const isVisual = computed(() => props.media?.mediaType !== "video");
 const editingDesc = ref(false);
 const descDraft = ref("");
 
+// 只在切换到另一条媒体时重置编辑状态：后台刷新（media-changed → 列表重建，
+// 对象引用变化）不应打断正在进行的编辑、丢弃已输入的草稿
 watch(
-  () => props.media,
-  (m) => {
+  () => props.media?.id,
+  () => {
     editingDesc.value = false;
-    descDraft.value = m?.description ?? "";
+    descDraft.value = props.media?.description ?? "";
   }
 );
 
@@ -178,7 +180,7 @@ async function menuAction(action: string) {
             class="stage-img"
             alt=""
             draggable="true"
-            @dragstart="(e: DragEvent) => dragMediaOut(e, media)"
+            @dragstart="(e: DragEvent) => dragMediaOut(e, media!)"
           />
           <span v-else class="stage-placeholder">🎬 视频预览（待接入）</span>
           <span v-if="media.mediaType === 'gif'" class="stage-badge">GIF</span>

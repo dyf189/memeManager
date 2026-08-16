@@ -113,18 +113,16 @@ function openBatchTag() {
 }
 
 function saveBatchTag() {
-  if (batchTagDraft.value.length === 0) {
-    ElMessage.info("未选择标签");
-    return;
-  }
   const ids = [...album.selectedIds];
+  const clearing = batchTagDraft.value.length === 0;
   api
     .replaceMediaTags(ids, batchTagDraft.value)
     .then(() => {
       batchTagDialog.value = false;
-      ElMessage.success("批量打标签完成");
+      ElMessage.success(clearing ? "已清空选中媒体的标签" : "批量打标签完成");
       return album.loadMedia();
-    });
+    })
+    .catch((e) => ElMessage.error(`批量打标签失败：${e}`));
 }
 
 async function batchDelete() {
@@ -146,12 +144,13 @@ async function batchDelete() {
   const req = permanent ? api.purgeMedia(ids) : api.deleteMedia(ids);
   try {
     await req;
-    album.exitMultiSelect();
-    ElMessage.success(permanent ? "已永久删除" : "已移入回收站");
-    await album.loadMedia();
   } catch (e) {
     ElMessage.error(`删除失败：${e}`);
+    return;
   }
+  album.exitMultiSelect();
+  ElMessage.success(permanent ? "已永久删除" : "已移入回收站");
+  await album.loadMedia();
 }
 
 // —— 导入文件夹 ——

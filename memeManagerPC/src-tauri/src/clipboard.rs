@@ -127,9 +127,19 @@ pub fn copy_to_clipboard(path: &str) -> Result<String, String> {
         .map_err(|e| format!("无法识别图片格式: {}", e))?;
     // 用真实内容格式判断是否为 GIF（伪装扩展名也正确识别）
     let is_gif = reader.format() == Some(image::ImageFormat::Gif);
-    let img = reader
-        .decode()
-        .map_err(|e| format!("无法解析图片（{}）: {}", ext, e))?;
+    let img = match reader.decode() {
+        Ok(img) => img,
+        Err(e) => {
+            // HEIC/AVIF 等未编入解码器的格式或损坏文件：退化为复制路径文本，而非直接失败
+            eprintln!("[clipboard] 图片解码失败（{}）: {}", ext, e);
+            let note = format!("无法解析该图片（{}），已复制文件路径到剪贴板", ext);
+            if with_clipboard(|cb| cb.set_text(path).map_err(|e| e.to_string())).is_ok() {
+                return Ok(note);
+            }
+            set_text_via_tool(path)?;
+            return Ok(format!("{}（系统工具）", note));
+        }
+    };
     let rgba = img.to_rgba8();
     let (w, h) = rgba.dimensions();
     let dims = format!("{}×{}", w, h);

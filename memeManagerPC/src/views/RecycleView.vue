@@ -54,7 +54,12 @@ async function restoreSelected() {
     ElMessage.info("请选择要还原的媒体");
     return;
   }
-  await api.restoreMedia([...selectedIds.value]);
+  try {
+    await api.restoreMedia([...selectedIds.value]);
+  } catch (e) {
+    ElMessage.error(`还原失败：${e}`);
+    return;
+  }
   exitMulti();
   await load();
   ElMessage.success("已还原");
@@ -74,7 +79,12 @@ async function purgeSelected() {
   } catch {
     return;
   }
-  await api.purgeMedia([...selectedIds.value]);
+  try {
+    await api.purgeMedia([...selectedIds.value]);
+  } catch (e) {
+    ElMessage.error(`删除失败：${e}`);
+    return;
+  }
   exitMulti();
   await load();
   ElMessage.success("已彻底删除");
@@ -91,7 +101,12 @@ async function purgeAll() {
   } catch {
     return;
   }
-  await api.purgeMedia(items.value.map((m) => m.id));
+  try {
+    await api.purgeMedia(items.value.map((m) => m.id));
+  } catch (e) {
+    ElMessage.error(`清空失败：${e}`);
+    return;
+  }
   exitMulti();
   await load();
   ElMessage.success("回收站已清空");
