@@ -128,12 +128,6 @@ fn delete_tag(db: State<Db>, id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn move_tag(db: State<Db>, id: i64, dir: i64) -> Result<(), String> {
-    let conn = db.0.lock().map_err(|_| "数据库锁异常".to_string())?;
-    media::move_tag_impl(&conn, id, dir)
-}
-
-#[tauri::command]
 fn set_tag_order(db: State<Db>, ids: Vec<i64>) -> Result<(), String> {
     let conn = db.0.lock().map_err(|_| "数据库锁异常".to_string())?;
     media::set_tag_order_impl(&conn, &ids)
@@ -286,7 +280,6 @@ pub fn run() {
             rename_tag,
             set_tag_color,
             delete_tag,
-            move_tag,
             set_tag_order,
             set_description,
             replace_media_tags,

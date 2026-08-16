@@ -372,28 +372,6 @@ pub fn delete_tag_impl(conn: &Connection, id: i64) -> Result<(), String> {
     }
 }
 
-pub fn move_tag_impl(conn: &Connection, id: i64, dir: i64) -> Result<(), String> {    // 与相邻标签交换 sort_order（dir: -1 上移 / 1 下移）
-    let order: Option<i64> = conn
-        .query_row("SELECT sort_order FROM tag WHERE id = ?1", params![id], |r| r.get(0))
-        .optional()
-        .map_err(|e| e.to_string())?;
-    let Some(order) = order else { return Err("标签不存在".into()) };
-    let other: Option<(i64, i64)> = conn
-        .query_row(
-            "SELECT id, sort_order FROM tag WHERE sort_order = ?1 AND id != ?2",
-            params![order + dir, id],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .optional()
-        .map_err(|e| e.to_string())?;
-    let Some((other_id, other_order)) = other else { return Ok(()) };
-    conn.execute("UPDATE tag SET sort_order = ?1 WHERE id = ?2", params![other_order, id])
-        .map_err(|e| e.to_string())?;
-    conn.execute("UPDATE tag SET sort_order = ?1 WHERE id = ?2", params![order, other_id])
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 /// 按给定 id 顺序整体重写 sort_order（拖拽排序持久化）
 pub fn set_tag_order_impl(conn: &Connection, ids: &[i64]) -> Result<(), String> {
     let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;

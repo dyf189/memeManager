@@ -54,7 +54,6 @@ export const api = {
   setTagColor: (id: number, color: string) =>
     invoke<void>("set_tag_color", { id, color }),
   deleteTag: (id: number) => invoke<void>("delete_tag", { id }),
-  moveTag: (id: number, dir: number) => invoke<void>("move_tag", { id, dir }),
   setTagOrder: (ids: number[]) => invoke<void>("set_tag_order", { ids }),
 
   // —— 设置 ——
