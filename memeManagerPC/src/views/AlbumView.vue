@@ -583,7 +583,6 @@ async function startMpakImport(destDir: string) {
 
 .search-box {
   flex: 1;
-  max-width: 480px;
   display: flex;
   align-items: center;
   gap: 6px;

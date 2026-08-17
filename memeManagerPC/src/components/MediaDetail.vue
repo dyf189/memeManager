@@ -78,6 +78,17 @@ const mediaTags = computed(() => {
   return tagStore.sorted.filter((t) => props.media!.tagIds.includes(t.id));
 });
 
+/** 弹窗内当前已勾选的标签（按全局顺序展示） */
+const draftTags = computed(() =>
+  tagStore.sorted.filter((t) => tagDraft.value.includes(t.id))
+);
+
+function toggleTag(id: number) {
+  const i = tagDraft.value.indexOf(id);
+  if (i >= 0) tagDraft.value.splice(i, 1);
+  else tagDraft.value.push(id);
+}
+
 const sourceLabel = computed(() =>
   props.media ? SOURCE_LABELS[props.media.source as keyof typeof SOURCE_LABELS] ?? props.media.source : ""
 );
@@ -118,23 +129,27 @@ async function removeTag(tagId: number) {
   emit("changed");
 }
 
+/** 复制当前媒体图像到剪贴板（失败时降级复制文件路径） */
+async function copyToClipboard() {
+  if (!props.media) return;
+  const path = props.media.filePath;
+  try {
+    const msg = await api.copyToClipboard(path);
+    ElMessage.success(msg);
+  } catch (e) {
+    try {
+      await navigator.clipboard.writeText(path);
+      ElMessage.warning(`复制图像失败（${e}），已降级复制文件路径`);
+    } catch {
+      ElMessage.error(`复制失败：${e}`);
+    }
+  }
+}
+
 // 右上角菜单操作
 function menuAction(action: string) {
-  if (action === "copy") {
-    const path = props.media!.filePath;
-    api
-      .copyToClipboard(path)
-      .then((msg) => ElMessage.success(msg))
-      .catch(async (e) => {
-        // 兜底：Web 剪贴板复制路径文本
-        try {
-          await navigator.clipboard.writeText(path);
-          ElMessage.warning(`复制图像失败（${e}），已降级复制文件路径`);
-        } catch {
-          ElMessage.error(`复制失败：${e}`);
-        }
-      });
-  } else if (action === "export") emit("export");
+  if (action === "copy") copyToClipboard();
+  else if (action === "export") emit("export");
   else if (action === "reveal") {
     // 在文件管理器中显示该文件
     revealItemInDir(props.media!.filePath).catch((e) =>
@@ -163,6 +178,9 @@ function menuAction(action: string) {
             <el-icon :size="18"><ArrowLeft /></el-icon>
           </button>
           <span class="detail-title text-ellipsis">{{ media.fileName }}</span>
+          <button class="icon-btn" title="复制到剪贴板" @click="copyToClipboard">
+            <el-icon :size="18"><CopyDocument /></el-icon>
+          </button>
           <el-dropdown trigger="click" @command="menuAction">
             <button class="icon-btn">
               <el-icon :size="18"><MoreFilled /></el-icon>
@@ -261,12 +279,43 @@ function menuAction(action: string) {
         </footer>
 
         <!-- 打标签对话框 -->
-        <el-dialog v-model="tagDialog" title="管理标签" width="min(460px, 92%)">
-          <el-checkbox-group v-model="tagDraft" class="tag-checkboxes">
-            <el-checkbox v-for="t in tagStore.sorted" :key="t.id" :value="t.id">
-              {{ t.name }}
-            </el-checkbox>
-          </el-checkbox-group>
+        <el-dialog v-model="tagDialog" title="编辑标签" width="min(480px, 92%)" align-center>
+          <!-- 已选标签：彩色胶囊，可直接移除 -->
+          <div class="tag-section">
+            <div class="tag-section-head">
+              <span class="tag-section-title">已选标签</span>
+              <span class="tag-section-count">{{ tagDraft.length }}</span>
+            </div>
+            <div v-if="draftTags.length" class="tag-selected">
+              <TagChip
+                v-for="t in draftTags"
+                :key="t.id"
+                :tag="t"
+                closable
+                @close="toggleTag(t.id)"
+              />
+            </div>
+            <div v-else class="tag-hint">尚未选择标签，从下方标签中挑选</div>
+          </div>
+
+          <!-- 全部标签：点击切换选中 -->
+          <div class="tag-section">
+            <div class="tag-section-head">
+              <span class="tag-section-title">全部标签</span>
+            </div>
+            <div v-if="tagStore.sorted.length" class="tag-picker">
+              <TagChip
+                v-for="t in tagStore.sorted"
+                :key="t.id"
+                :tag="t"
+                ghost
+                :active="tagDraft.includes(t.id)"
+                @click="toggleTag(t.id)"
+              />
+            </div>
+            <div v-else class="tag-hint">暂无标签，可到「标签管理」页创建</div>
+          </div>
+
           <template #footer>
             <el-button @click="tagDialog = false">取消</el-button>
             <el-button type="primary" @click="saveTags">保存</el-button>
@@ -521,10 +570,78 @@ function menuAction(action: string) {
   font-variant-numeric: tabular-nums;
 }
 
-.tag-checkboxes {
+/* ===== 打标签弹窗 ===== */
+.tag-section + .tag-section {
+  margin-top: 16px;
+}
+
+.tag-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tag-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.tag-section-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 已选标签容器：虚线框 + 浅底，空时给出提示 */
+.tag-selected {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  align-content: flex-start;
+  gap: 6px;
+  min-height: 46px;
+  max-height: 108px;
+  overflow-y: auto;
+  padding: 9px 10px;
+  background: var(--input-bg);
+  border: 1px dashed var(--divider);
+  border-radius: 10px;
+}
+
+.tag-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 9px 10px;
+  background: var(--input-bg);
+  border: 1px dashed var(--divider);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* 可选标签网格：点击切换选中 */
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 2px;
 }
 
 /* 进场：从 0.985 缩放 + 淡入（真实物体不会从虚无中出现） */
