@@ -33,7 +33,10 @@ function onItemClick(m: Media) {
 <template>
   <div class="media-list">
     <template v-for="(g, gi) in groups" :key="gi">
-      <div class="list-header">{{ g.label }}</div>
+      <div class="list-header">
+        <span class="list-header-label">{{ g.label }}</span>
+        <span class="list-header-count">{{ g.items.length }} 张</span>
+      </div>
       <div
         v-for="m in g.items"
         :key="m.id"
@@ -68,19 +71,34 @@ function onItemClick(m: Media) {
   position: sticky;
   top: 0;
   z-index: 2;
-  padding: 10px 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 6px 8px;
+  background: var(--header-bg);
+  backdrop-filter: blur(6px);
+}
+
+.list-header-label {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
-  background: var(--header-bg);
-  backdrop-filter: blur(6px);
+  line-height: 1.2;
+}
+
+.list-header-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(0.5px);
 }
 
 .list-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px;
+  padding: 6px 8px;
   border-radius: 10px;
   cursor: pointer;
   border: 2px solid transparent;

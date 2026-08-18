@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { dragMediaOut } from "../utils/drag";
+import { fileSrc } from "../utils/asset";
 import type { Media } from "../types";
 import { useTagStore } from "../stores/tags";
 import { useSettingsStore } from "../stores/settings";
@@ -32,23 +32,45 @@ const tagStore = useTagStore();
 const settingsStore = useSettingsStore();
 
 const stageSrc = computed(() =>
-  props.media ? convertFileSrc(props.media.filePath) : ""
+  props.media ? fileSrc(props.media.filePath) : ""
 );
 const isVisual = computed(() => props.media?.mediaType !== "video");
 
-// 编辑描述
-const editingDesc = ref(false);
-const descDraft = ref("");
-
-// 只在切换到另一条媒体时重置编辑状态：后台刷新（media-changed → 列表重建，
+// 只在切换到另一条媒体时重置状态：后台刷新（media-changed → 列表重建，
 // 对象引用变化）不应打断正在进行的编辑、丢弃已输入的草稿
+const zoomed = ref(false);
 watch(
   () => props.media?.id,
   () => {
+    zoomed.value = false;
     editingDesc.value = false;
     descDraft.value = props.media?.description ?? "";
   }
 );
+
+// 键盘导航：←/→ 切换上一张/下一张，Esc 关闭（输入框聚焦时不拦截）
+function onKeydown(e: KeyboardEvent) {
+  const t = e.target as HTMLElement | null;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key === "ArrowLeft") emit("prev");
+  else if (e.key === "ArrowRight") emit("next");
+  else if (e.key === "Escape" && !tagDialog.value) emit("close");
+}
+
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) window.addEventListener("keydown", onKeydown);
+    else window.removeEventListener("keydown", onKeydown);
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
+
+// 编辑描述
+const editingDesc = ref(false);
+const descDraft = ref("");
 
 // 打标签对话框
 const tagDialog = ref(false);
@@ -58,6 +80,17 @@ const mediaTags = computed(() => {
   if (!props.media) return [];
   return tagStore.sorted.filter((t) => props.media!.tagIds.includes(t.id));
 });
+
+/** 弹窗内当前已勾选的标签（按全局顺序展示） */
+const draftTags = computed(() =>
+  tagStore.sorted.filter((t) => tagDraft.value.includes(t.id))
+);
+
+function toggleTag(id: number) {
+  const i = tagDraft.value.indexOf(id);
+  if (i >= 0) tagDraft.value.splice(i, 1);
+  else tagDraft.value.push(id);
+}
 
 const sourceLabel = computed(() =>
   props.media ? SOURCE_LABELS[props.media.source as keyof typeof SOURCE_LABELS] ?? props.media.source : ""
@@ -99,30 +132,35 @@ async function removeTag(tagId: number) {
   emit("changed");
 }
 
+/** 复制当前媒体图像到剪贴板（失败时降级复制文件路径） */
+async function copyToClipboard() {
+  if (!props.media) return;
+  const path = props.media.filePath;
+  try {
+    const msg = await api.copyToClipboard(path);
+    ElMessage.success(msg);
+  } catch (e) {
+    try {
+      await navigator.clipboard.writeText(path);
+      ElMessage.warning(`复制图像失败（${e}），已降级复制文件路径`);
+    } catch {
+      ElMessage.error(`复制失败：${e}`);
+    }
+  }
+}
+
 // 右上角菜单操作
 async function menuAction(action: string) {
-  if (action === "copy") {
-    const path = props.media!.filePath;
-    api
-      .copyToClipboard(path)
-      .then((msg) => ElMessage.success(msg))
-      .catch(async (e) => {
-        // 兜底：Web 剪贴板复制路径文本
-        try {
-          await navigator.clipboard.writeText(path);
-          ElMessage.warning(`复制图像失败（${e}），已降级复制文件路径`);
-        } catch {
-          ElMessage.error(`复制失败：${e}`);
-        }
-      });
-  } else if (action === "export") emit("export");
+  if (action === "copy") copyToClipboard();
+  else if (action === "export") emit("export");
   else if (action === "reveal") {
     // 在文件管理器中显示该文件
     revealItemInDir(props.media!.filePath).catch((e) =>
       ElMessage.error(`打开所在文件夹失败：${e}`)
     );
   } else if (action === "delete") {
-    // 保留天数为 0：直接永久删除（连同源文件）；否则进回收站
+    // 保留天数为 0：直接永久删除（连同源文件）；否则进回收站。
+    // 删除后不关闭详情页：父级刷新列表并校正索引，自动展示下一张
     const permanent = settingsStore.settings.recycleDays === 0;
     if (permanent) {
       try {
@@ -140,7 +178,6 @@ async function menuAction(action: string) {
       .then(async () => {
         ElMessage.success(permanent ? "已永久删除" : "已移入回收站");
         emit("changed");
-        emit("close");
       })
       .catch((e) => ElMessage.error(`删除失败：${e}`));
   }
@@ -157,6 +194,9 @@ async function menuAction(action: string) {
             <el-icon :size="18"><ArrowLeft /></el-icon>
           </button>
           <span class="detail-title text-ellipsis">{{ media.fileName }}</span>
+          <button class="icon-btn" title="复制到剪贴板" @click="copyToClipboard">
+            <el-icon :size="18"><CopyDocument /></el-icon>
+          </button>
           <el-dropdown trigger="click" @command="menuAction">
             <button class="icon-btn">
               <el-icon :size="18"><MoreFilled /></el-icon>
@@ -172,15 +212,17 @@ async function menuAction(action: string) {
           </el-dropdown>
         </header>
 
-        <!-- 大图区（可直接拖拽到其它应用/桌面） -->
-        <div class="detail-stage">
+        <!-- 大图区（可直接拖拽到其它应用/桌面；点击切换 原始尺寸/适应窗口） -->
+        <div class="detail-stage" :class="{ zoomed }">
           <img
             v-if="isVisual"
             :src="stageSrc"
             class="stage-img"
             alt=""
             draggable="true"
-            @dragstart="(e: DragEvent) => dragMediaOut(e, media!)"
+            :title="zoomed ? '点击缩小' : '点击查看原始尺寸'"
+            @click="zoomed = !zoomed"
+            @dragstart="(e: DragEvent) => media && dragMediaOut(e, media)"
           />
           <span v-else class="stage-placeholder">🎬 视频预览（待接入）</span>
           <span v-if="media.mediaType === 'gif'" class="stage-badge">GIF</span>
@@ -240,19 +282,56 @@ async function menuAction(action: string) {
           <button class="nav-btn" :disabled="index <= 0" @click="emit('prev')">
             <el-icon><ArrowLeft /></el-icon> 上一张
           </button>
-          <el-button type="primary" round @click="menuAction('export')">导出</el-button>
+          <div class="detail-center">
+            <span class="detail-pos" :title="'← / → 键快速切换'">{{ index + 1 }} / {{ total }}</span>
+            <el-button type="primary" round @click="menuAction('export')">
+              <el-icon><Download /></el-icon>
+              <span>导出</span>
+            </el-button>
+          </div>
           <button class="nav-btn" :disabled="index >= total - 1" @click="emit('next')">
             下一张 <el-icon><ArrowRight /></el-icon>
           </button>
         </footer>
 
         <!-- 打标签对话框 -->
-        <el-dialog v-model="tagDialog" title="管理标签" width="80%">
-          <el-checkbox-group v-model="tagDraft" class="tag-checkboxes">
-            <el-checkbox v-for="t in tagStore.sorted" :key="t.id" :value="t.id">
-              {{ t.name }}
-            </el-checkbox>
-          </el-checkbox-group>
+        <el-dialog v-model="tagDialog" title="编辑标签" width="min(480px, 92%)" align-center>
+          <!-- 已选标签：彩色胶囊，可直接移除 -->
+          <div class="tag-section">
+            <div class="tag-section-head">
+              <span class="tag-section-title">已选标签</span>
+              <span class="tag-section-count">{{ tagDraft.length }}</span>
+            </div>
+            <div v-if="draftTags.length" class="tag-selected">
+              <TagChip
+                v-for="t in draftTags"
+                :key="t.id"
+                :tag="t"
+                closable
+                @close="toggleTag(t.id)"
+              />
+            </div>
+            <div v-else class="tag-hint">尚未选择标签，从下方标签中挑选</div>
+          </div>
+
+          <!-- 全部标签：点击切换选中 -->
+          <div class="tag-section">
+            <div class="tag-section-head">
+              <span class="tag-section-title">全部标签</span>
+            </div>
+            <div v-if="tagStore.sorted.length" class="tag-picker">
+              <TagChip
+                v-for="t in tagStore.sorted"
+                :key="t.id"
+                :tag="t"
+                ghost
+                :active="tagDraft.includes(t.id)"
+                @click="toggleTag(t.id)"
+              />
+            </div>
+            <div v-else class="tag-hint">暂无标签，可到「标签管理」页创建</div>
+          </div>
+
           <template #footer>
             <el-button @click="tagDialog = false">取消</el-button>
             <el-button type="primary" @click="saveTags">保存</el-button>
@@ -294,16 +373,22 @@ async function menuAction(action: string) {
   border-radius: 8px;
   cursor: pointer;
   color: var(--text-main);
+  transition: background 0.15s ease-out, transform 0.12s var(--ease-out);
 }
 
 .icon-btn:hover {
   background: var(--hover-bg);
 }
 
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
 .detail-title {
   flex: 1;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .detail-stage {
@@ -317,6 +402,22 @@ async function menuAction(action: string) {
   border-radius: 12px;
   overflow: hidden;
   background: var(--input-bg);
+  /* 棋盘格：透明 PNG 边界可见，也让大图区与信息区形成层次 */
+  background-image: conic-gradient(
+    var(--checker) 0 25%,
+    transparent 0 50%,
+    var(--checker) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+}
+
+/* 放大模式：容器滚动，图片按原始像素显示 */
+.detail-stage.zoomed {
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: auto;
+  cursor: zoom-out;
 }
 
 .stage-img {
@@ -324,6 +425,15 @@ async function menuAction(action: string) {
   max-height: 100%;
   object-fit: contain;
   display: block;
+  cursor: zoom-in;
+}
+
+.detail-stage.zoomed .stage-img {
+  max-width: none;
+  max-height: none;
+  width: auto;
+  height: auto;
+  cursor: zoom-out;
 }
 
 .stage-placeholder {
@@ -440,13 +550,23 @@ async function menuAction(action: string) {
 .nav-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   border: none;
   background: none;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-main);
   cursor: pointer;
-  padding: 6px 8px;
+  padding: 9px 14px;
+  border-radius: 9px;
+  transition: background 0.15s ease-out, transform 0.12s var(--ease-out);
+}
+
+.nav-btn:not(:disabled):hover {
+  background: var(--hover-bg);
+}
+
+.nav-btn:not(:disabled):active {
+  transform: scale(0.96);
 }
 
 .nav-btn:disabled {
@@ -454,18 +574,106 @@ async function menuAction(action: string) {
   cursor: not-allowed;
 }
 
-.tag-checkboxes {
+.detail-center {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.detail-pos {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 打标签弹窗 ===== */
+.tag-section + .tag-section {
+  margin-top: 16px;
+}
+
+.tag-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.tag-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.tag-section-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 已选标签容器：虚线框 + 浅底，空时给出提示 */
+.tag-selected {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
+  align-content: flex-start;
+  gap: 6px;
+  min-height: 46px;
+  max-height: 108px;
+  overflow-y: auto;
+  padding: 9px 10px;
+  background: var(--input-bg);
+  border: 1px dashed var(--divider);
+  border-radius: 10px;
 }
 
-.fade-enter-active,
+.tag-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 9px 10px;
+  background: var(--input-bg);
+  border: 1px dashed var(--divider);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* 可选标签网格：点击切换选中 */
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+/* 进场：从 0.985 缩放 + 淡入（真实物体不会从虚无中出现） */
+.fade-enter-active {
+  transition: opacity 0.2s var(--ease-out), transform 0.2s var(--ease-out);
+}
+
 .fade-leave-active {
-  transition: opacity 0.15s ease;
+  transition: opacity 0.13s ease-out;
 }
 
-.fade-enter-from,
+.fade-enter-from {
+  opacity: 0;
+  transform: scale(0.985);
+}
+
 .fade-leave-to {
   opacity: 0;
 }

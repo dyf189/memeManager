@@ -228,7 +228,7 @@ function todo() {
     </div>
 
     <!-- ===== 设置面板对话框 ===== -->
-    <el-dialog v-model="dialogVisible" :title="panelTitle" width="80%" align-center>
+    <el-dialog v-model="dialogVisible" :title="panelTitle" width="min(480px, 92%)" align-center>
       <!-- 默认存储类型 -->
       <el-radio-group v-if="openPanel === 'storage'" v-model="settings.defaultStorage" class="panel-options">
         <el-radio value="user">用户目录（~/ 用户主目录，便于手动备份）</el-radio>
@@ -330,13 +330,16 @@ function todo() {
   display: flex;
   align-items: center;
   padding: 0 14px;
-  background: var(--card-bg);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--divider);
 }
 
 .settings-title {
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .settings-body {

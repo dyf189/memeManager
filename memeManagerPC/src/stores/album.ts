@@ -66,6 +66,20 @@ export const useAlbumStore = defineStore("album", () => {
     filter.value = emptyFilter();
   }
 
+  /** 筛选面板是否有生效的条件（用于空状态提示与清除按钮） */
+  const filterActive = computed(() => {
+    const f = filter.value;
+    return (
+      f.type !== "all" ||
+      f.source !== "all" ||
+      f.dir !== "all" ||
+      f.hasDescription !== "all" ||
+      f.tagIds.length > 0 ||
+      f.timeRange !== null ||
+      f.sizeRange !== null
+    );
+  });
+
   // —— 筛选 + 标签胶囊 + 搜索 组合过滤 ——
   const filteredMedia = computed<Media[]>(() => {
     let list = mediaList.value.filter((m) => !m.isDeleted);
@@ -167,6 +181,7 @@ export const useAlbumStore = defineStore("album", () => {
     loadMedia,
     setFilter,
     clearFilter,
+    filterActive,
     filteredMedia,
     dirList,
     enterMultiSelect,

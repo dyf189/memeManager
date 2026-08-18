@@ -11,6 +11,7 @@ const items = [
 <template>
   <aside class="side-nav">
     <div class="brand">
+      <span class="brand-logo"><el-icon :size="15"><Picture /></el-icon></span>
       <span class="brand-text">表情包管理器</span>
     </div>
 
@@ -38,6 +39,8 @@ const items = [
   display: flex;
   flex-direction: column;
   background: var(--sidebar-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-right: 1px solid var(--divider);
   transition: background 0.2s ease;
 }
@@ -45,10 +48,24 @@ const items = [
 .brand {
   display: flex;
   align-items: center;
+  gap: 9px;
   padding: 20px 16px 16px;
   font-size: 15px;
   font-weight: 700;
   color: var(--text-main);
+}
+
+.brand-logo {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.3);
 }
 
 .nav-list {
@@ -60,45 +77,35 @@ const items = [
 }
 
 .nav-item {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   border-radius: 8px;
-  color: var(--text-secondary);
+  color: var(--text-main);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 500;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
 }
 
 .nav-item:hover {
   background: var(--hover-bg);
-  color: var(--text-main);
 }
 
-/* 激活项：白底 + 左侧橙色指示条（CF 风格） */
-.nav-active {
-  background: var(--card-bg);
-  color: var(--text-main);
-  box-shadow: var(--shadow-sm);
+.nav-item:active {
+  background: var(--active-bg);
 }
 
-.nav-active::before {
-  content: "";
-  position: absolute;
-  left: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 18px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-
+/* 激活项：macOS 侧栏选中 —— 蓝色着色（图标+文字+浅蓝底） */
+.nav-active,
 .nav-active:hover {
-  background: var(--card-bg);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.nav-active :deep(.el-icon) {
+  color: var(--accent);
 }
 
 .nav-footer {

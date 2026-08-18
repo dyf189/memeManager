@@ -156,7 +156,7 @@ const sourceOptions: { label: string; value: SourceType | "all" }[] = [
 
 <style scoped>
 .filter-panel {
-  padding: 10px 14px 14px;
+  padding: 10px 16px 14px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--divider);
 }
@@ -164,12 +164,12 @@ const sourceOptions: { label: string; value: SourceType | "all" }[] = [
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  gap: 10px;
+  padding: 5px 0;
 }
 
 .filter-label {
-  width: 58px;
+  width: 64px;
   flex: none;
   font-size: 12px;
   color: var(--text-secondary);

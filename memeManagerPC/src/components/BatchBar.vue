@@ -21,7 +21,7 @@ const emit = defineEmits<{
       <el-icon><ArrowLeft /></el-icon>
       <span>取消</span>
     </button>
-    <span class="batch-count">已选 {{ count }} / {{ total }} 项</span>
+    <span class="batch-count">已选 <strong>{{ count }}</strong> / {{ total }} 项</span>
     <button class="batch-select-all" @click="emit('select-all')">
       <el-icon><Finished /></el-icon>
       <span>全选</span>
@@ -63,8 +63,11 @@ const emit = defineEmits<{
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  background: var(--card-bg);
+  background: var(--header-bg);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: 1px solid var(--divider);
+  box-shadow: var(--shadow-sm);
 }
 
 .batch-back {
@@ -76,13 +79,24 @@ const emit = defineEmits<{
   font-size: 14px;
   color: var(--text-main);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.batch-back:hover {
+  background: var(--hover-bg);
 }
 
 .batch-count {
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.batch-count strong {
+  color: var(--accent);
+  font-size: 15px;
 }
 
 .batch-select-all {
@@ -121,10 +135,15 @@ const emit = defineEmits<{
   color: var(--text-main);
   font-size: 18px;
   cursor: pointer;
+  transition: background 0.15s ease-out, color 0.15s ease-out, transform 0.12s var(--ease-out);
 }
 
 .batch-btn:hover {
   background: var(--hover-bg);
+}
+
+.batch-btn:active {
+  transform: scale(0.92);
 }
 
 .batch-btn.danger:hover {

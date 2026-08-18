@@ -1,7 +1,7 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { startDrag } from "@crabnebula/tauri-plugin-drag";
 import { ElMessage } from "element-plus";
 import type { Media } from "../types";
+import { fileSrc } from "./asset";
 
 /**
  * 系统级拖拽（拖出到桌面/文件管理器/其它应用）：
@@ -60,7 +60,7 @@ export function prewarmIcon(media: Media, size = 128): void {
     iconCache.set(key, canvas.toDataURL("image/png"));
   };
   img.onerror = () => iconCache.set(key, solidIcon(media, size));
-  img.src = convertFileSrc(media.filePath);
+  img.src = fileSrc(media.filePath);
 }
 
 /** 批量预热（列表加载后调用，限制数量避免一次性加载过多） */
@@ -68,11 +68,17 @@ export function prewarmIcons(mediaList: Media[], limit = 200): void {
   mediaList.slice(0, limit).forEach(prewarmIcon);
 }
 
+/** 是否运行在 Tauri WebView 内：非 Tauri 环境（浏览器调试）不支持系统级拖出 */
+const canSystemDrag =
+  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
 /**
  * 从 dragstart 事件发起系统级拖拽（同步）。
  * 必须调用 e.preventDefault() 阻止 WebView 内部 HTML5 拖拽。
+ * 浏览器调试模式下放行原生拖拽行为（不弹错误）。
  */
 export function dragMediaOut(e: DragEvent, media: Media): void {
+  if (!canSystemDrag) return;
   e.preventDefault();
 
   // 同步获取图标：缓存命中用真实缩略图，未命中先用占位（保证不阻塞拖拽）
