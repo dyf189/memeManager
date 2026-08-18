@@ -620,13 +620,23 @@ async function startMpakImport(destDir: string) {
   padding: 0 12px;
   background: var(--input-bg);
   border-radius: 16px;
-  border: 1px solid transparent;
-  transition: box-shadow 0.15s ease;
+  border: 1px solid var(--divider);
+  transition:
+    box-shadow 0.18s var(--ease-out),
+    border-color 0.18s var(--ease-out),
+    background-color 0.18s var(--ease-out);
 }
 
-/* 聚焦：iOS 式蓝色光晕，底色保持系统填充 */
+/* 聚焦：分层羽化的柔和光晕（hairline 描边 + 阶梯式光环 + 光晕扩散），
+   底色浮起为卡片色，边框染上主题色，营造真实“发光”而非硬环 */
 .search-box:focus-within {
-  box-shadow: 0 0 0 3.5px var(--accent-bg);
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  background: var(--card-bg);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent),
+    0 0 0 6px color-mix(in srgb, var(--accent) 4%, transparent),
+    0 8px 24px -8px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .search-icon {
@@ -681,13 +691,13 @@ async function startMpakImport(destDir: string) {
 }
 
 .add-btn {
-  color: #fff;
+  color: var(--accent-contrast);
   background: var(--accent);
-  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.3);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .add-btn:hover {
-  color: #fff;
+  color: var(--accent-contrast);
   background: var(--accent-strong);
 }
 

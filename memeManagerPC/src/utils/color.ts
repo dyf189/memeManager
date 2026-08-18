@@ -10,6 +10,50 @@ export function textColorFor(bg: string): string {
   return luminance > 0.6 ? "#1f2329" : "#ffffff";
 }
 
+export interface Rgb {
+  r: number;
+  g: number;
+  b: number;
+}
+
+/** 解析 #rgb / #rrggbb 为 RGB，非法输入返回 null */
+export function hexToRgb(hex: string): Rgb | null {
+  let h = hex.trim().replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+
+/** Rgb → #rrggbb（规范化输出） */
+export function rgbToHex({ r, g, b }: Rgb): string {
+  const to = (n: number) =>
+    Math.round(Math.min(255, Math.max(0, n))).toString(16).padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+/** 两个十六进制色按比例 t（0~1）混合，t=1 时完全为目标色 */
+export function mixHex(from: string, to: string, t: number): string | null {
+  const a = hexToRgb(from);
+  const b = hexToRgb(to);
+  if (!a || !b) return null;
+  return rgbToHex({
+    r: a.r + (b.r - a.r) * t,
+    g: a.g + (b.g - a.g) * t,
+    b: a.b + (b.b - a.b) * t,
+  });
+}
+
+/** 十六进制色 → rgba() 字符串（派生半透明强调色用） */
+export function alphaHex(hex: string, alpha: number): string | null {
+  const c = hexToRgb(hex);
+  if (!c) return null;
+  return `rgba(${c.r}, ${c.g}, ${c.b}, ${alpha})`;
+}
+
 /** 标签预设色（新建标签时循环分配） */
 export const PRESET_TAG_COLORS = [
   "#f56c6c",

@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { PRESET_TAG_COLORS } from "../utils/color";
-import { useThemeStore, type ThemeMode } from "../stores/theme";
+import { PRESET_TAG_COLORS, textColorFor } from "../utils/color";
+import {
+  useThemeStore,
+  type ThemeMode,
+  ACCENT_PRESETS,
+  DEFAULT_ACCENT,
+} from "../stores/theme";
 import { useSettingsStore } from "../stores/settings";
 import { useAlbumStore } from "../stores/album";
 import { api } from "../api";
@@ -88,6 +93,16 @@ const themeMode = computed<ThemeMode>({
   set: (v: ThemeMode) => themeStore.setMode(v),
 });
 
+// 自定义主题色取色器：与 store 双向同步
+const customAccent = ref(themeStore.accent);
+watch(
+  () => themeStore.accent,
+  (v) => (customAccent.value = v)
+);
+function onCustomAccent(c: string | null) {
+  if (c) themeStore.setAccent(c);
+}
+
 async function clearRecycle() {
   try {
     await ElMessageBox.confirm("确定清空回收站吗？删除后不可恢复。", "清空回收站", {
@@ -159,6 +174,7 @@ function todo() {
         </div>
         <div class="item" @click="openPanel = 'theme'">
           <span class="item-label">主题</span>
+          <span class="accent-dot" :style="{ background: themeStore.accent }"></span>
           <span class="item-value">{{ themeLabels[themeStore.mode] }}</span>
           <el-icon class="item-arrow"><ArrowRight /></el-icon>
         </div>
@@ -257,12 +273,48 @@ function todo() {
         <el-radio value="import">导入日期</el-radio>
       </el-radio-group>
 
-      <!-- 主题 -->
-      <el-radio-group v-else-if="openPanel === 'theme'" v-model="themeMode" class="panel-options">
-        <el-radio value="light">浅色</el-radio>
-        <el-radio value="dark">深色</el-radio>
-        <el-radio value="system">跟随系统</el-radio>
-      </el-radio-group>
+      <!-- 主题：外观模式 + 主题色 -->
+      <template v-else-if="openPanel === 'theme'">
+        <el-radio-group v-model="themeMode" class="panel-options">
+          <el-radio value="light">浅色</el-radio>
+          <el-radio value="dark">深色</el-radio>
+          <el-radio value="system">跟随系统</el-radio>
+        </el-radio-group>
+
+        <div class="theme-divider"></div>
+
+        <div class="accent-head">
+          <span class="accent-title">主题色</span>
+          <el-button size="small" link type="primary" @click="themeStore.setAccent(DEFAULT_ACCENT)">
+            恢复默认
+          </el-button>
+        </div>
+        <div class="accent-grid">
+          <button
+            v-for="c in ACCENT_PRESETS"
+            :key="c"
+            class="accent-swatch"
+            :class="{ on: themeStore.accent === c }"
+            :style="{ background: c, color: textColorFor(c) }"
+            :title="c"
+            @click="themeStore.setAccent(c)"
+          >
+            <el-icon v-if="themeStore.accent === c" :size="13"><Check /></el-icon>
+          </button>
+        </div>
+
+        <div class="accent-custom">
+          <span class="accent-title">自定义</span>
+          <el-color-picker v-model="customAccent" size="small" @change="onCustomAccent" />
+          <span class="accent-custom-val">{{ themeStore.accent }}</span>
+        </div>
+
+        <div class="accent-preview">
+          <span class="preview-btn">示例按钮</span>
+          <span class="preview-chip">标签胶囊</span>
+          <span class="preview-switch"></span>
+        </div>
+      </template>
 
       <!-- 网格列数 -->
       <template v-else-if="openPanel === 'grid'">
@@ -439,6 +491,136 @@ function todo() {
   aspect-ratio: 1;
   background: var(--input-bg);
   border-radius: 6px;
+}
+
+/* ===== 主题面板：主题色 ===== */
+.theme-divider {
+  border-top: 1px solid var(--divider);
+  margin: 16px 0 14px;
+}
+
+.accent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.accent-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.accent-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.accent-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out);
+}
+
+.accent-swatch:hover {
+  transform: scale(1.1);
+}
+
+.accent-swatch:active {
+  transform: scale(0.94);
+}
+
+.accent-swatch.on {
+  box-shadow: 0 0 0 2px var(--card-bg), 0 0 0 4px var(--accent);
+}
+
+.accent-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.accent-custom-val {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.accent-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+  background: var(--input-bg);
+}
+
+.preview-btn {
+  height: 28px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.preview-chip {
+  height: 24px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.preview-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--accent);
+  margin-left: auto;
+}
+
+.preview-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* 设置列表「主题」行右侧的当前主题色圆点 */
+.accent-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 0 1px rgba(120, 120, 130, 0.35);
 }
 
 .color-grid {
